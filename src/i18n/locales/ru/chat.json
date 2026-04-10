@@ -3,6 +3,7 @@
     "gatewayRequired": "Для использования чата требуется запущенный шлюз OpenClaw. Он запустится автоматически, или вы можете запустить его в Настройках.",
     "welcome": {
         "title": "Чат ClawX",
+        "brandAlt": "ClawX",
         "subtitle": "Чем могу помочь?",
         "askQuestions": "Задачи",
         "askQuestionsDesc": "Работа над задачами",

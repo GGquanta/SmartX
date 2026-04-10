@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { useStickToBottomInstant } from '@/hooks/use-stick-to-bottom-instant';
 import { useMinLoading } from '@/hooks/use-min-loading';
+import brandImage from '@/assets/brand.png';
 
 export function Chat() {
   const { t } = useTranslation('chat');
@@ -237,7 +238,7 @@ export function Chat() {
       <div className="min-h-0 flex-1 overflow-hidden px-4 py-4">
         <div className="mx-auto flex h-full min-h-0 max-w-6xl flex-col gap-4 lg:flex-row lg:items-stretch">
           <div ref={scrollRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-            <div ref={contentRef} className="max-w-4xl space-y-4">
+            <div ref={contentRef} className="max-w-4xl space-y-4 mx-auto">
               {isEmpty ? (
                 <WelcomeScreen />
               ) : (
@@ -376,7 +377,17 @@ function WelcomeScreen() {
 
   return (
     <div className="flex flex-col items-center justify-center text-center h-[60vh]">
-      <h1 className="text-4xl md:text-5xl font-serif text-foreground/80 mb-8 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+      <div
+        className="mb-6 w-full max-w-[min(100%,500px)] aspect-[2/1] overflow-hidden"
+        data-testid="chat-welcome-brand"
+      >
+        <img
+          src={brandImage}
+          alt={t('welcome.brandAlt')}
+          className="h-full w-full object-cover object-center"
+        />
+      </div>
+      <h1 className="text-2xl md:text-3xl font-serif text-foreground/80 mb-8 font-normal tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>
         {t('welcome.subtitle')}
       </h1>
 

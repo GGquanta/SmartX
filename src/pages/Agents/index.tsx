@@ -182,7 +182,7 @@ export function Agents() {
           <div>
             <h1
               className="text-5xl md:text-6xl font-serif text-foreground mb-3 font-normal tracking-tight"
-              style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}
+              style={{ fontFamily: 'var(--font-display)' }}
             >
               {t('title')}
             </h1>

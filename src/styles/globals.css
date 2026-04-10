@@ -4,8 +4,8 @@
 
 @layer base {
   :root {
-    /* #f1ede1 */
-    --background: 45 36.4% 91.4%;
+    /* 淡蓝底（偏白）：与 primary 蓝色系协调 */
+    --background: 214 28% 97.5%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
@@ -25,6 +25,7 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.5rem;
+    --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
 
   /* Neutral deep-gray dark palette */

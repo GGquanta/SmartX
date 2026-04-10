@@ -219,7 +219,7 @@ export function Sidebar() {
     <aside
       data-testid="sidebar"
       className={cn(
-        'flex min-h-0 shrink-0 flex-col overflow-hidden border-r bg-[#eae8e1]/60 dark:bg-background transition-all duration-300',
+        'flex min-h-0 shrink-0 flex-col overflow-hidden border-r bg-[#e8eef5]/60 dark:bg-background transition-all duration-300',
         sidebarCollapsed ? 'w-16' : 'w-64'
       )}
     >
@@ -229,7 +229,7 @@ export function Sidebar() {
           <div className="flex items-center gap-2 px-2 overflow-hidden">
             <img src={logoSvg} alt="ClawX" className="h-5 w-auto shrink-0" />
             <span className="text-sm font-semibold truncate whitespace-nowrap text-foreground/90">
-              ClawX
+              小光
             </span>
           </div>
         )}
@@ -359,6 +359,8 @@ export function Sidebar() {
         </NavLink>
 
         <Button
+          disabled={true}
+          style={{ display: 'none' }}
           data-testid="sidebar-open-dev-console"
           variant="ghost"
           className={cn(

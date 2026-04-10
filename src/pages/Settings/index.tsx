@@ -478,7 +478,7 @@ export function Settings() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-start justify-between mb-12 shrink-0 gap-4">
           <div>
-            <h1 className="text-5xl md:text-6xl font-serif text-foreground mb-3 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h1 className="text-5xl md:text-6xl font-serif text-foreground mb-3 font-normal tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>
               {t('title')}
             </h1>
             <p className="text-[17px] text-foreground/70 font-medium">
@@ -492,7 +492,7 @@ export function Settings() {
 
           {/* Appearance */}
           <div>
-            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>
               {t('appearance.title')}
             </h2>
             <div className="space-y-6">
@@ -559,7 +559,7 @@ export function Settings() {
 
           {/* Gateway */}
           <div>
-            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>
               {t('gateway.title')}
             </h2>
             <div className="space-y-6">
@@ -664,7 +664,7 @@ export function Settings() {
             <>
               <Separator className="bg-black/5 dark:bg-white/5" />
               <div data-testid="settings-developer-section">
-                <h2 data-testid="settings-developer-title" className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+                <h2 data-testid="settings-developer-title" className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>
                   {t('developer.title')}
                 </h2>
                 <div className="space-y-8">
@@ -1037,7 +1037,7 @@ export function Settings() {
 
           {/* Updates */}
           <div>
-            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>
               {t('updates.title')}
             </h2>
             <div className="space-y-6">
@@ -1078,7 +1078,7 @@ export function Settings() {
 
           {/* About */}
           <div>
-            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>
               {t('about.title')}
             </h2>
             <div className="space-y-3 text-[14px] text-muted-foreground">

@@ -3,7 +3,8 @@
     "gatewayRequired": "OpenClaw 网关需要运行才能使用聊天。它将自动启动，或者您可以从设置中启动。",
     "welcome": {
         "title": "ClawX 聊天",
-        "subtitle": "我能为你做些什么？",
+        "brandAlt": "小光",
+        "subtitle": "你好，我是国光量子智能办公助理 · 小光，需要我做些什么？",
         "askQuestions": "处理任务",
         "askQuestionsDesc": "处理面向任务的请求",
         "creativeTasks": "持续执行",
