@@ -1,5 +1,6 @@
 {
     "sidebar": {
+        "title": "ClawX",
         "chat": "チャット",
         "newChat": "新しいチャット",
         "cronTasks": "定期タスク",

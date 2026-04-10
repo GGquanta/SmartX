@@ -1,5 +1,6 @@
 {
     "sidebar": {
+        "title": "ClawX",
         "chat": "Chat",
         "newChat": "New Chat",
         "cronTasks": "Cron Tasks",

@@ -278,7 +278,7 @@ export function Models() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-start justify-between mb-12 shrink-0 gap-4">
           <div>
-            <h1 data-testid="models-page-title" className="text-5xl md:text-6xl font-serif text-foreground mb-3 font-normal tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>
+            <h1 data-testid="models-page-title" className="text-4xl md:text-5xl font-serif text-foreground mb-3 font-normal tracking-tight" style={{ fontFamily: 'var(--font-display)' }}>
               {t('dashboard:models.title')}
             </h1>
             <p className="text-[17px] text-foreground/70 font-medium">

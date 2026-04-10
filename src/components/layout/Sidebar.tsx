@@ -31,6 +31,7 @@ import { hostApiFetch } from '@/lib/host-api';
 import { useTranslation } from 'react-i18next';
 import logoSvg from '@/assets/logo.svg';
 
+
 type SessionBucketKey =
   | 'today'
   | 'yesterday'
@@ -229,7 +230,7 @@ export function Sidebar() {
           <div className="flex items-center gap-2 px-2 overflow-hidden">
             <img src={logoSvg} alt="ClawX" className="h-5 w-auto shrink-0" />
             <span className="text-sm font-semibold truncate whitespace-nowrap text-foreground/90">
-              小光
+              {t('sidebar.title')}
             </span>
           </div>
         )}
