@@ -51,6 +51,17 @@ fs.mkdirSync(OUTPUT, { recursive: true });
 echo`   Copying openclaw package...`;
 fs.cpSync(openclawReal, OUTPUT, { recursive: true, dereference: true });
 
+// 3b. Drop copied node_modules/ — we rebuild a flat, self-contained tree in
+// step 5 from the pnpm virtual store. The npm-published openclaw package can
+// ship a node_modules layout with symlinks (including absolute paths to
+// extension duplicates). If left in place, step 5 hits EEXIST and skips the
+// copy, leaving links that break electron-builder (libc++ equivalent() /
+// ENOTSUP) and can point at another clone of the repo on disk.
+const bundledNm = path.join(OUTPUT, 'node_modules');
+if (fs.existsSync(bundledNm)) {
+  fs.rmSync(bundledNm, { recursive: true, force: true });
+}
+
 // 4. Recursively collect ALL transitive dependencies via pnpm virtual store BFS
 //
 // pnpm structure example:
