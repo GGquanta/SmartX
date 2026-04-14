@@ -142,6 +142,22 @@ export function createMenu(): void {
           },
         },
         {
+          label: 'Research Tools',
+          accelerator: 'CmdOrCtrl+6',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow();
+            win?.webContents.send('navigate', '/research-tools');
+          },
+        },
+        {
+          label: 'Company Knowledge',
+          accelerator: 'CmdOrCtrl+7',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow();
+            win?.webContents.send('navigate', '/company-knowledge');
+          },
+        },
+        {
           label: 'Settings',
           accelerator: isMac ? 'Cmd+,' : 'Ctrl+,',
           click: () => {

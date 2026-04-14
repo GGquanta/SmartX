@@ -11,8 +11,16 @@
         "settings": "Settings",
         "devConsole": "Developer Console",
         "models": "Models",
+        "researchTools": "Research Tools",
+        "companyKnowledge": "Company Knowledge",
         "deleteSessionConfirm": "Are you sure you want to delete session \"{{label}}\"?",
         "openClawPage": "OpenClaw Page"
+    },
+    "researchToolsPage": {
+        "description": "Literature search, experiments, and analysis helpers will be connected here."
+    },
+    "companyKnowledgePage": {
+        "description": "Internal documents and knowledge retrieval will be connected here."
     },
     "actions": {
         "save": "Save",

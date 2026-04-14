@@ -18,6 +18,8 @@ import {
   ExternalLink,
   Trash2,
   Cpu,
+  Microscope,
+  Library,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSettingsStore } from '@/stores/settings';
@@ -214,6 +216,8 @@ export function Sidebar() {
     { to: '/channels', icon: <Network className="h-[18px] w-[18px]" strokeWidth={2} />, label: t('sidebar.channels'), testId: 'sidebar-nav-channels' },
     { to: '/skills', icon: <Puzzle className="h-[18px] w-[18px]" strokeWidth={2} />, label: t('sidebar.skills'), testId: 'sidebar-nav-skills' },
     { to: '/cron', icon: <Clock className="h-[18px] w-[18px]" strokeWidth={2} />, label: t('sidebar.cronTasks'), testId: 'sidebar-nav-cron' },
+    { to: '/research-tools', icon: <Microscope className="h-[18px] w-[18px]" strokeWidth={2} />, label: t('sidebar.researchTools'), testId: 'sidebar-nav-research-tools' },
+    { to: '/company-knowledge', icon: <Library className="h-[18px] w-[18px]" strokeWidth={2} />, label: t('sidebar.companyKnowledge'), testId: 'sidebar-nav-company-knowledge' },
   ];
 
   return (

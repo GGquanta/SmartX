@@ -18,6 +18,14 @@ test.describe('ClawX main navigation without setup flow', () => {
 
       await page.getByTestId('sidebar-nav-channels').click();
       await expect(page.getByTestId('channels-page')).toBeVisible();
+
+      await page.getByTestId('sidebar-nav-research-tools').click();
+      await expect(page.getByTestId('research-tools-page')).toBeVisible();
+      await expect(page.getByTestId('research-tools-page-title')).toBeVisible();
+
+      await page.getByTestId('sidebar-nav-company-knowledge').click();
+      await expect(page.getByTestId('company-knowledge-page')).toBeVisible();
+      await expect(page.getByTestId('company-knowledge-page-title')).toBeVisible();
     } finally {
       await closeElectronApp(app);
     }
