@@ -17,7 +17,8 @@
         "openClawPage": "OpenClaw ページ"
     },
     "researchToolsPage": {
-        "description": "文献検索・実験・分析などの研究支援機能を順次接続します。"
+        "description": "文献検索・実験・分析などの研究支援機能を順次接続します。",
+        "quafuLoginButton": "量子計算実験プラットフォームを開く"
     },
     "companyKnowledgePage": {
         "description": "社内ドキュメントとナレッジ検索を順次接続します。"

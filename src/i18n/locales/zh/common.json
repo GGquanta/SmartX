@@ -17,7 +17,8 @@
         "openClawPage": "OpenClaw 页面"
     },
     "researchToolsPage": {
-        "description": "文献检索、实验与数据分析等科研辅助能力将陆续接入。"
+        "description": "文献检索、实验与数据分析等科研辅助能力将陆续接入。",
+        "quafuLoginButton": "登陆量子计算实验平台"
     },
     "companyKnowledgePage": {
         "description": "企业内部文档与知识检索能力将陆续接入。"

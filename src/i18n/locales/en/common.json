@@ -17,7 +17,8 @@
         "openClawPage": "OpenClaw Page"
     },
     "researchToolsPage": {
-        "description": "Literature search, experiments, and analysis helpers will be connected here."
+        "description": "Literature search, experiments, and analysis helpers will be connected here.",
+        "quafuLoginButton": "Open the quantum computing experiment platform"
     },
     "companyKnowledgePage": {
         "description": "Internal documents and knowledge retrieval will be connected here."

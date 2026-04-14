@@ -122,6 +122,8 @@ Skills ページでは OpenClaw の複数ソース（管理ディレクトリ、
 - `BRAVE_SEARCH_API_KEY`: `brave-web-search` 用
 - `TAVILY_API_KEY`: `tavily-search` 用（上流ランタイムで OAuth 対応の場合あり）
 
+任意の UI 埋め込み（Vite 用に `.env` / `.env.local`）：`VITE_COMPANY_KNOWLEDGE_URL` — **企業ナレッジ**ページに埋め込む URL（既定は `http://localhost:5001/`）。
+
 ### 🔐 セキュアなプロバイダー統合
 複数のAIプロバイダー（OpenAI、Anthropicなど）に接続でき、資格情報はシステムのネイティブキーチェーンに安全に保存されます。OpenAI は API キーとブラウザ OAuth（Codex サブスクリプション）の両方に対応しています。
 OpenAI-compatible ゲートウェイを **Custom プロバイダー** で使う場合、**設定 → AI Providers → Provider 編集** でカスタム `User-Agent` を設定でき、互換性が必要なエンドポイントで有効です。

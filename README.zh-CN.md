@@ -123,6 +123,8 @@ Skills 页面可展示来自多个 OpenClaw 来源的技能（托管目录、wor
 - `BRAVE_SEARCH_API_KEY`：用于 `brave-web-search`
 - `TAVILY_API_KEY`：用于 `tavily-search`（上游运行时也可能支持 OAuth）
 
+可选 UI 内嵌（在 `.env` / `.env.local` 中配置 Vite）：`VITE_COMPANY_KNOWLEDGE_URL` — **企业知识库**页面内嵌地址（默认 `http://localhost:5001/`）。
+
 ### 🔐 安全的供应商集成
 连接多个 AI 供应商（OpenAI、Anthropic 等），凭证安全存储在系统原生密钥链中。OpenAI 同时支持 API Key 与浏览器 OAuth（Codex 订阅）登录。
 如果你通过 **自定义（Custom）Provider** 对接 OpenAI-compatible 网关，可以在 **设置 → AI Providers → 编辑 Provider** 中配置自定义 `User-Agent`，以提高兼容性。
