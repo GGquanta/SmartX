@@ -87,6 +87,8 @@ export interface ChatState {
   // Thinking
   showThinking: boolean;
   thinkingLevel: string | null;
+  /** When true, show the execution graph (对话执行) and suppress inline tool cards in that segment */
+  showExecutionInfo: boolean;
 
   // Actions
   loadSessions: () => Promise<void>;
@@ -109,6 +111,7 @@ export interface ChatState {
   abortRun: () => Promise<void>;
   handleChatEvent: (event: Record<string, unknown>) => void;
   toggleThinking: () => void;
+  toggleExecutionInfo: () => void;
   refresh: () => Promise<void>;
   clearError: () => void;
 }

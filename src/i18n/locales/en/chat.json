@@ -16,6 +16,8 @@
         "refresh": "Refresh chat",
         "showThinking": "Show thinking",
         "hideThinking": "Hide thinking",
+        "showExecutionInfo": "Show execution details",
+        "hideExecutionInfo": "Hide execution details",
         "currentAgent": "Talking to {{agent}}"
     },
     "taskPanel": {

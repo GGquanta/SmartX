@@ -36,6 +36,7 @@ export function Chat() {
   const sending = useChatStore((s) => s.sending);
   const error = useChatStore((s) => s.error);
   const showThinking = useChatStore((s) => s.showThinking);
+  const showExecutionInfo = useChatStore((s) => s.showExecutionInfo);
   const streamingMessage = useChatStore((s) => s.streamingMessage);
   const streamingTools = useChatStore((s) => s.streamingTools);
   const pendingFinal = useChatStore((s) => s.pendingFinal);
@@ -244,9 +245,10 @@ export function Chat() {
               ) : (
                 <>
                   {messages.map((msg, idx) => {
-                    const suppressToolCards = userRunCards.some((card) =>
-                      idx > card.triggerIndex && idx <= card.segmentEnd,
+                    const inUserRunToolSegment = userRunCards.some(
+                      (card) => idx > card.triggerIndex && idx <= card.segmentEnd,
                     );
+                    const suppressToolCards = !showExecutionInfo || inUserRunToolSegment;
                     return (
                     <div
                       key={msg.id || `msg-${idx}`}
@@ -260,7 +262,8 @@ export function Chat() {
                         suppressToolCards={suppressToolCards}
                         suppressProcessAttachments={suppressToolCards}
                       />
-                      {userRunCards
+                      {showExecutionInfo &&
+                        userRunCards
                         .filter((card) => card.triggerIndex === idx)
                         .map((card) => (
                           <ExecutionGraphCard
@@ -304,8 +307,10 @@ export function Chat() {
                             timestamp: streamingTimestamp,
                           }) as RawMessage}
                       showThinking={showThinking}
+                      suppressToolCards={!showExecutionInfo}
+                      suppressProcessAttachments={!showExecutionInfo}
                       isStreaming
-                      streamingTools={streamingTools}
+                      streamingTools={showExecutionInfo ? streamingTools : []}
                     />
                   )}
 

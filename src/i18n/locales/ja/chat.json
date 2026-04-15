@@ -16,6 +16,8 @@
         "refresh": "チャットを更新",
         "showThinking": "思考を表示",
         "hideThinking": "思考を非表示",
+        "showExecutionInfo": "実行情報を表示",
+        "hideExecutionInfo": "実行情報を非表示",
         "currentAgent": "現在の会話相手: {{agent}}"
     },
     "taskPanel": {

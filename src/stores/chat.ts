@@ -1017,6 +1017,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   showThinking: true,
   thinkingLevel: null,
+  showExecutionInfo: true,
 
   // ── Load sessions via sessions.list ──
 
@@ -2035,6 +2036,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // ── Toggle thinking visibility ──
 
   toggleThinking: () => set((s) => ({ showThinking: !s.showThinking })),
+
+  toggleExecutionInfo: () => set((s) => ({ showExecutionInfo: !s.showExecutionInfo })),
 
   // ── Refresh: reload history + sessions ──
 

@@ -16,6 +16,8 @@
         "refresh": "Обновить чат",
         "showThinking": "Показать размышления",
         "hideThinking": "Скрыть размышления",
+        "showExecutionInfo": "Показать сведения о выполнении",
+        "hideExecutionInfo": "Скрыть сведения о выполнении",
         "currentAgent": "Общение с {{agent}}"
     },
     "taskPanel": {

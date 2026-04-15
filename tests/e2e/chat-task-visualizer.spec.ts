@@ -222,6 +222,14 @@ test.describe('ClawX chat execution graph', () => {
       }
       await expect(page.getByTestId('main-layout')).toBeVisible();
       await expect(page.getByTestId('chat-execution-graph')).toBeVisible({ timeout: 30_000 });
+      await expect(page.getByTestId('chat-toggle-execution-info')).toBeVisible();
+
+      await page.getByTestId('chat-toggle-execution-info').click();
+      await expect(page.getByTestId('chat-execution-graph')).toHaveCount(0);
+
+      await page.getByTestId('chat-toggle-execution-info').click();
+      await expect(page.getByTestId('chat-execution-graph')).toBeVisible({ timeout: 30_000 });
+
       await expect(
         page.locator('[data-testid="chat-execution-graph"] [data-testid="chat-execution-step"]').getByText('sessions_yield', { exact: true }),
       ).toBeVisible();

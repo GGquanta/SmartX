@@ -16,6 +16,8 @@
         "refresh": "刷新聊天",
         "showThinking": "显示思考过程",
         "hideThinking": "隐藏思考过程",
+        "showExecutionInfo": "显示对话执行信息",
+        "hideExecutionInfo": "隐藏对话执行信息",
         "currentAgent": "当前对话对象：{{agent}}"
     },
     "taskPanel": {
