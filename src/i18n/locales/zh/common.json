@@ -18,7 +18,10 @@
     },
     "researchToolsPage": {
         "description": "文献检索、实验与数据分析等科研辅助能力将陆续接入。",
-        "quafuLoginButton": "登陆量子计算实验平台"
+        "quantumCloudTitle": "量子计算云平台",
+        "literatureKnowledgeTitle": "科研文献知识库",
+        "loginCloudButton": "登录云平台",
+        "visitKnowledgeButton": "访问知识库"
     },
     "companyKnowledgePage": {
         "description": "企业内部文档与知识检索能力将陆续接入。"

@@ -18,7 +18,10 @@
     },
     "researchToolsPage": {
         "description": "Literature search, experiments, and analysis helpers will be connected here.",
-        "quafuLoginButton": "Open the quantum computing experiment platform"
+        "quantumCloudTitle": "Quantum computing cloud",
+        "literatureKnowledgeTitle": "Research literature knowledge base",
+        "loginCloudButton": "Log in to cloud platform",
+        "visitKnowledgeButton": "Open knowledge base"
     },
     "companyKnowledgePage": {
         "description": "Internal documents and knowledge retrieval will be connected here."

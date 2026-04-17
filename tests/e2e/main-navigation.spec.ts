@@ -24,7 +24,10 @@ test.describe('ClawX main navigation without setup flow', () => {
       await page.getByTestId('sidebar-nav-research-tools').click();
       await expect(page.getByTestId('research-tools-page')).toBeVisible();
       await expect(page.getByTestId('research-tools-page-title')).toBeVisible();
-      await expect(page.getByTestId('research-tools-quafu-login-button')).toBeVisible();
+      await expect(page.getByTestId('research-tools-quantum-section')).toBeVisible();
+      await expect(page.getByTestId('research-tools-literature-section')).toBeVisible();
+      await expect(page.getByTestId('research-tools-login-cloud-button')).toBeVisible();
+      await expect(page.getByTestId('research-tools-visit-knowledge-button')).toBeVisible();
 
       await page.getByTestId('sidebar-nav-company-knowledge').click();
       await expect(page.getByTestId('company-knowledge-page')).toBeVisible();

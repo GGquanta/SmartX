@@ -18,7 +18,10 @@
     },
     "researchToolsPage": {
         "description": "Здесь появятся поиск литературы, эксперименты и аналитика.",
-        "quafuLoginButton": "Открыть платформу квантовых вычислительных экспериментов"
+        "quantumCloudTitle": "Облако квантовых вычислений",
+        "literatureKnowledgeTitle": "База научной литературы",
+        "loginCloudButton": "Войти в облако",
+        "visitKnowledgeButton": "Открыть базу знаний"
     },
     "companyKnowledgePage": {
         "description": "Здесь появятся внутренние документы и поиск по знаниям."
