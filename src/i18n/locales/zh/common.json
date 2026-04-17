@@ -1,6 +1,6 @@
 {
     "sidebar": {
-        "title": "小光 · 智能助理",
+        "title": "量子计算智能实验平台",
         "chat": "聊天",
         "newChat": "新对话",
         "cronTasks": "定时任务",
@@ -12,7 +12,7 @@
         "devConsole": "开发者控制台",
         "models": "模型参数",
         "researchTools": "科研工具",
-        "companyKnowledge": "企业知识库",
+        "companyKnowledge": "科研知识库",
         "deleteSessionConfirm": "确定要删除对话 \"{{label}}\" 吗？",
         "openClawPage": "OpenClaw 页面"
     },

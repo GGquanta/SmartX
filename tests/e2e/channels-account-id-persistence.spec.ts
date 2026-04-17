@@ -55,7 +55,9 @@ test.describe('Channels account editor behavior', () => {
     });
 
     await completeSetup(page);
-    await page.getByTestId('sidebar-nav-channels').click();
+    await page.evaluate(() => {
+      window.location.hash = '#/channels';
+    });
     await expect(page.getByTestId('channels-page')).toBeVisible();
 
     const addAccountButton = page.locator('button').filter({

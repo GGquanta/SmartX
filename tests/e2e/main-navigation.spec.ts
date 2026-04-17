@@ -16,7 +16,9 @@ test.describe('ClawX main navigation without setup flow', () => {
       await page.getByTestId('sidebar-nav-agents').click();
       await expect(page.getByTestId('agents-page')).toBeVisible();
 
-      await page.getByTestId('sidebar-nav-channels').click();
+      await page.evaluate(() => {
+        window.location.hash = '#/channels';
+      });
       await expect(page.getByTestId('channels-page')).toBeVisible();
 
       await page.getByTestId('sidebar-nav-research-tools').click();

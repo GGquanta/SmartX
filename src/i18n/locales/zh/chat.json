@@ -4,12 +4,12 @@
     "welcome": {
         "title": "ClawX 聊天",
         "brandAlt": "小光",
-        "subtitle": "你好，我是国光量子智能办公助理 · 小光，需要我做些什么？",
-        "askQuestions": "处理任务",
+        "subtitle": "你好，欢迎访问量子计算智能实验平台，需要我做些什么？",
+        "askQuestions": "提交计算任务",
         "askQuestionsDesc": "处理面向任务的请求",
-        "creativeTasks": "持续执行",
+        "creativeTasks": "查阅科研文献",
         "creativeTasksDesc": "持续推进多步骤工作",
-        "brainstorming": "多智能体并行"
+        "brainstorming": "分析实验数据"
     },
     "noLogs": "（暂无日志）",
     "toolbar": {

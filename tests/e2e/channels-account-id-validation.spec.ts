@@ -70,7 +70,9 @@ test.describe('Channels account ID validation', () => {
 
     await completeSetup(page);
 
-    await page.getByTestId('sidebar-nav-channels').click();
+    await page.evaluate(() => {
+      window.location.hash = '#/channels';
+    });
     await expect(page.getByTestId('channels-page')).toBeVisible();
     await expect(page.getByText('Feishu / Lark')).toBeVisible();
 

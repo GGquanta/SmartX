@@ -14,13 +14,15 @@ test.describe('ClawX gateway lifecycle resilience', () => {
     await page.getByTestId('sidebar-nav-agents').click();
     await expect(page.getByTestId('agents-page')).toBeVisible();
 
-    await page.getByTestId('sidebar-nav-channels').click();
+    await page.evaluate(() => {
+      window.location.hash = '#/channels';
+    });
     await expect(page.getByTestId('channels-page')).toBeVisible();
 
     await page.getByTestId('sidebar-nav-settings').click();
     await expect(page.getByTestId('settings-page')).toBeVisible();
 
-    // Navigate back to chat — the gateway status indicator should be visible
+    // Navigate back to chat — composer footer should remain stable (gateway status row may be hidden in UI)
     await page.getByTestId('sidebar-new-chat').click();
     // Verify the page didn't crash; main layout should still be stable
     await expect(page.getByTestId('main-layout')).toBeVisible();
@@ -140,7 +142,9 @@ test.describe('ClawX gateway lifecycle resilience', () => {
     await page.getByTestId('sidebar-nav-models').click();
     await expect(page.getByTestId('models-page')).toBeVisible();
 
-    await page.getByTestId('sidebar-nav-channels').click();
+    await page.evaluate(() => {
+      window.location.hash = '#/channels';
+    });
     await expect(page.getByTestId('channels-page')).toBeVisible();
   });
 });
