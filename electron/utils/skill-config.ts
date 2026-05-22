@@ -187,6 +187,124 @@ export async function getAllSkillConfigs(): Promise<Record<string, SkillEntry>> 
     return config.skills?.entries || {};
 }
 
+/** OpenClaw skill id for ~/.openclaw/openclaw.json → skills.entries */
+export const COMPANY_KNOWLEDGE_SKILL_KEY = 'company-knowledge';
+
+/** Env keys under skills.entries["company-knowledge"].env after SmartX web binding */
+export const COMPANY_KNOWLEDGE_BIND_ENV = {
+    API_BASE_URL: 'COMPANY_KNOWLEDGE_API_BASE_URL',
+    USER_ID: 'COMPANY_KNOWLEDGE_USER_ID',
+    NICKNAME: 'COMPANY_KNOWLEDGE_NICKNAME',
+    MAX_CLEARANCE: 'COMPANY_KNOWLEDGE_MAX_CLEARANCE',
+} as const;
+
+export type CompanyKnowledgeWebBindPayload = {
+    token: string;
+    apiBaseUrl: string;
+    userId: string;
+    nickname: string;
+    maxClearance: string;
+};
+
+const CLEARANCE_LEVELS = new Set(['S0', 'S1', 'S2']);
+
+export function parseCompanyKnowledgeWebBindPayload(raw: unknown):
+    | { ok: true; value: CompanyKnowledgeWebBindPayload }
+    | { ok: false; error: string } {
+    if (raw === undefined) {
+        return { ok: false, error: 'Payload is missing (must be JSON-serializable plain object)' };
+    }
+    if (!raw || typeof raw !== 'object') {
+        return { ok: false, error: 'Payload must be an object' };
+    }
+    const o = raw as Record<string, unknown>;
+    const token = typeof o.token === 'string' ? o.token.trim() : '';
+    const apiBaseUrl = typeof o.apiBaseUrl === 'string' ? o.apiBaseUrl.trim() : '';
+    const userId = typeof o.userId === 'string' ? o.userId.trim() : '';
+    const nickname = typeof o.nickname === 'string' ? o.nickname.trim() : '';
+    const maxClearanceRaw = typeof o.maxClearance === 'string' ? o.maxClearance.trim().toUpperCase() : '';
+
+    if (!token.startsWith('cka_')) {
+        return { ok: false, error: 'token must be a non-empty string with prefix cka_' };
+    }
+    if (!apiBaseUrl) {
+        return { ok: false, error: 'apiBaseUrl is required' };
+    }
+    let parsedUrl: URL;
+    try {
+        parsedUrl = new URL(apiBaseUrl);
+    } catch {
+        return { ok: false, error: 'apiBaseUrl must be a valid absolute URL' };
+    }
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        return { ok: false, error: 'apiBaseUrl must use http or https' };
+    }
+    if (!userId) {
+        return { ok: false, error: 'userId is required' };
+    }
+    if (!CLEARANCE_LEVELS.has(maxClearanceRaw)) {
+        return { ok: false, error: 'maxClearance must be one of S0, S1, S2' };
+    }
+
+    return {
+        ok: true,
+        value: {
+            token,
+            apiBaseUrl,
+            userId,
+            nickname,
+            maxClearance: maxClearanceRaw,
+        },
+    };
+}
+
+/**
+ * Persist SmartX Company Knowledge web bind payload into openclaw.json
+ * (skills.entries["company-knowledge"].apiKey + merged env).
+ */
+export async function bindCompanyKnowledgeFromWebview(
+    raw: unknown,
+): Promise<{ success: boolean; error?: string }> {
+    const parsed = parseCompanyKnowledgeWebBindPayload(raw);
+    if (!parsed.ok) {
+        return { success: false, error: parsed.error };
+    }
+    const payload = parsed.value;
+
+    try {
+        return await withConfigLock(async () => {
+            const config = await readConfig();
+            if (!config.skills) {
+                config.skills = {};
+            }
+            if (!config.skills.entries) {
+                config.skills.entries = {};
+            }
+
+            const prev = config.skills.entries[COMPANY_KNOWLEDGE_SKILL_KEY] || {};
+            const entry: SkillEntry = { ...prev };
+
+            entry.apiKey = payload.token;
+
+            const mergedEnv: Record<string, string> = { ...(entry.env || {}) };
+            mergedEnv[COMPANY_KNOWLEDGE_BIND_ENV.API_BASE_URL] = payload.apiBaseUrl;
+            mergedEnv[COMPANY_KNOWLEDGE_BIND_ENV.USER_ID] = payload.userId;
+            mergedEnv[COMPANY_KNOWLEDGE_BIND_ENV.NICKNAME] = payload.nickname;
+            mergedEnv[COMPANY_KNOWLEDGE_BIND_ENV.MAX_CLEARANCE] = payload.maxClearance;
+            entry.env = mergedEnv;
+
+            config.skills.entries[COMPANY_KNOWLEDGE_SKILL_KEY] = entry;
+
+            await writeConfig(config);
+            logger.info('[company-knowledge] Web bind persisted to openclaw.json');
+            return { success: true };
+        });
+    } catch (err) {
+        logger.warn('Failed to bind company-knowledge from webview:', err);
+        return { success: false, error: err instanceof Error ? err.message : String(err) };
+    }
+}
+
 /**
  * Built-in skills bundled with ClawX that should be pre-deployed to
  * ~/.openclaw/skills/ on first launch.  These come from the openclaw package's

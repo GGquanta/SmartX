@@ -21,7 +21,9 @@
         "quafuLoginButton": "量子計算実験プラットフォームを開く"
     },
     "companyKnowledgePage": {
-        "description": "社内ドキュメントとナレッジ検索を順次接続します。"
+        "description": "社内ドキュメントとナレッジ検索を順次接続します。",
+        "bindSaved": "企業ナレッジの紐付けを OpenClaw 設定に保存しました。",
+        "bindFailed": "紐付けの保存に失敗しました: {{error}}"
     },
     "actions": {
         "save": "保存",

@@ -51,6 +51,20 @@ export default defineConfig({
           },
         },
       },
+      {
+        entry: 'electron/preload/company-knowledge-webview.ts',
+        vite: {
+          build: {
+            outDir: 'dist-electron/preload',
+            rollupOptions: {
+              external: ['electron'],
+              output: {
+                entryFileNames: 'company-knowledge-webview.js',
+              },
+            },
+          },
+        },
+      },
     ]),
     renderer(),
   ],

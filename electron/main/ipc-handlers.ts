@@ -12,7 +12,14 @@ import { ClawHubService, ClawHubSearchParams, ClawHubInstallParams, ClawHubUnins
 import {
   type ProviderConfig,
 } from '../utils/secure-storage';
-import { getOpenClawStatus, getOpenClawDir, getOpenClawConfigDir, getOpenClawSkillsDir, ensureDir } from '../utils/paths';
+import {
+  getOpenClawStatus,
+  getOpenClawDir,
+  getOpenClawConfigDir,
+  getOpenClawSkillsDir,
+  ensureDir,
+  getCompanyKnowledgeWebviewPreloadPath,
+} from '../utils/paths';
 import { getOpenClawCliCommand } from '../utils/openclaw-cli';
 import { getAllSettings, getSetting, resetSettings, setSetting, type AppSettings } from '../utils/store';
 import {
@@ -39,7 +46,12 @@ import {
   ensureFeishuPluginInstalled,
   ensureWeComPluginInstalled,
 } from '../utils/plugin-install';
-import { updateSkillConfig, getSkillConfig, getAllSkillConfigs } from '../utils/skill-config';
+import {
+  updateSkillConfig,
+  getSkillConfig,
+  getAllSkillConfigs,
+  bindCompanyKnowledgeFromWebview,
+} from '../utils/skill-config';
 import { whatsAppLoginManager } from '../utils/whatsapp-login';
 import { getProviderConfig } from '../utils/provider-registry';
 import { deviceOAuthManager, OAuthProviderType } from '../utils/device-oauth';
@@ -719,6 +731,10 @@ function registerSkillConfigHandlers(): void {
   // Get all skill configs
   ipcMain.handle('skill:getAllConfigs', async () => {
     return await getAllSkillConfigs();
+  });
+
+  ipcMain.handle('company-knowledge:bindWebview', async (_, raw: unknown) => {
+    return await bindCompanyKnowledgeFromWebview(raw);
   });
 }
 
@@ -2098,6 +2114,8 @@ function registerAppHandlers(): void {
   ipcMain.handle('app:version', () => {
     return app.getVersion();
   });
+
+  ipcMain.handle('app:getCompanyKnowledgeWebviewPreloadPath', () => getCompanyKnowledgeWebviewPreloadPath());
 
   // Get app name
   ipcMain.handle('app:name', () => {

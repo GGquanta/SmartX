@@ -16,6 +16,10 @@ declare namespace JSX {
       className?: string;
       partition?: string;
       allowpopups?: string;
+      useragent?: string;
+      preload?: string;
+      /** Electron webPreferences as comma-separated key=value (e.g. contextIsolation=yes). */
+      webpreferences?: string;
       'data-testid'?: string;
     };
   }

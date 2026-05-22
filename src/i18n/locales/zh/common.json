@@ -21,7 +21,9 @@
         "quafuLoginButton": "登陆量子计算实验平台"
     },
     "companyKnowledgePage": {
-        "description": "企业内部文档与知识检索能力将陆续接入。"
+        "description": "企业内部文档与知识检索能力将陆续接入。",
+        "bindSaved": "企业知识库绑定已写入 OpenClaw 配置。",
+        "bindFailed": "绑定保存失败：{{error}}"
     },
     "actions": {
         "save": "保存",

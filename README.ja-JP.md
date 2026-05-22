@@ -123,6 +123,8 @@ Skills ページでは OpenClaw の複数ソース（管理ディレクトリ、
 - `TAVILY_API_KEY`: `tavily-search` 用（上流ランタイムで OAuth 対応の場合あり）
 
 任意の UI 埋め込み（Vite 用に `.env` / `.env.local`）：`VITE_COMPANY_KNOWLEDGE_URL` — **企業ナレッジ**ページに埋め込む URL（既定は `http://localhost:5001/`）。
+埋め込み `<webview>` は Chromium の既定 User-Agent に `SmartX/<アプリ版>`（`app.getVersion()`）を付与し、上流ページがデスクトップクライアントを判別しやすくします。
+専用 preload が `window.smartXBindKnowledgeBase(payload)` を注入し、検証済みペイロードを `~/.openclaw/openclaw.json` の `skills.entries["company-knowledge"]` にマージします（`apiKey`＝トークン、`env` に `COMPANY_KNOWLEDGE_API_BASE_URL` / `COMPANY_KNOWLEDGE_USER_ID` / `COMPANY_KNOWLEDGE_NICKNAME` / `COMPANY_KNOWLEDGE_MAX_CLEARANCE`）。デスクトップ側は `ipc-message` で Toast に成功・失敗を表示します。
 
 ### 🔐 セキュアなプロバイダー統合
 複数のAIプロバイダー（OpenAI、Anthropicなど）に接続でき、資格情報はシステムのネイティブキーチェーンに安全に保存されます。OpenAI は API キーとブラウザ OAuth（Codex サブスクリプション）の両方に対応しています。

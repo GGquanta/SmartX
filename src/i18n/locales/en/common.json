@@ -21,7 +21,9 @@
         "quafuLoginButton": "Open the quantum computing experiment platform"
     },
     "companyKnowledgePage": {
-        "description": "Internal documents and knowledge retrieval will be connected here."
+        "description": "Internal documents and knowledge retrieval will be connected here.",
+        "bindSaved": "Company knowledge binding saved to OpenClaw config.",
+        "bindFailed": "Could not save binding: {{error}}"
     },
     "actions": {
         "save": "Save",

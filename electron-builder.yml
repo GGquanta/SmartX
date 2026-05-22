@@ -38,6 +38,8 @@ afterPack: ./scripts/after-pack.cjs
 asar: true
 asarUnpack:
   - "**/*.node"
+  # Webview guest preload must be a real filesystem file for reliable injection of window.smartXBindKnowledgeBase
+  - "dist-electron/preload/company-knowledge-webview.js"
   # lru-cache CJS/ESM interop: older CJS versions (v5, v6, v7) don't export
   # `LRUCache` as a named property, breaking `import { LRUCache }` in Node.js
   # 22+ (Electron 40+).  Unpacking lets afterPack patch them in place.

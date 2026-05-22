@@ -39,6 +39,7 @@ const electronAPI = {
         'dialog:message',
         // App
         'app:version',
+        'app:getCompanyKnowledgeWebviewPreloadPath',
         'app:name',
         'app:getPath',
         'app:platform',

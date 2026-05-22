@@ -3,7 +3,8 @@
  * Cross-platform path resolution helpers
  */
 import { createRequire } from 'node:module';
-import { join } from 'path';
+import { join, normalize, sep } from 'path';
+import { pathToFileURL } from 'node:url';
 import { homedir } from 'os';
 import { existsSync, mkdirSync, readFileSync, realpathSync } from 'fs';
 
@@ -106,6 +107,26 @@ export function getResourcesDir(): string {
  */
 export function getPreloadPath(): string {
   return join(__dirname, '../preload/index.js');
+}
+
+/**
+ * Absolute file:// URL for the Company Knowledge <webview> preload script.
+ * Uses file URL + optional asar.unpacked resolution so the guest preload reliably loads
+ * when the app is packaged (webview preloads can fail to attach if the path is wrong).
+ */
+export function getCompanyKnowledgeWebviewPreloadPath(): string {
+  const diskPath = normalize(join(__dirname, '../preload/company-knowledge-webview.js'));
+  let resolved = diskPath;
+  if (!existsSync(resolved)) {
+    const marker = `${sep}app.asar${sep}`;
+    if (diskPath.includes(marker)) {
+      const unpacked = diskPath.replace(marker, `${sep}app.asar.unpacked${sep}`);
+      if (existsSync(unpacked)) {
+        resolved = unpacked;
+      }
+    }
+  }
+  return pathToFileURL(resolved).href;
 }
 
 /**

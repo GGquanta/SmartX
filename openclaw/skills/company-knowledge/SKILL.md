@@ -23,6 +23,22 @@ description: >-
 - 公开常识、与本公司无关的一般知识（直接用模型知识即可）。
 - 接口不可用、未配置基址或用户明确禁止访问内网服务时。
 
+## SmartX 桌面端绑定
+
+在 **SmartX** 应用内嵌的企业知识库 `<webview>` 中，宿主会注入全局函数 `window.smartXBindKnowledgeBase(payload)`（`void` 返回）。内嵌站点调用后，主进程将校验并合并写入 `~/.openclaw/openclaw.json` → `skills.entries["company-knowledge"]`：
+
+| 字段 | 写入位置 |
+|------|-----------|
+| `payload.token`（须以 `cka_` 开头） | `apiKey` |
+| `payload.apiBaseUrl` | `env.COMPANY_KNOWLEDGE_API_BASE_URL` |
+| `payload.userId` | `env.COMPANY_KNOWLEDGE_USER_ID` |
+| `payload.nickname` | `env.COMPANY_KNOWLEDGE_NICKNAME` |
+| `payload.maxClearance`（`S0` \| `S1` \| `S2`） | `env.COMPANY_KNOWLEDGE_MAX_CLEARANCE` |
+
+`env` 中与上述键重叠的项会被覆盖，其余已有键保留。未在 SmartX 内嵌环境打开时，页面侧应提示用户使用 SmartX 客户端完成绑定。
+
+排查：若 `typeof window.smartXBindKnowledgeBase !== 'function'`，请确认页面运行在 SmartX 企业知识库 `<webview>` 内（已加载专用 preload），且未在普通浏览器标签中测试绑定。**必须在「内嵌页」自己的开发者工具里检查 `window`（先对该 `<webview>` 调用 `openDevTools()`），不要在外壳主窗口的 DevTools 里检查**，否则会一直是 `undefined`。若函数存在但保存失败，请查看 SmartX 内 Toast 或主进程日志中的校验错误（`token` 须 `cka_` 前缀、`apiBaseUrl` 须 `http`/`https`、`maxClearance` 须 `S0`–`S2`）；Payload 须为可 `JSON.stringify` 的纯数据对象（勿传函数、循环引用）。
+
 ## API 约定
 
 | 项 | 说明 |
