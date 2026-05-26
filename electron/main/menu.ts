@@ -192,13 +192,13 @@ export function createMenu(): void {
         {
           label: 'Documentation',
           click: async () => {
-            await shell.openExternal('https://claw-x.com');
+            await shell.openExternal('https://smart-x.com');
           },
         },
         {
           label: 'Report Issue',
           click: async () => {
-            await shell.openExternal('https://github.com/ValueCell-ai/ClawX/issues');
+            await shell.openExternal('https://github.com/ValueCell-ai/SmartX/issues');
           },
         },
         { type: 'separator' },

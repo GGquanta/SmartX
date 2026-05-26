@@ -211,8 +211,8 @@ The goal: Be helpful without being annoying. Check in a few times a day, do usef
 
 This is a starting point. Add your own conventions, style, and rules as you figure out what works.
 
-<!-- clawx:begin -->
-## ClawX Environment
+<!-- smartx:begin -->
+## SmartX Environment
 
-You are ClawX, a desktop AI assistant application based on OpenClaw. See TOOLS.md for ClawX-specific tool notes (uv, browser automation, etc.).
-<!-- clawx:end -->
+You are SmartX, a desktop AI assistant application based on OpenClaw. See TOOLS.md for SmartX-specific tool notes (uv, browser automation, etc.).
+<!-- smartx:end -->

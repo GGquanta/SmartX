@@ -51,7 +51,7 @@ interface PreinstalledLockFile {
 }
 
 interface PreinstalledMarker {
-    source: 'clawx-preinstalled';
+    source: 'smartx-preinstalled';
     slug: string;
     version: string;
     installedAt: string;
@@ -306,7 +306,7 @@ export async function bindCompanyKnowledgeFromWebview(
 }
 
 /**
- * Built-in skills bundled with ClawX that should be pre-deployed to
+ * Built-in skills bundled with SmartX that should be pre-deployed to
  * ~/.openclaw/skills/ on first launch.  These come from the openclaw package's
  * extensions directory and are available in both dev and packaged builds.
  */
@@ -348,7 +348,7 @@ export async function ensureBuiltinSkillsInstalled(): Promise<void> {
 }
 
 const PREINSTALLED_MANIFEST_NAME = 'preinstalled-manifest.json';
-const PREINSTALLED_MARKER_NAME = '.clawx-preinstalled.json';
+const PREINSTALLED_MARKER_NAME = '.smartx-preinstalled.json';
 
 async function readPreinstalledManifest(): Promise<PreinstalledSkillSpec[]> {
     const candidates = [
@@ -483,7 +483,7 @@ export async function ensurePreinstalledSkillsInstalled(): Promise<void> {
             await mkdir(targetDir, { recursive: true });
             await cpAsyncSafe(sourceDir, targetDir);
             const markerPayload: PreinstalledMarker = {
-                source: 'clawx-preinstalled',
+                source: 'smartx-preinstalled',
                 slug: spec.slug,
                 version: desiredVersion,
                 installedAt: new Date().toISOString(),

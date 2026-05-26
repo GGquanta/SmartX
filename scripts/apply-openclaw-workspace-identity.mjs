@@ -6,7 +6,7 @@
  * After `bundle-openclaw.mjs`, overwrite OpenClaw's seeded workspace template
  * `docs/reference/templates/IDENTITY.md` inside `build/openclaw/` with the
  * repo's `openclaw/workspace/IDENTITY.md`, so the bundled gateway seeds
- * ClawX's identity instead of upstream OpenClaw defaults.
+ * SmartX's identity instead of upstream OpenClaw defaults.
  */
 
 import 'zx/globals';
@@ -15,7 +15,7 @@ const ROOT = path.resolve(__dirname, '..');
 const SOURCE = path.join(ROOT, 'openclaw', 'workspace', 'IDENTITY.md');
 const TARGET = path.join(ROOT, 'build', 'openclaw', 'docs', 'reference', 'templates', 'IDENTITY.md');
 
-echo`🪪 Applying ClawX IDENTITY.md to bundled OpenClaw workspace templates...`;
+echo`🪪 Applying SmartX IDENTITY.md to bundled OpenClaw workspace templates...`;
 
 if (!fs.existsSync(SOURCE)) {
   echo`❌ Source not found: ${SOURCE}`;

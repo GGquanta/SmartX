@@ -1,5 +1,5 @@
 {
-    "name": "clawx",
+    "name": "smartx",
     "version": "0.3.8",
     "pnpm": {
         "onlyBuiltDependencies": [
@@ -26,9 +26,9 @@
             ]
         }
     },
-    "description": "ClawX - Graphical AI Assistant based on OpenClaw",
+    "description": "SmartX - Graphical AI Assistant based on OpenClaw",
     "main": "dist-electron/main/index.js",
-    "author": "ClawX Team",
+    "author": "SmartX Team",
     "license": "MIT",
     "private": true,
     "scripts": {
