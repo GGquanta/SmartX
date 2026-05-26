@@ -5,7 +5,7 @@ description: >-
   organization, business, projects, meetings, and classified documents. Use
   when the user needs company-specific context, internal sources, or answers
   grounded in the corporate knowledge base; also when the user mentions 企业知识、
-  内部检索、业务/项目资料、会议纪要、知识库搜索.
+  内部检索、业务/项目资料、会议纪要、知识库搜索、量子技术.
 ---
 
 # 企业知识库检索
@@ -22,90 +22,94 @@ description: >-
 
 - 公开常识、与本公司无关的一般知识（直接用模型知识即可）。
 - 接口不可用、未配置基址或用户明确禁止访问内网服务时。
-
-## SmartX 桌面端绑定
-
-在 **SmartX** 应用内嵌的企业知识库 `<webview>` 中，宿主会注入全局函数 `window.smartXBindKnowledgeBase(payload)`（`void` 返回）。内嵌站点调用后，主进程将校验并合并写入 `~/.openclaw/openclaw.json` → `skills.entries["company-knowledge"]`：
-
-| 字段 | 写入位置 |
-|------|-----------|
-| `payload.token`（须以 `cka_` 开头） | `apiKey` |
-| `payload.apiBaseUrl` | `env.COMPANY_KNOWLEDGE_API_BASE_URL` |
-| `payload.userId` | `env.COMPANY_KNOWLEDGE_USER_ID` |
-| `payload.nickname` | `env.COMPANY_KNOWLEDGE_NICKNAME` |
-| `payload.maxClearance`（`S0` \| `S1` \| `S2`） | `env.COMPANY_KNOWLEDGE_MAX_CLEARANCE` |
-
-`env` 中与上述键重叠的项会被覆盖，其余已有键保留。未在 SmartX 内嵌环境打开时，页面侧应提示用户使用 SmartX 客户端完成绑定。
-
-排查：若 `typeof window.smartXBindKnowledgeBase !== 'function'`，请确认页面运行在 SmartX 企业知识库 `<webview>` 内（已加载专用 preload），且未在普通浏览器标签中测试绑定。**必须在「内嵌页」自己的开发者工具里检查 `window`（先对该 `<webview>` 调用 `openDevTools()`），不要在外壳主窗口的 DevTools 里检查**，否则会一直是 `undefined`。若函数存在但保存失败，请查看 SmartX 内 Toast 或主进程日志中的校验错误（`token` 须 `cka_` 前缀、`apiBaseUrl` 须 `http`/`https`、`maxClearance` 须 `S0`–`S2`）；Payload 须为可 `JSON.stringify` 的纯数据对象（勿传函数、循环引用）。
+- 用户禁止访问内网、或未配置可用 `{BASE}` / Token 时。
 
 ## API 约定
 
+通过 **Base URL**（默认为 `http://localhost:5001`）访问企业知识库。**程序化访问**须使用正确的API Key；文档中以占位符 **`<API_KEY>`** 表示，实际请求替换为真实密钥且**不得在对话中复述**。
+
+可以查看OpenClaw的配置文件来获取API Key，位置是skills.entries.company-knowledge.apiKey。
+
+无需向用户告知和回复API Key的获取过程。
+
+## 鉴权（所有下列接口）
+
 | 项 | 说明 |
 |----|------|
-| 方法 | `POST` |
-| 路径 | `/v1/search`（与基址拼接，例如 `http://127.0.0.1:3001/v1/search`） |
-| `Content-Type` | `application/json; charset=utf-8` |
-| 请求体 | JSON 对象，字段见下表 |
+| 请求头 | `Authorization: Bearer <API_KEY>` |
+| 说明 | 仅接受 Bearer；与 Cookie 会话混用时优先 Bearer，失败返回 401，不回退 Cookie。 |
+| 权限 | Token 绑定用户密级；检索与读文档均受 `classification`（S0/S1/S2）约束。 |
 
-### 请求体字段
+未配置 `AUTH_SESSION_SECRET` 时受保护路由不可用（503）。
+
+## 主要接口
+
+下列路径均与 **API 基址** `{BASE}` 拼接。
+
+### 1. 检索数据（语义检索）
+
+| 项 | 说明 |
+|----|------|
+| 方法 / 路径 | `POST {BASE}/v1/search` |
+| `Content-Type` | `application/json; charset=utf-8` |
+
+**请求体（JSON）：**
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `query` | string | 是 | 自然语言检索语句；可用中文关键词、项目名、主题；宜具体、可区分歧义。 |
-| `topK` | number 或 string | 否 | 返回条数上限；示例中可为字符串 `"5"`。未约定时默认使用较小值（如 5～10）以控制上下文长度。 |
+| `query` | string | 是 | 自然语言检索语句；中文关键词、项目名、主题；宜具体。 |
+| `topK` | number | 否 | 返回条数上限；未传时可用较小默认值（如 5～10）控制上下文长度。 |
 
-### 响应（成功时）
+**成功响应（常见顶层字段）：** `query`、`results`（可能为空）、`rerank_skipped`；`results[]` 中常含 `chunk_id`、`document_id`、`raw_key`、`classification`、`text`、`score`、`score_source`。作答时以 `raw_key`（及必要时 `classification`）作为出处；勿编造未出现在结果中的结论。
 
-顶层常见字段：
-
-| 字段 | 说明 |
-|------|------|
-| `query` | 服务端回显或规范化后的查询。 |
-| `results` | 命中片段数组；可能为空。 |
-| `rerank_skipped` | 布尔值，表示是否跳过重排序（若存在）。 |
-
-`results[]` 中每条通常包含：
-
-| 字段 | 说明 |
-|------|------|
-| `chunk_id` | 片段唯一标识。 |
-| `document_id` | 所属文档标识。 |
-| `raw_key` | 文档在库中的路径或键名，**作答时作为引用来源列出**。 |
-| `classification` | 密级或分类标签（如 `S0`）；回答中应尊重其敏感性表述。 |
-| `text` | 片段正文；可能含表格、换行、OCR 噪声。 |
-| `score` | 相关性分数；越高通常越相关。 |
-| `score_source` | 分数来源说明（如 `rerank`）。 |
-
-## 调用方式
-
-使用环境或配置中的**知识库服务基址**（示例：`http://127.0.0.1:3001`），与 `/v1/search` 拼接后发起请求。可用 `curl`、脚本或任意 HTTP 客户端；须设置正确的 `Content-Type` 与 UTF-8 编码的 JSON 体。
-
-**请求示例：**
+**示例：**
 
 ```http
 POST /v1/search HTTP/1.1
 Host: 127.0.0.1:3001
+Authorization: Bearer <API_KEY>
 Content-Type: application/json; charset=utf-8
 
-{"query":"量子科技","topK":"5"}
+{"query":"量子科技项目进展","topK":5}
 ```
 
-## 检索与作答流程
+### 2. 查看衍生数据
 
-1. **改写查询**：将用户问题浓缩为 1～3 条检索式；专有名词保持原样；可拆成「主题 + 场景」（如「超算中心 量子」）。
-2. **执行检索**：调用接口；若结果为空，调整关键词或 `topK` 后最多再试 1～2 次。
-3. **筛选片段**：优先采用 `score` 较高且 `text` 与问题直接相关的条目；明显无关或分数极低的片段可忽略并在答复中说明依据有限。
-4. **综合答案**：用自然语言归纳，不逐字堆砌 OCR 表格线；矛盾信息需并列说明并标注来源 `raw_key`。
-5. **引用规范**：在答复末尾或对应论断旁列出使用的 `raw_key`（及必要时 `classification`）；勿编造未出现在 `results` 中的文件名或结论。
+| 项 | 说明 |
+|----|------|
+| 方法 / 路径 | `GET {BASE}/v1/documents/{document_id}/derived-markdown` |
+| 路径参数 | `document_id`：UUID，通常来自检索结果 `document_id`。 |
 
-## 结果解读注意
+**响应：** `200` 时为 **Markdown 正文**（`text/markdown; charset=utf-8`），即衍生桶中该文档的 `main.md`。尚未生成衍生内容时可能 `404`（如「衍生内容尚未就绪」）。
 
-- `text` 可能来自 PDF/幻灯片，含竖排、表格竖线、乱码式分隔符；先理解语义再表述。
-- 低分条目可能为弱相关；勿过度推断。
-- 若仅部分问题被片段覆盖，明确写出**已知/未知**边界。
+内嵌图片等相对路径需经网关加载时，可使用同一 Bearer 调用  
+`GET {BASE}/v1/documents/{document_id}/derived-object?path=<URL 编码的相对路径>`（如 `media/xxx.png`）。
 
-## 安全与合规
+### 3. 查看原始数据
 
-- 基址与内网访问权限由部署环境决定；勿在对话中复述 API 密钥或令牌。
-- 遵守 `classification` 与组织的信息公开要求；不确定时采用更保守的表述或建议走正式渠道确认。
+| 项 | 说明 |
+|----|------|
+| 方法 / 路径 | `GET {BASE}/v1/documents/{document_id}/raw-url` |
+| 路径参数 | `document_id`：UUID。 |
+
+**响应（JSON）：** 含预签名下载信息，例如 `url`（限时有效）、`expiresIn`、`bucket`、`key`、`contentType`。用返回的 `url` 发起 **GET** 下载原始文件（第二次请求一般**不需要**再带 `Authorization`，依预签名 URL 即可）。
+
+若部署关闭原始访问，会返回与 `DOCUMENTS_ALLOW_RAW_ACCESS` 相关的 **403**，应如实告知用户。
+
+## 推荐调用顺序
+
+1. 用 **接口 1** 按用户问题检索，从 `results` 取相关 `document_id` 与 `raw_key` / `text`。
+2. 需要完整转换正文时，对同一 `document_id` 调用 **接口 2**。
+3. 需要 PDF/Office 等原文件时，调用 **接口 3** 再跟随 `url` 下载。
+
+## 检索与作答要点
+
+- 将用户问题改写成 1～3 条具体检索式；专有名词保持原样。
+- 结果为空时可调整关键词或略增大 `topK`，**最多再试 1～2 次**。
+- `text` 可能含 OCR/表格噪声；先理解语义再归纳，矛盾处并列说明并标注 `raw_key`。
+- 遵守密级与内网合规；不在对话中泄露 `<API_KEY>` 或完整预签名 URL 中的敏感参数。
+
+## 图片渲染
+
+- 如果用户需要查看知识库中包含的图片时，直接以MARKDOWN格式返回文本。
+- 知识库文本中可能存在类似于media/{file_name}这样的图片链接，请使用![]({BASE}/v1/documents/{document_id}/derived-object?path=media%2F{file_name})的格式输出。前端页面会自动完成渲染过程。
