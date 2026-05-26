@@ -23,9 +23,11 @@ permissions:
 
 # Repository variables (Settings → Secrets and variables → Actions → Variables):
 #   PUBLISH_GITHUB_RELEASE — set to 'true' to run publish + finalize (GitHub Releases); unset/false skips
-#   OSS_BUCKET — OSS bucket name (default: valuecell-smartx)
+#   OSS_BUCKET   — OSS bucket name (default: valuecell-smartx)
+#   OSS_ENDPOINT — ossutil endpoint (e.g. oss-cn-hongkong.aliyuncs.com)
 env:
   OSS_BUCKET: ${{ vars.OSS_BUCKET || 'valuecell-smartx' }}
+  OSS_ENDPOINT: ${{ vars.OSS_ENDPOINT }}
 
 jobs:
   release:
@@ -500,15 +502,20 @@ jobs:
         env:
           OSS_ACCESS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
           OSS_ACCESS_KEY_SECRET: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
-          OSS_BUCKET: ${{ env.OSS_BUCKET }}
+          OSS_ENDPOINT: ${{ env.OSS_ENDPOINT }}
         run: |
+          if [ -z "${OSS_ENDPOINT}" ]; then
+            echo "::error::OSS_ENDPOINT repository variable is not set"
+            exit 1
+          fi
+
           curl -sL https://gosspublic.alicdn.com/ossutil/install.sh | sudo bash
 
           # Write config file for non-interactive use
           cat > $HOME/.ossutilconfig << EOF
           [Credentials]
           language=EN
-          endpoint=oss-cn-hongkong.aliyuncs.com
+          endpoint=${OSS_ENDPOINT}
           accessKeyID=${OSS_ACCESS_KEY_ID}
           accessKeySecret=${OSS_ACCESS_KEY_SECRET}
           EOF

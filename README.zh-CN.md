@@ -167,6 +167,8 @@ pnpm run landing:preview
 
 更新发布包时，只需编辑 `landing-pages/smartx-download/public/downloads.json` 中的 `url` 与 `version` 字段，无需修改页面代码。`predev` / `prebuild` 会自动从仓库根目录 `images/` 与 `src/assets/logo.png` 同步图片资源。
 
+推送到 `main` 且改动涉及 `landing-pages/` 或落地页依赖的图片资源时，GitHub Actions 工作流 [Landing Pages (OSS)](.github/workflows/landing-pages-oss.yml) 会自动构建并发布到 OSS 桶根目录（与 Release 工作流共用 `OSS_ACCESS_KEY_*`、`OSS_ENDPOINT` 等变量）。也可在 Actions 页手动运行 **Landing Pages (OSS)**。
+
 #### 从源码构建
 
 ```bash

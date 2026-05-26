@@ -1,0 +1,166 @@
+# SmartX Landing Pages → Alibaba Cloud OSS
+# Builds static landing sites and publishes to the bucket root for CDN hosting.
+#
+# Triggers:
+#   - push to main when landing-related paths change
+#   - manual workflow_dispatch
+#
+# Repository variables (Settings → Actions → Variables):
+#   OSS_BUCKET   — bucket name (default: valuecell-smartx)
+#   OSS_ENDPOINT — ossutil endpoint (e.g. oss-cn-hongkong.aliyuncs.com)
+#   OSS_CDN_BASE — public CDN origin for summaries (default: https://oss.intelli-spectrum.com)
+#
+# Secrets (same as Release workflow):
+#   OSS_ACCESS_KEY_ID
+#   OSS_ACCESS_KEY_SECRET
+
+name: Landing Pages (OSS)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'landing-pages/**'
+      - 'images/**'
+      - 'src/assets/logo.png'
+      - 'resources/icons/**'
+      - '.github/workflows/landing-pages-oss.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: landing-pages-oss-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  OSS_BUCKET: ${{ vars.OSS_BUCKET || 'valuecell-smartx' }}
+  OSS_ENDPOINT: ${{ vars.OSS_ENDPOINT }}
+  OSS_CDN_BASE: ${{ vars.OSS_CDN_BASE || 'https://oss.intelli-spectrum.com' }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+          cache-dependency-path: landing-pages/smartx-download/package.json
+
+      - name: Install landing page dependencies
+        working-directory: landing-pages/smartx-download
+        env:
+          CI: 'true'
+        run: pnpm install
+
+      - name: Build landing page
+        working-directory: landing-pages/smartx-download
+        run: pnpm run build
+
+      - name: Verify build output
+        working-directory: landing-pages/smartx-download
+        run: |
+          test -f dist/index.html
+          test -f dist/downloads.json
+          echo "=== dist/ ==="
+          find dist -type f | sort
+
+      - name: Install and configure ossutil
+        env:
+          OSS_ACCESS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
+          OSS_ACCESS_KEY_SECRET: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
+          OSS_ENDPOINT: ${{ env.OSS_ENDPOINT }}
+        run: |
+          if [ -z "${OSS_ENDPOINT}" ]; then
+            echo "::error::OSS_ENDPOINT repository variable is not set"
+            exit 1
+          fi
+
+          curl -sL https://gosspublic.alicdn.com/ossutil/install.sh | sudo bash
+
+          cat > "$HOME/.ossutilconfig" << EOF
+          [Credentials]
+          language=EN
+          endpoint=${OSS_ENDPOINT}
+          accessKeyID=${OSS_ACCESS_KEY_ID}
+          accessKeySecret=${OSS_ACCESS_KEY_SECRET}
+          EOF
+
+          ossutil --version
+
+      - name: Upload landing page to OSS
+        run: |
+          DEST="oss://${{ env.OSS_BUCKET }}/"
+          DIST="landing-pages/smartx-download/dist"
+
+          echo "Deploying ${DIST}/ → ${DEST}"
+
+          # Only remove landing-owned root objects (keep latest/, releases/, etc.)
+          ossutil rm -f "${DEST}index.html" || true
+          ossutil rm -f "${DEST}downloads.json" || true
+          ossutil rm -r -f "${DEST}assets/" || true
+          ossutil rm -r -f "${DEST}images/" || true
+
+          if [ -d "${DIST}/assets" ]; then
+            ossutil cp -r -f \
+              --meta="Cache-Control:public,max-age=31536000,immutable" \
+              "${DIST}/assets/" \
+              "${DEST}assets/"
+          fi
+
+          if [ -d "${DIST}/images" ]; then
+            ossutil cp -r -f \
+              --meta="Cache-Control:public,max-age=86400" \
+              "${DIST}/images/" \
+              "${DEST}images/"
+          fi
+
+          for file in index.html downloads.json; do
+            if [ -f "${DIST}/${file}" ]; then
+              ossutil cp -f \
+                --meta="Cache-Control:no-cache,no-store,must-revalidate" \
+                "${DIST}/${file}" \
+                "${DEST}${file}"
+            fi
+          done
+
+          shopt -s nullglob
+          for file in "${DIST}"/*; do
+            base=$(basename "$file")
+            case "$base" in
+              assets|images|index.html|downloads.json) continue ;;
+            esac
+            if [ -f "$file" ]; then
+              ossutil cp -f \
+                --meta="Cache-Control:public,max-age=86400" \
+                "$file" \
+                "${DEST}${base}"
+            fi
+          done
+
+      - name: Verify OSS upload
+        run: |
+          DEST="oss://${{ env.OSS_BUCKET }}/"
+
+          echo "=== ${DEST} (landing files) ==="
+          ossutil ls "${DEST}" --short | grep -E '(^|/)(index\.html|downloads\.json|assets/|images/)' || true
+
+          ossutil cp "${DEST}index.html" /tmp/landing-index.html -f
+          test -s /tmp/landing-index.html
+
+          ossutil cp "${DEST}downloads.json" /tmp/landing-downloads.json -f
+          jq -e '.version' /tmp/landing-downloads.json
+
+          echo ""
+          echo "Published: ${{ env.OSS_CDN_BASE }}/"
