@@ -111,7 +111,7 @@ import {
   hasConfiguredCredentials,
   pickPreferredAccount,
 } from '@/lib/provider-accounts';
-import smartxIcon from '@/assets/logo.svg';
+import smartxIcon from '@/assets/logo.png';
 
 // Use the shared provider registry for setup providers
 const providers = SETUP_PROVIDERS;
@@ -698,6 +698,114 @@ function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
   );
 }
 
+type SetupProviderEnvDefaults = {
+  providerId: string;
+  apiKey: string;
+  model: string;
+  baseUrl: string;
+};
+
+async function fetchSetupProviderEnvDefaults(): Promise<SetupProviderEnvDefaults | null> {
+  try {
+    return await hostApiFetch<SetupProviderEnvDefaults | null>('/api/setup/provider-defaults');
+  } catch {
+    return null;
+  }
+}
+
+function hasSetupProviderEnvDefaults(
+  defaults: SetupProviderEnvDefaults | null,
+): defaults is SetupProviderEnvDefaults {
+  if (!defaults) return false;
+  return Boolean(
+    defaults.providerId || defaults.apiKey || defaults.model || defaults.baseUrl,
+  );
+}
+
+function resolveSetupEnvProviderId(
+  defaults: SetupProviderEnvDefaults,
+  setupProviders: ProviderTypeInfo[],
+): ProviderType {
+  const normalized = defaults.providerId.trim().toLowerCase();
+  const match = setupProviders.find((provider) => provider.id === normalized);
+  return match?.id ?? 'custom';
+}
+
+function envDefaultsApplyToProvider(
+  defaults: SetupProviderEnvDefaults | null,
+  selectedProvider: string,
+  setupProviders: ProviderTypeInfo[],
+): defaults is SetupProviderEnvDefaults {
+  if (!hasSetupProviderEnvDefaults(defaults)) return false;
+  const envProviderId = resolveSetupEnvProviderId(defaults, setupProviders);
+  return envProviderId === selectedProvider;
+}
+
+function resolveSetupEnvAuthMode(
+  providerInfo: ProviderTypeInfo | undefined,
+  apiKey: string,
+): 'oauth' | 'apikey' {
+  if (!providerInfo?.isOAuth) return 'apikey';
+  if (providerInfo.supportsApiKey && apiKey.trim()) return 'apikey';
+  return 'oauth';
+}
+
+function mergeSetupProviderFieldValues(
+  defaults: SetupProviderEnvDefaults | null,
+  selectedProvider: string,
+  setupProviders: ProviderTypeInfo[],
+  saved: {
+    apiKey?: string | null;
+    baseUrl?: string;
+    model?: string;
+  },
+  info?: ProviderTypeInfo,
+): { apiKey: string; baseUrl: string; model: string } {
+  const fallbackBaseUrl = info?.defaultBaseUrl || '';
+  const fallbackModel = info?.defaultModelId || '';
+  const savedApiKey = saved.apiKey?.trim() || '';
+  const savedBaseUrl = saved.baseUrl?.trim() || '';
+  const savedModel = saved.model?.trim() || '';
+
+  if (!envDefaultsApplyToProvider(defaults, selectedProvider, setupProviders)) {
+    return {
+      apiKey: savedApiKey,
+      baseUrl: savedBaseUrl || fallbackBaseUrl,
+      model: savedModel || fallbackModel,
+    };
+  }
+
+  return {
+    apiKey: savedApiKey || defaults.apiKey || '',
+    baseUrl: savedBaseUrl || defaults.baseUrl || fallbackBaseUrl,
+    model: savedModel || defaults.model || fallbackModel,
+  };
+}
+
+function applySetupProviderEnvFormState(
+  defaults: SetupProviderEnvDefaults,
+  setupProviders: ProviderTypeInfo[],
+): {
+  providerId: string;
+  apiKey: string;
+  baseUrl: string;
+  modelId: string;
+  authMode: 'oauth' | 'apikey';
+} {
+  const providerId = resolveSetupEnvProviderId(defaults, setupProviders);
+  const info = setupProviders.find((provider) => provider.id === providerId);
+  const apiKey = defaults.apiKey || '';
+  const baseUrl = defaults.baseUrl || info?.defaultBaseUrl || '';
+  const modelId = defaults.model || info?.defaultModelId || '';
+  return {
+    providerId,
+    apiKey,
+    baseUrl,
+    modelId,
+    authMode: resolveSetupEnvAuthMode(info, apiKey),
+  };
+}
+
 interface ProviderContentProps {
   providers: ProviderTypeInfo[];
   selectedProvider: string | null;
@@ -881,25 +989,44 @@ function ProviderContent({
     let cancelled = false;
     (async () => {
       try {
-        const snapshot = await fetchProviderSnapshot();
+        const [snapshot, envDefaults] = await Promise.all([
+          fetchProviderSnapshot(),
+          fetchSetupProviderEnvDefaults(),
+        ]);
         const statusMap = new Map(snapshot.statuses.map((status) => [status.id, status]));
         const setupProviderTypes = new Set<string>(providers.map((p) => p.id));
         const setupCandidates = snapshot.accounts.filter((account) => setupProviderTypes.has(account.vendorId));
-        const preferred =
+        const configuredPreferred =
           (snapshot.defaultAccountId
-            && setupCandidates.find((account) => account.id === snapshot.defaultAccountId))
-          || setupCandidates.find((account) => hasConfiguredCredentials(account, statusMap.get(account.id)))
-          || setupCandidates[0];
-        if (preferred && !cancelled) {
-          onSelectProvider(preferred.vendorId);
-          setSelectedAccountId(preferred.id);
-          const typeInfo = providers.find((p) => p.id === preferred.vendorId);
+            && setupCandidates.find((account) =>
+              account.id === snapshot.defaultAccountId
+              && hasConfiguredCredentials(account, statusMap.get(account.id)),
+            ))
+          || setupCandidates.find((account) =>
+            hasConfiguredCredentials(account, statusMap.get(account.id)),
+          );
+        if (configuredPreferred && !cancelled) {
+          onSelectProvider(configuredPreferred.vendorId);
+          setSelectedAccountId(configuredPreferred.id);
+          const typeInfo = providers.find((p) => p.id === configuredPreferred.vendorId);
           const requiresKey = typeInfo?.requiresApiKey ?? false;
-          onConfiguredChange(!requiresKey || hasConfiguredCredentials(preferred, statusMap.get(preferred.id)));
+          onConfiguredChange(
+            !requiresKey || hasConfiguredCredentials(configuredPreferred, statusMap.get(configuredPreferred.id)),
+          );
           const storedKey = (await hostApiFetch<{ apiKey: string | null }>(
-            `/api/providers/${encodeURIComponent(preferred.id)}/api-key`,
+            `/api/providers/${encodeURIComponent(configuredPreferred.id)}/api-key`,
           )).apiKey;
           onApiKeyChange(storedKey || '');
+        } else if (!cancelled && hasSetupProviderEnvDefaults(envDefaults)) {
+          const applied = applySetupProviderEnvFormState(envDefaults, providers);
+          onSelectProvider(applied.providerId);
+          setSelectedAccountId(null);
+          onConfiguredChange(false);
+          setAuthMode(applied.authMode);
+          setApiProtocol('openai-completions');
+          setBaseUrl(applied.baseUrl);
+          setModelId(applied.modelId);
+          onApiKeyChange(applied.apiKey);
         } else if (!cancelled) {
           onConfiguredChange(false);
           onApiKeyChange('');
@@ -920,7 +1047,10 @@ function ProviderContent({
       if (!selectedProvider) return;
       setApiProtocol('openai-completions');
       try {
-        const snapshot = await fetchProviderSnapshot();
+        const [snapshot, envDefaults] = await Promise.all([
+          fetchProviderSnapshot(),
+          fetchSetupProviderEnvDefaults(),
+        ]);
         const statusMap = new Map(snapshot.statuses.map((status) => [status.id, status]));
         const preferredAccount = pickPreferredAccount(
           snapshot.accounts,
@@ -938,20 +1068,28 @@ function ProviderContent({
           `/api/providers/${encodeURIComponent(accountIdForLoad)}/api-key`,
         )).apiKey;
         if (!cancelled) {
-          onApiKeyChange(storedKey || '');
-
           const info = providers.find((p) => p.id === selectedProvider);
-          const nextBaseUrl = savedProvider?.baseUrl || info?.defaultBaseUrl || '';
-          const nextModelId = savedProvider?.model || info?.defaultModelId || '';
-          setBaseUrl(nextBaseUrl);
-          setModelId(nextModelId);
+          const merged = mergeSetupProviderFieldValues(
+            envDefaults,
+            selectedProvider,
+            providers,
+            {
+              apiKey: storedKey,
+              baseUrl: savedProvider?.baseUrl,
+              model: savedProvider?.model,
+            },
+            info,
+          );
+          onApiKeyChange(merged.apiKey);
+          setBaseUrl(merged.baseUrl);
+          setModelId(merged.model);
           setApiProtocol(savedProvider?.apiProtocol || 'openai-completions');
           if (
             selectedProvider === 'ark'
             && info?.codePlanPresetBaseUrl
             && info?.codePlanPresetModelId
-            && nextBaseUrl.trim() === info.codePlanPresetBaseUrl
-            && nextModelId.trim() === info.codePlanPresetModelId
+            && merged.baseUrl.trim() === info.codePlanPresetBaseUrl
+            && merged.model.trim() === info.codePlanPresetModelId
           ) {
             setArkMode('codeplan');
           } else {

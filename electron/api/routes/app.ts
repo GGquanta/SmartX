@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'http';
 import type { HostApiContext } from '../context';
 import { parseJsonBody, sendJson } from '../route-utils';
 import { runOpenClawDoctor, runOpenClawDoctorFix } from '../../utils/openclaw-doctor';
+import { getProviderDefaultsFromEnv } from '../../utils/provider-default-env';
 
 export async function handleAppRoutes(
   req: IncomingMessage,
@@ -21,6 +22,12 @@ export async function handleAppRoutes(
     // Send a current-state snapshot immediately so renderer subscribers do not
     // miss lifecycle transitions that happened before the SSE connection opened.
     res.write(`event: gateway:status\ndata: ${JSON.stringify(ctx.gatewayManager.getStatus())}\n\n`);
+    return true;
+  }
+
+  if (url.pathname === '/api/setup/provider-defaults' && req.method === 'GET') {
+    const defaults = getProviderDefaultsFromEnv();
+    sendJson(res, 200, defaults);
     return true;
   }
 

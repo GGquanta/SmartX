@@ -43,8 +43,12 @@ import { deviceOAuthManager } from '../utils/device-oauth';
 import { browserOAuthManager } from '../utils/browser-oauth';
 import { whatsAppLoginManager } from '../utils/whatsapp-login';
 import { syncAllProviderAuthToRuntime } from '../services/providers/provider-runtime-sync';
+import { loadProviderDefaultEnvFiles, resolveSmartXProjectRoot } from '../utils/provider-default-env';
 
 const WINDOWS_APP_USER_MODEL_ID = 'app.smartx.desktop';
+
+loadProviderDefaultEnvFiles(resolveSmartXProjectRoot());
+
 const isE2EMode = process.env.SMARTX_E2E === '1';
 const requestedUserDataDir = process.env.SMARTX_USER_DATA_DIR?.trim();
 

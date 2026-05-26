@@ -1,7 +1,7 @@
 {
     "steps": {
         "welcome": {
-            "title": "Welcome to SmartX",
+            "title": "Welcome to Xiaoguang",
             "description": "Your AI assistant is ready to be configured"
         },
         "runtime": {
@@ -22,12 +22,12 @@
         },
         "complete": {
             "title": "All Set!",
-            "description": "SmartX is ready to use"
+            "description": "Xiaoguang is ready to use"
         }
     },
     "welcome": {
-        "title": "Welcome to SmartX",
-        "description": "SmartX is a graphical interface for OpenClaw, making it easy to use AI assistants across your favorite messaging platforms.",
+        "title": "Welcome to Xiaoguang — Your Personal Intelligent Assistant",
+        "description": "Xiaoguang is an intelligent client developed by CAS Guoguang Quantum based on OpenClaw, helping you conveniently use AI technology to complete everyday office tasks.",
         "features": {
             "noCommand": "Zero command-line required",
             "modernUI": "Modern, beautiful interface",
@@ -113,7 +113,7 @@
     },
     "complete": {
         "title": "Setup Complete!",
-        "subtitle": "SmartX is configured and ready to use. You can now start chatting with your AI assistant.",
+        "subtitle": "Xiaoguang is configured and ready. You can now start chatting with your AI assistant.",
         "provider": "AI Provider",
         "components": "Components",
         "gateway": "Gateway",

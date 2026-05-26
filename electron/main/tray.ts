@@ -27,11 +27,11 @@ export function createTray(mainWindow: BrowserWindow): Tray {
 
   if (process.platform === 'win32') {
     // Windows: use .ico for best quality in system tray
-    iconPath = join(iconsDir, 'icon.ico');
+    iconPath = join(iconsDir, 'tray.ico');
   } else if (process.platform === 'darwin') {
     // macOS: use Template.png for proper status bar icon
     // The "Template" suffix tells macOS to treat it as a template image
-    iconPath = join(iconsDir, 'tray-icon-Template.png');
+    iconPath = join(iconsDir, 'tray-icon-template.png');
   } else {
     // Linux: use 32x32 PNG
     iconPath = join(iconsDir, '32x32.png');
