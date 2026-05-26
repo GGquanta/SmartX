@@ -21,10 +21,10 @@ permissions:
   contents: write
   actions: read
 
-# Set to 'true' to run publish + finalize (GitHub Releases). OSS upload is unaffected.
-# OSS bucket: override via repo variable OSS_BUCKET (Settings → Secrets and variables → Actions).
+# Repository variables (Settings → Secrets and variables → Actions → Variables):
+#   PUBLISH_GITHUB_RELEASE — set to 'true' to run publish + finalize (GitHub Releases); unset/false skips
+#   OSS_BUCKET — OSS bucket name (default: valuecell-smartx)
 env:
-  PUBLISH_GITHUB_RELEASE: 'false'
   OSS_BUCKET: ${{ vars.OSS_BUCKET || 'valuecell-smartx' }}
 
 jobs:
@@ -301,7 +301,7 @@ jobs:
   # ──────────────────────────────────────────────────────────────
   publish:
     needs: release
-    if: env.PUBLISH_GITHUB_RELEASE == 'true'
+    if: ${{ vars.PUBLISH_GITHUB_RELEASE == 'true' }}
     runs-on: ubuntu-latest
 
     steps:
