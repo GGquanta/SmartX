@@ -15,6 +15,14 @@ permissions:
 jobs:
   windows-build-sign:
     runs-on: windows-latest
+    env:
+      CI: "true"
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VITE_COMPANY_KNOWLEDGE_URL: ${{ vars.VITE_COMPANY_KNOWLEDGE_URL }}
+      PROVIDER_DEFAULT_NAME: ${{ secrets.PROVIDER_DEFAULT_NAME }}
+      PROVIDER_DEFAULT_APIKEY: ${{ secrets.PROVIDER_DEFAULT_APIKEY }}
+      PROVIDER_DEFAULT_MODEL: ${{ secrets.PROVIDER_DEFAULT_MODEL }}
+      PROVIDER_DEFAULT_BASE_URL: ${{ secrets.PROVIDER_DEFAULT_BASE_URL }}
 
     steps:
       - name: Checkout code
