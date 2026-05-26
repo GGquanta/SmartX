@@ -21,6 +21,12 @@ permissions:
   contents: write
   actions: read
 
+# Set to 'true' to run publish + finalize (GitHub Releases). OSS upload is unaffected.
+# OSS bucket: override via repo variable OSS_BUCKET (Settings → Secrets and variables → Actions).
+env:
+  PUBLISH_GITHUB_RELEASE: 'false'
+  OSS_BUCKET: ${{ vars.OSS_BUCKET || 'valuecell-smartx' }}
+
 jobs:
   release:
     strategy:
@@ -295,8 +301,9 @@ jobs:
   # ──────────────────────────────────────────────────────────────
   publish:
     needs: release
+    if: env.PUBLISH_GITHUB_RELEASE == 'true'
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Download release artifacts only
         uses: actions/download-artifact@v4
@@ -493,6 +500,7 @@ jobs:
         env:
           OSS_ACCESS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
           OSS_ACCESS_KEY_SECRET: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
+          OSS_BUCKET: ${{ env.OSS_BUCKET }}
         run: |
           curl -sL https://gosspublic.alicdn.com/ossutil/install.sh | sudo bash
 
@@ -500,7 +508,7 @@ jobs:
           cat > $HOME/.ossutilconfig << EOF
           [Credentials]
           language=EN
-          endpoint=oss-cn-hangzhou.aliyuncs.com
+          endpoint=oss-cn-hongkong.aliyuncs.com
           accessKeyID=${OSS_ACCESS_KEY_ID}
           accessKeySecret=${OSS_ACCESS_KEY_SECRET}
           EOF
@@ -512,13 +520,13 @@ jobs:
           CHANNEL="${{ steps.version.outputs.channel }}"
 
           # Only clean the current channel's directory — never touch other channels
-          ossutil rm -r -f oss://valuecell-smartx/${CHANNEL}/ || true
+          ossutil rm -r -f oss://${{ env.OSS_BUCKET }}/${CHANNEL}/ || true
 
           # Upload all files with no-cache so clients always get the freshest version
           ossutil cp -r -f \
             --meta="Cache-Control:no-cache,no-store,must-revalidate" \
             staging/${CHANNEL}/ \
-            oss://valuecell-smartx/${CHANNEL}/
+            oss://${{ env.OSS_BUCKET }}/${CHANNEL}/
 
           echo "Uploaded to ${CHANNEL}/"
 
@@ -529,7 +537,7 @@ jobs:
           # Upload to permanent archive (long cache, immutable)
           ossutil cp -r \
             staging/releases/${TAG}/ \
-            oss://valuecell-smartx/releases/${TAG}/ \
+            oss://${{ env.OSS_BUCKET }}/releases/${TAG}/ \
             --meta "Cache-Control:public,max-age=31536000,immutable"
 
           echo "Uploaded to releases/${TAG}/"
@@ -540,15 +548,15 @@ jobs:
           CHANNEL="${{ steps.version.outputs.channel }}"
 
           echo "=== ${CHANNEL}/ ==="
-          ossutil ls oss://valuecell-smartx/${CHANNEL}/ --short
+          ossutil ls oss://${{ env.OSS_BUCKET }}/${CHANNEL}/ --short
 
           echo ""
           echo "=== releases/${TAG}/ ==="
-          ossutil ls oss://valuecell-smartx/releases/${TAG}/ --short
+          ossutil ls oss://${{ env.OSS_BUCKET }}/releases/${TAG}/ --short
 
           echo ""
           echo "=== Verify release-info.json ==="
-          ossutil cp oss://valuecell-smartx/${CHANNEL}/release-info.json /tmp/release-info.json -f
+          ossutil cp oss://${{ env.OSS_BUCKET }}/${CHANNEL}/release-info.json /tmp/release-info.json -f
           jq . /tmp/release-info.json
 
           echo ""
@@ -559,7 +567,7 @@ jobs:
             YML_PREFIX="${CHANNEL}"
           fi
           echo "electron-updater expects ${YML_PREFIX}-mac.yml, ${YML_PREFIX}.yml, etc. in ${CHANNEL}/:"
-          ossutil ls oss://valuecell-smartx/${CHANNEL}/ --short | grep "${YML_PREFIX}.*\\.yml" || echo "(none found)"
+          ossutil ls oss://${{ env.OSS_BUCKET }}/${CHANNEL}/ --short | grep "${YML_PREFIX}.*\\.yml" || echo "(none found)"
           
           echo ""
           echo "All files uploaded and verified successfully!"
