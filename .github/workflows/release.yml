@@ -12,6 +12,10 @@ on:
       version:
         description: 'Version to release (e.g., 1.0.0)'
         required: true
+      internal_release:
+        description: '内网测试：跳过 mac 签名/公证与 Windows SignPath（tag 含 alpha/beta/rc/internal 时也会自动启用）'
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -67,6 +71,32 @@ jobs:
         if: matrix.platform == 'linux'
         run: pnpm run uv:download:linux
 
+      # Internal: unsigned mac + no Windows SignPath. Stable: Apple notarize + SignPath.
+      - name: Detect release channel
+        id: release-channel
+        shell: bash
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF#refs/tags/v}"
+          else
+            TAG="${{ github.event.inputs.version }}"
+          fi
+          INTERNAL=false
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.internal_release }}" == "true" ]]; then
+            INTERNAL=true
+          fi
+          if [[ "$TAG" =~ (alpha|beta|rc|internal) ]]; then
+            INTERNAL=true
+          fi
+          if [[ "$INTERNAL" == "true" ]]; then
+            echo "is_internal=true" >> $GITHUB_OUTPUT
+            echo "is_stable=false" >> $GITHUB_OUTPUT
+            echo "Channel: internal ($TAG) — skip mac signing/notarize and Windows SignPath"
+          else
+            echo "is_internal=false" >> $GITHUB_OUTPUT
+            echo "is_stable=true" >> $GITHUB_OUTPUT
+            echo "Channel: stable ($TAG) — mac notarize + Windows SignPath"
+          fi
 
       # macOS specific steps
       - name: Free disk space (macOS)
@@ -88,8 +118,17 @@ jobs:
 
       # --publish never: prevent electron-builder from auto-publishing to GitHub.
       # All artifacts are collected and published atomically in the publish job.
-      - name: Build macOS
-        if: matrix.platform == 'mac'
+      - name: Build macOS (internal, unsigned)
+        if: matrix.platform == 'mac' && steps.release-channel.outputs.is_internal == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ulimit -n 65536
+          echo "File descriptor limit: $(ulimit -n)"
+          pnpm run package:mac:internal
+
+      - name: Build macOS (signed + notarized)
+        if: matrix.platform == 'mac' && steps.release-channel.outputs.is_internal != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.MAC_CERTS }}
@@ -107,27 +146,8 @@ jobs:
         if: matrix.platform == 'win'
         run: pnpm run package:win
 
-      # Detect release channel from tag to skip code signing for alpha/beta builds
-      - name: Detect Windows release channel
-        if: matrix.platform == 'win'
-        id: win-channel
-        shell: bash
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            TAG="${GITHUB_REF#refs/tags/v}"
-          else
-            TAG="${{ github.event.inputs.version }}"
-          fi
-          if [[ "$TAG" =~ (alpha|beta) ]]; then
-            echo "is_stable=false" >> $GITHUB_OUTPUT
-            echo "Channel: prerelease ($TAG) — skipping code signing"
-          else
-            echo "is_stable=true" >> $GITHUB_OUTPUT
-            echo "Channel: stable ($TAG) — will sign"
-          fi
-
       - name: Validate unsigned Windows artifacts before SignPath
-        if: matrix.platform == 'win' && steps.win-channel.outputs.is_stable == 'true'
+        if: matrix.platform == 'win' && steps.release-channel.outputs.is_stable == 'true'
         shell: pwsh
         run: |
           $unsignedExeFiles = Get-ChildItem -Path "release" -Filter *.exe -File
@@ -140,7 +160,7 @@ jobs:
           $unsignedExeFiles | ForEach-Object { Write-Host " - $($_.Name)" }
 
       - name: Upload unsigned Windows artifacts for SignPath
-        if: matrix.platform == 'win' && steps.win-channel.outputs.is_stable == 'true'
+        if: matrix.platform == 'win' && steps.release-channel.outputs.is_stable == 'true'
         id: upload-unsigned-windows-artifact
         uses: actions/upload-artifact@v4
         with:
@@ -149,7 +169,7 @@ jobs:
           retention-days: 1
 
       - name: Sign Windows artifacts via SignPath
-        if: matrix.platform == 'win' && steps.win-channel.outputs.is_stable == 'true'
+        if: matrix.platform == 'win' && steps.release-channel.outputs.is_stable == 'true'
         id: signpath-sign-windows
         uses: signpath/github-action-submit-signing-request@v2
         with:
@@ -162,7 +182,7 @@ jobs:
           output-artifact-directory: release/signed
 
       - name: Replace unsigned executables with signed ones
-        if: matrix.platform == 'win' && steps.win-channel.outputs.is_stable == 'true'
+        if: matrix.platform == 'win' && steps.release-channel.outputs.is_stable == 'true'
         shell: pwsh
         run: |
           Write-Host "SignPath GitHub artifact ID: ${{ steps.upload-unsigned-windows-artifact.outputs.artifact-id }}"
@@ -197,7 +217,7 @@ jobs:
       #   sha512: <base64>
       #   releaseDate: '...'
       - name: Update latest.yml sha512 after code signing
-        if: matrix.platform == 'win' && steps.win-channel.outputs.is_stable == 'true'
+        if: matrix.platform == 'win' && steps.release-channel.outputs.is_stable == 'true'
         shell: pwsh
         run: |
           $ymlFiles = Get-ChildItem -Path "release" -Filter "*.yml" -File | Where-Object { $_.Name -ne "builder-debug.yml" }

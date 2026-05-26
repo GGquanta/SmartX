@@ -58,6 +58,7 @@
         "icons": "zx scripts/generate-icons.mjs",
         "package": "vite build && zx scripts/bundle-openclaw.mjs && zx scripts/apply-openclaw-workspace-identity.mjs && zx scripts/bundle-openclaw-plugins.mjs && zx scripts/bundle-preinstalled-skills.mjs",
         "package:mac": "pnpm run package && electron-builder --mac --publish never",
+        "package:mac:internal": "pnpm run package && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --publish never --config.mac.notarize=false",
         "package:mac:local": "SKIP_PREINSTALLED_SKILLS=1 pnpm run package && electron-builder --mac --publish never",
         "package:win": "pnpm run prep:win-binaries && pnpm run package && electron-builder --win --publish never",
         "package:linux": "pnpm run package && electron-builder --linux --publish never",
