@@ -1,0 +1,111 @@
+{
+  "productName": "小光",
+  "version": "0.3.8",
+  "updatedAt": "2026-05-26",
+  "platforms": [
+    {
+      "id": "macos",
+      "label": "macOS",
+      "icon": "apple",
+      "variants": [
+        {
+          "id": "macos-arm64-dmg",
+          "label": "Apple Silicon",
+          "format": "DMG",
+          "arch": "arm64",
+          "url": "#",
+          "size": null,
+          "recommended": true
+        },
+        {
+          "id": "macos-x64-dmg",
+          "label": "Intel",
+          "format": "DMG",
+          "arch": "x64",
+          "url": "#",
+          "size": null
+        },
+        {
+          "id": "macos-arm64-zip",
+          "label": "Apple Silicon",
+          "format": "ZIP",
+          "arch": "arm64",
+          "url": "#",
+          "size": null
+        },
+        {
+          "id": "macos-x64-zip",
+          "label": "Intel",
+          "format": "ZIP",
+          "arch": "x64",
+          "url": "#",
+          "size": null
+        }
+      ]
+    },
+    {
+      "id": "windows",
+      "label": "Windows",
+      "icon": "windows",
+      "variants": [
+        {
+          "id": "windows-x64-nsis",
+          "label": "Windows 10+",
+          "format": "安装包",
+          "arch": "x64",
+          "url": "#",
+          "size": null,
+          "recommended": true
+        }
+      ]
+    },
+    {
+      "id": "linux",
+      "label": "Linux",
+      "icon": "linux",
+      "variants": [
+        {
+          "id": "linux-arm64-appimage",
+          "label": "通用",
+          "format": "AppImage",
+          "arch": "arm64",
+          "url": "#",
+          "size": null
+        },
+        {
+          "id": "linux-x64-appimage",
+          "label": "通用",
+          "format": "AppImage",
+          "arch": "x64",
+          "url": "#",
+          "size": null,
+          "recommended": true
+        },
+        {
+          "id": "linux-arm64-deb",
+          "label": "Debian / Ubuntu",
+          "format": "deb",
+          "arch": "arm64",
+          "url": "#",
+          "size": null
+        },
+        {
+          "id": "linux-x64-deb",
+          "label": "Debian / Ubuntu",
+          "format": "deb",
+          "arch": "x64",
+          "url": "#",
+          "size": null
+        },
+        {
+          "id": "linux-x64-rpm",
+          "label": "Fedora / RHEL",
+          "format": "rpm",
+          "arch": "x64",
+          "url": "#",
+          "size": null
+        }
+      ]
+    }
+  ]
+}

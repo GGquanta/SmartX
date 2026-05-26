@@ -154,6 +154,19 @@ Skills 页面可展示来自多个 OpenClaw 来源的技能（托管目录、wor
 
 从 [Releases](https://github.com/ValueCell-ai/SmartX/releases) 页面下载适用于你平台的最新版本。
 
+也可使用仓库内的 **下载落地页**（`landing-pages/smartx-download`）：静态单页展示产品特性，并通过 `public/downloads.json` 集中管理各平台安装包链接。
+
+```bash
+# 开发预览（默认 http://localhost:5174）
+pnpm run landing:dev
+
+# 生产构建（输出到 landing-pages/smartx-download/dist）
+pnpm run landing:build
+pnpm run landing:preview
+```
+
+更新发布包时，只需编辑 `landing-pages/smartx-download/public/downloads.json` 中的 `url` 与 `version` 字段，无需修改页面代码。`predev` / `prebuild` 会自动从仓库根目录 `images/` 与 `src/assets/logo.png` 同步图片资源。
+
 #### 从源码构建
 
 ```bash
