@@ -30,7 +30,13 @@ jobs:
             platform: linux
 
     runs-on: ${{ matrix.os }}
-    
+    env:
+      VITE_COMPANY_KNOWLEDGE_URL: ${{ vars.VITE_COMPANY_KNOWLEDGE_URL }}
+      PROVIDER_DEFAULT_NAME: ${{ secrets.PROVIDER_DEFAULT_NAME }}
+      PROVIDER_DEFAULT_APIKEY: ${{ secrets.PROVIDER_DEFAULT_APIKEY }}
+      PROVIDER_DEFAULT_MODEL: ${{ secrets.PROVIDER_DEFAULT_MODEL }}
+      PROVIDER_DEFAULT_BASE_URL: ${{ secrets.PROVIDER_DEFAULT_BASE_URL }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -148,7 +154,7 @@ jobs:
         uses: signpath/github-action-submit-signing-request@v2
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: "78e37079-23df-4800-b41c-33312ad7c1e3"
+          organization-id: "05aeab6b-bde4-460b-90e0-808d9f83779b"
           project-slug: "ValueCell"
           signing-policy-slug: "ValueCell-sign"
           github-artifact-id: ${{ steps.upload-unsigned-windows-artifact.outputs.artifact-id }}
