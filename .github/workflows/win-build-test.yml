@@ -66,7 +66,7 @@ jobs:
         uses: signpath/github-action-submit-signing-request@v2
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: "78e37079-23df-4800-b41c-33312ad7c1e3"
+          organization-id: "05aeab6b-bde4-460b-90e0-808d9f83779b"
           project-slug: "ValueCell"
           signing-policy-slug: "ValueCell-sign"
           github-artifact-id: ${{ steps.upload-unsigned-windows-artifact.outputs.artifact-id }}
