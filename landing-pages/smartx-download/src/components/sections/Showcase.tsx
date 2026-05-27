@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { Check } from 'lucide-react';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { fadeUp, defaultTransition } from '../../lib/motion';
+import { ScreenshotCarousel } from '../ui/ScreenshotCarousel';
 import { SectionHeading } from '../ui/SectionHeading';
 
 const highlights = [
@@ -56,14 +57,7 @@ export function Showcase() {
             className="relative"
           >
             <div className="absolute -inset-3 rounded-4xl bg-gradient-to-tr from-brand-sky/15 to-brand-violet/10 blur-xl" aria-hidden />
-            <img
-              src="./images/screenshot-01.png"
-              alt="小光智能助理主界面截图，展示企业知识库对话与侧栏功能"
-              className="relative h-auto w-full"
-              width={1400}
-              height={900}
-              loading="lazy"
-            />
+            <ScreenshotCarousel />
           </motion.div>
         </div>
       </div>

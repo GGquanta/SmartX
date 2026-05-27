@@ -24,13 +24,13 @@ export function Hero() {
             中科国光量子 · 企业级 AI 桌面客户端
           </div>
 
-          <h1 className="flex items-center gap-4 font-display text-4xl font-bold leading-[1.15] tracking-tight text-ink sm:gap-5 sm:text-5xl lg:text-[3.25rem]">
+          <h1 className="flex items-center gap-5 font-display text-4xl font-bold leading-[1.15] tracking-tight text-ink sm:gap-6 sm:text-5xl lg:text-[3.25rem]">
             <img
               src="./images/icon.png"
               alt=""
-              className="h-14 w-14 shrink-0 sm:h-16 sm:w-16 lg:h-[4.5rem] lg:w-[4.5rem]"
-              width={72}
-              height={72}
+              className="h-16 w-16 shrink-0 sm:h-20 sm:w-20 lg:h-24 lg:w-24"
+              width={96}
+              height={96}
               fetchPriority="high"
             />
             <span>
@@ -68,7 +68,7 @@ export function Hero() {
           <div className="absolute -inset-4 rounded-4xl bg-gradient-to-br from-brand-sky/20 to-brand-violet/15 blur-2xl" aria-hidden />
           <div className="relative overflow-hidden rounded-4xl border border-white/50 shadow-soft">
             <img
-              src="./images/mockup-01.jpg"
+              src="./images/mockup-02.jpg"
               alt="小光智能助理在 MacBook 上运行的界面展示"
               className="h-auto w-full object-cover"
               width={1200}

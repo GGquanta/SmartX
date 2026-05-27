@@ -1,11 +1,12 @@
 import { motion } from 'framer-motion';
-import { Apple, Loader2, Monitor, Terminal } from 'lucide-react';
+import { Apple, Hexagon, Loader2, Monitor, Smartphone, Terminal } from 'lucide-react';
 import { useDownloads } from '../../hooks/useDownloads';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { isVariantRecommendedForPlatform } from '../../lib/platform-detect';
 import { usePlatformRecommendation } from '../../hooks/usePlatformRecommendation';
 import { fadeUp, staggerContainer, defaultTransition } from '../../lib/motion';
 import type { PlatformIcon } from '../../types/downloads';
+import { ComingSoonPlatformCard } from '../ui/ComingSoonPlatformCard';
 import { DownloadCard } from '../ui/DownloadCard';
 import { SectionHeading } from '../ui/SectionHeading';
 
@@ -14,6 +15,12 @@ const platformIcons: Record<PlatformIcon, typeof Apple> = {
   windows: Monitor,
   linux: Terminal,
 };
+
+const comingSoonPlatforms = [
+  { id: 'ios', label: 'iOS', Icon: Apple, accent: 'ios' as const },
+  { id: 'android', label: 'Android', Icon: Smartphone, accent: 'android' as const },
+  { id: 'harmony', label: '鸿蒙', Icon: Hexagon, accent: 'harmony' as const },
+] as const;
 
 export function DownloadSection() {
   const { data, loading, error } = useDownloads();
@@ -97,6 +104,24 @@ export function DownloadSection() {
                 </motion.div>
               );
             })}
+
+            <motion.div variants={fadeUp} transition={defaultTransition}>
+              <div className="mb-6 flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-soft">
+                  <Smartphone className="h-5 w-5 text-brand-blue" aria-hidden />
+                </span>
+                <div>
+                  <h3 className="font-display text-xl font-semibold text-ink">移动端</h3>
+                  <p className="text-sm text-ink-faint">iOS · Android · 鸿蒙 · 开发中</p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {comingSoonPlatforms.map(({ id, label, Icon, accent }) => (
+                  <ComingSoonPlatformCard key={id} label={label} Icon={Icon} accent={accent} />
+                ))}
+              </div>
+            </motion.div>
           </motion.div>
         ) : null}
       </div>
