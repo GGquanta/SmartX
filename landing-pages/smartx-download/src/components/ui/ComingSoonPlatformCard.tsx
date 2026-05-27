@@ -1,10 +1,10 @@
-import type { LucideIcon } from 'lucide-react';
 import { Rocket } from 'lucide-react';
+import { PlatformBrandIcon, type PlatformBrand } from '../icons/PlatformBrandIcons';
 
 interface ComingSoonPlatformCardProps {
   label: string;
-  Icon: LucideIcon;
-  accent?: 'ios' | 'android' | 'harmony';
+  brand: PlatformBrand;
+  accent?: PlatformBrand;
 }
 
 const accentStyles = {
@@ -31,7 +31,7 @@ const accentStyles = {
   },
 } as const;
 
-export function ComingSoonPlatformCard({ label, Icon, accent = 'ios' }: ComingSoonPlatformCardProps) {
+export function ComingSoonPlatformCard({ label, brand, accent = 'ios' }: ComingSoonPlatformCardProps) {
   const styles = accentStyles[accent];
 
   return (
@@ -53,7 +53,7 @@ export function ComingSoonPlatformCard({ label, Icon, accent = 'ios' }: ComingSo
         <div
           className={`mx-auto flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br shadow-inner ring-1 sm:mx-0 ${styles.iconBg} ${styles.iconRing}`}
         >
-          <Icon className={`h-8 w-8 ${styles.iconColor}`} strokeWidth={1.75} aria-hidden />
+          <PlatformBrandIcon brand={brand} className={`h-8 w-8 ${styles.iconColor}`} />
         </div>
 
         <div className="min-w-0 flex-1 text-center sm:text-left">

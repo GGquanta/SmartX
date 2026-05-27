@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { ArrowDown, Sparkles } from 'lucide-react';
+import { ArrowDown, Download, Sparkles } from 'lucide-react';
 import { fadeUp, defaultTransition } from '../../lib/motion';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { Button } from '../ui/Button';
@@ -40,12 +40,13 @@ export function Hero() {
           </h1>
 
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-muted">
-            基于 OpenClaw 打造，无需命令行即可完成配置。接入量子实验平台、企业知识库与海量
-            Skills，让智能化办公触手可及。
+            对接主流大语言模型，支持多智能体协作与可视化编排，无需命令行即可完成配置与调度。
+            接入量子实验平台、企业知识库与海量 Skills，让 AI 助手真正融入日常办公。
           </p>
 
           <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center">
             <Button href="#download" variant="primary">
+              <Download className="h-4 w-4" aria-hidden />
               立即下载
             </Button>
             <Button href="#features" variant="secondary">

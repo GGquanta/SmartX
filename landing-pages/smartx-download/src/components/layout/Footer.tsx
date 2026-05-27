@@ -12,7 +12,7 @@ export function Footer() {
         </div>
         <div className="flex flex-wrap items-center justify-center gap-6 text-sm">
           <a
-            href="https://github.com/ValueCell-ai/SmartX"
+            href="https://github.com/GGquanta/SmartX"
             className="text-ink-muted transition-colors hover:text-brand-blue"
             target="_blank"
             rel="noopener noreferrer"
