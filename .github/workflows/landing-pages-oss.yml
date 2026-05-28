@@ -6,7 +6,7 @@
 #   - manual workflow_dispatch
 #
 # Repository variables (Settings → Actions → Variables):
-#   OSS_BUCKET   — bucket name (default: valuecell-smartx)
+#   OSS_BUCKET   — bucket name (default: ggquanta-smartx)
 #   OSS_ENDPOINT — ossutil endpoint (e.g. oss-cn-hongkong.aliyuncs.com)
 #   OSS_CDN_BASE — public CDN origin for summaries (default: https://oss.intelli-spectrum.com)
 #
@@ -36,7 +36,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  OSS_BUCKET: ${{ vars.OSS_BUCKET || 'valuecell-smartx' }}
+  OSS_BUCKET: ${{ vars.OSS_BUCKET || 'ggquanta-smartx' }}
   OSS_ENDPOINT: ${{ vars.OSS_ENDPOINT }}
   OSS_CDN_BASE: ${{ vars.OSS_CDN_BASE || 'https://oss.intelli-spectrum.com' }}
 

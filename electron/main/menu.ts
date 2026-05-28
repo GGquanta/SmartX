@@ -198,7 +198,7 @@ export function createMenu(): void {
         {
           label: 'Report Issue',
           click: async () => {
-            await shell.openExternal('https://github.com/ValueCell-ai/SmartX/issues');
+            await shell.openExternal('https://github.com/GGquanta-ai/SmartX/issues');
           },
         },
         { type: 'separator' },

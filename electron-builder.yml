@@ -60,7 +60,7 @@ publish:
     url: https://oss.intelli-spectrum.com/latest
     useMultipleRangeRequest: false
   - provider: github
-    owner: ValueCell-ai
+    owner: GGquanta-ai
     repo: SmartX
 
 # macOS Configuration
@@ -163,7 +163,7 @@ linux:
       arch:
         - x64
   category: Utility
-  maintainer: SmartX Team <public@valuecell.ai>
+  maintainer: SmartX Team <public@ggquanta.ai>
   vendor: SmartX
   synopsis: AI Assistant powered by OpenClaw
   description: SmartX is a graphical AI assistant application that integrates with OpenClaw Gateway to provide intelligent automation and assistance across multiple messaging platforms.

@@ -25,7 +25,7 @@
 <a href="https://discord.com/invite/84Kex3GGAh" target="_blank">
 <img src="https://img.shields.io/discord/1399603591471435907?logo=discord&labelColor=%20%235462eb&logoColor=%20%23f5f5f5&color=%20%235462eb" alt="chat on Discord" />
 </a>
-<img src="https://img.shields.io/github/downloads/ValueCell-ai/SmartX/total?color=%23027DEB" alt="Downloads" />
+<img src="https://img.shields.io/github/downloads/GGquanta-ai/SmartX/total?color=%23027DEB" alt="Downloads" />
 <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
 </p>
 
@@ -148,13 +148,13 @@ SmartX также предварительно упаковывает полны
 
 #### Готовые релизы (рекомендуется)
 
-Скачайте последний релиз для вашей платформы со страницы [Releases](https://github.com/ValueCell-ai/SmartX/releases).
+Скачайте последний релиз для вашей платформы со страницы [Releases](https://github.com/GGquanta-ai/SmartX/releases).
 
 #### Сборка из исходников
 
 ```bash
 # Клонирование репозитория
-git clone https://github.com/ValueCell-ai/SmartX.git
+git clone https://github.com/GGquanta-ai/SmartX.git
 cd SmartX
 
 # Инициализация проекта
@@ -454,14 +454,14 @@ SmartX построен на плечах отличных проектов с �
 
 Если вы работаете с клиентами, заинтересованными в AI-инструментах или автоматизации, мы будем рады сотрудничеству.
 
-Напишите нам в DM или на [public@valuecell.ai](mailto:public@valuecell.ai) для получения дополнительной информации.
+Напишите нам в DM или на [public@ggquanta.ai](mailto:public@ggquanta.ai) для получения дополнительной информации.
 
 ---
 
 ## История звёзд
 
 <p align="center">
-<img src="https://api.star-history.com/svg?repos=ValueCell-ai/SmartX&type=Date" alt="Star History Chart" />
+<img src="https://api.star-history.com/svg?repos=GGquanta-ai/SmartX&type=Date" alt="Star History Chart" />
 </p>
 
 ---
@@ -473,5 +473,5 @@ SmartX выпускается под [лицензией MIT](LICENSE). Вы м�
 ---
 
 <p align="center">
-<sub>Создано с ❤️ командой ValueCell</sub>
+<sub>Создано с ❤️ командой GGquanta</sub>
 </p>

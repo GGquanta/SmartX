@@ -23,10 +23,10 @@ permissions:
 
 # Repository variables (Settings → Secrets and variables → Actions → Variables):
 #   PUBLISH_GITHUB_RELEASE — set to 'true' to run publish + finalize (GitHub Releases); unset/false skips
-#   OSS_BUCKET   — OSS bucket name (default: valuecell-smartx)
+#   OSS_BUCKET   — OSS bucket name (default: ggquanta-smartx)
 #   OSS_ENDPOINT — ossutil endpoint (e.g. oss-cn-hongkong.aliyuncs.com)
 env:
-  OSS_BUCKET: ${{ vars.OSS_BUCKET || 'valuecell-smartx' }}
+  OSS_BUCKET: ${{ vars.OSS_BUCKET || 'ggquanta-smartx' }}
   OSS_ENDPOINT: ${{ vars.OSS_ENDPOINT }}
 
 jobs:
@@ -183,8 +183,8 @@ jobs:
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: "05aeab6b-bde4-460b-90e0-808d9f83779b"
-          project-slug: "ValueCell"
-          signing-policy-slug: "ValueCell-sign"
+          project-slug: "GGquanta"
+          signing-policy-slug: "GGquanta-sign"
           github-artifact-id: ${{ steps.upload-unsigned-windows-artifact.outputs.artifact-id }}
           wait-for-completion: true
           output-artifact-directory: release/signed

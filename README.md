@@ -25,7 +25,7 @@
   <a href="https://discord.com/invite/84Kex3GGAh" target="_blank">
   <img src="https://img.shields.io/discord/1399603591471435907?logo=discord&labelColor=%20%235462eb&logoColor=%20%23f5f5f5&color=%20%235462eb" alt="chat on Discord" />
   </a>
-  <img src="https://img.shields.io/github/downloads/ValueCell-ai/SmartX/total?color=%23027DEB" alt="Downloads" />
+  <img src="https://img.shields.io/github/downloads/GGquanta-ai/SmartX/total?color=%23027DEB" alt="Downloads" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
 </p>
 
@@ -152,13 +152,13 @@ In **Settings → General**, you can enable **Launch at system startup** so Smar
 
 #### Pre-built Releases (Recommended)
 
-Download the latest release for your platform from the [Releases](https://github.com/ValueCell-ai/SmartX/releases) page.
+Download the latest release for your platform from the [Releases](https://github.com/GGquanta-ai/SmartX/releases) page.
 
 #### Build from Source
 
 ```bash
 # Clone the repository
-git clone https://github.com/ValueCell-ai/SmartX.git
+git clone https://github.com/GGquanta-ai/SmartX.git
 cd SmartX
 
 # Initialize the project
@@ -459,14 +459,14 @@ Partners help connect us with potential users and projects, while the SmartX tea
 
 If you work with clients interested in AI tools or automation, we'd love to collaborate.
 
-DM us or email [public@valuecell.ai](mailto:public@valuecell.ai) to learn more.
+DM us or email [public@ggquanta.ai](mailto:public@ggquanta.ai) to learn more.
 
 ---
 
 ## Star History
 
 <p align="center">
-  <img src="https://api.star-history.com/svg?repos=ValueCell-ai/SmartX&type=Date" alt="Star History Chart" />
+  <img src="https://api.star-history.com/svg?repos=GGquanta-ai/SmartX&type=Date" alt="Star History Chart" />
 </p>
 
 ---
@@ -478,5 +478,5 @@ SmartX is released under the [MIT License](LICENSE). You're free to use, modify,
 ---
 
 <p align="center">
-  <sub>Built with ❤️ by the ValueCell Team</sub>
+  <sub>Built with ❤️ by the GGquanta Team</sub>
 </p>
