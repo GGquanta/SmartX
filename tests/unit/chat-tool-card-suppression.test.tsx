@@ -19,6 +19,21 @@ vi.mock('@/stores/agents', () => ({
   useAgentsStore: (selector: (state: typeof agentsState) => unknown) => selector(agentsState),
 }));
 
+vi.mock('@/stores/artifact-panel', () => {
+  const state = {
+    open: false,
+    widthPct: 45,
+    tab: 'preview' as const,
+    openChanges: vi.fn(),
+    openPreview: vi.fn(),
+    openBrowser: vi.fn(),
+    close: vi.fn(),
+  };
+  return {
+    useArtifactPanel: (selector: (value: typeof state) => unknown) => selector(state),
+  };
+});
+
 vi.mock('@/lib/host-api', () => ({
   hostApiFetch: vi.fn().mockResolvedValue({ success: true, messages: [] }),
 }));
@@ -109,6 +124,8 @@ describe('Chat tool card suppression', () => {
       sessionLabels: {},
       sessionLastActivity: {},
       thinkingLevel: null,
+      showThinking: true,
+      showExecutionInfo: true,
     });
 
     const { Chat } = await import('@/pages/Chat/index');

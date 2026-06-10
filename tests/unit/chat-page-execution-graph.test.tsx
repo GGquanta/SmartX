@@ -173,6 +173,8 @@ describe('Chat execution graph lifecycle', () => {
       sessionLabels: {},
       sessionLastActivity: {},
       thinkingLevel: null,
+      showThinking: true,
+      showExecutionInfo: true,
     });
   });
 

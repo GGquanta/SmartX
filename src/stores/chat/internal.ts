@@ -47,8 +47,8 @@ export const initialChatState: Pick<
   sessionLastActivity: {},
 
   thinkingLevel: null,
-  showThinking: true,
-  showExecutionInfo: true,
+  showThinking: false,
+  showExecutionInfo: false,
 };
 
 export function createChatActions(

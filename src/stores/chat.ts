@@ -2581,8 +2581,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   sessionLastActivity: {},
 
   thinkingLevel: null,
-  showThinking: true,
-  showExecutionInfo: true,
+  showThinking: false,
+  showExecutionInfo: false,
 
   toggleThinking: () => set((s) => ({ showThinking: !s.showThinking })),
   toggleExecutionInfo: () => set((s) => ({ showExecutionInfo: !s.showExecutionInfo })),

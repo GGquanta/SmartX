@@ -394,7 +394,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex flex-col gap-1 px-2">
+      <nav className="mt-3 flex flex-col gap-1 px-2">
         <button
           type="button"
           data-testid="sidebar-new-chat"
