@@ -32,7 +32,62 @@ describe('provider-default-env', () => {
   it('resolves provider id from PROVIDER_DEFAULT_NAME', () => {
     expect(resolveProviderDefaultName('custom')).toBe('custom');
     expect(resolveProviderDefaultName('Moonshot')).toBe('moonshot');
+    expect(resolveProviderDefaultName('bailian')).toBe('bailian');
     expect(resolveProviderDefaultName('not-a-provider')).toBeNull();
+  });
+
+  it('auto-fills bailian base URL and model from provider registry', () => {
+    const root = mkdtempSync(join(tmpdir(), 'smartx-env-bailian-'));
+    writeFileSync(
+      join(root, '.env.local'),
+      [
+        'PROVIDER_DEFAULT_NAME=bailian',
+        'PROVIDER_DEFAULT_APIKEY=sk-test',
+      ].join('\n'),
+      'utf8',
+    );
+
+    delete process.env.PROVIDER_DEFAULT_NAME;
+    delete process.env.PROVIDER_DEFAULT_APIKEY;
+    delete process.env.PROVIDER_DEFAULT_MODEL;
+    delete process.env.PROVIDER_DEFAULT_BASE_URL;
+    resetProviderDefaultEnvCache();
+    loadProviderDefaultEnvFiles(root);
+
+    expect(getProviderDefaultsFromEnv(root)).toEqual({
+      providerId: 'bailian',
+      apiKey: 'sk-test',
+      model: 'qwen3.7-max',
+      baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    });
+    expect(process.env.PROVIDER_DEFAULT_BASE_URL).toBe('https://dashscope.aliyuncs.com/compatible-mode/v1');
+    expect(process.env.PROVIDER_DEFAULT_MODEL).toBe('qwen3.7-max');
+  });
+
+  it('lets explicit env values override bailian registry defaults', () => {
+    const root = mkdtempSync(join(tmpdir(), 'smartx-env-bailian-override-'));
+    writeFileSync(
+      join(root, '.env.local'),
+      [
+        'PROVIDER_DEFAULT_NAME=bailian',
+        'PROVIDER_DEFAULT_MODEL=qwen-plus',
+        'PROVIDER_DEFAULT_BASE_URL=https://custom.example.com/v1',
+      ].join('\n'),
+      'utf8',
+    );
+
+    delete process.env.PROVIDER_DEFAULT_NAME;
+    delete process.env.PROVIDER_DEFAULT_MODEL;
+    delete process.env.PROVIDER_DEFAULT_BASE_URL;
+    resetProviderDefaultEnvCache();
+    loadProviderDefaultEnvFiles(root);
+
+    expect(getProviderDefaultsFromEnv(root)).toEqual({
+      providerId: 'bailian',
+      apiKey: '',
+      model: 'qwen-plus',
+      baseUrl: 'https://custom.example.com/v1',
+    });
   });
 
   it('reads provider defaults from .env.local', () => {

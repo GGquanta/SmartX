@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getProviderDefinition } from '../shared/providers/registry';
 import { PROVIDER_TYPES, type ProviderType } from '../shared/providers/types';
 import { logger } from './logger';
 
@@ -115,6 +116,34 @@ export function resolveProviderDefaultName(raw: string | undefined): ProviderTyp
     : null;
 }
 
+export function resolveProviderRegistryDefaults(
+  providerId: ProviderType | null,
+): { baseUrl: string; model: string } {
+  if (!providerId || providerId === 'custom') {
+    return { baseUrl: '', model: '' };
+  }
+
+  const definition = getProviderDefinition(providerId);
+  return {
+    baseUrl: definition?.defaultBaseUrl ?? definition?.providerConfig?.baseUrl ?? '',
+    model: definition?.defaultModelId ?? '',
+  };
+}
+
+function applyRegistryDefaultsToProcessEnv(providerId: ProviderType | null): void {
+  if (!providerId || providerId === 'custom') {
+    return;
+  }
+
+  const defaults = resolveProviderRegistryDefaults(providerId);
+  if (!process.env.PROVIDER_DEFAULT_BASE_URL?.trim() && defaults.baseUrl) {
+    process.env.PROVIDER_DEFAULT_BASE_URL = defaults.baseUrl;
+  }
+  if (!process.env.PROVIDER_DEFAULT_MODEL?.trim() && defaults.model) {
+    process.env.PROVIDER_DEFAULT_MODEL = defaults.model;
+  }
+}
+
 /**
  * Load `.env` then `.env.local` from the project root.
  * In dev, re-reads on each call so `.env.local` edits apply without restarting Electron.
@@ -139,6 +168,10 @@ export function loadProviderDefaultEnvFiles(rootDir?: string): void {
     applyParsedEnv(parseEnvFile(readFileSync(localEnvPath, 'utf8')), true);
   }
 
+  applyRegistryDefaultsToProcessEnv(
+    resolveProviderDefaultName(process.env.PROVIDER_DEFAULT_NAME),
+  );
+
   logger.debug('Provider default env loaded', {
     root,
     hasName: Boolean(process.env.PROVIDER_DEFAULT_NAME?.trim()),
@@ -158,8 +191,9 @@ export function getProviderDefaultsFromEnv(rootDir?: string): ProviderEnvDefault
   }
 
   const apiKey = process.env.PROVIDER_DEFAULT_APIKEY?.trim() ?? '';
-  const model = process.env.PROVIDER_DEFAULT_MODEL?.trim() ?? '';
-  const baseUrl = process.env.PROVIDER_DEFAULT_BASE_URL?.trim() ?? '';
+  const registryDefaults = resolveProviderRegistryDefaults(providerId);
+  const model = process.env.PROVIDER_DEFAULT_MODEL?.trim() || registryDefaults.model;
+  const baseUrl = process.env.PROVIDER_DEFAULT_BASE_URL?.trim() || registryDefaults.baseUrl;
 
   if (!providerId && !apiKey && !model && !baseUrl) {
     return null;
