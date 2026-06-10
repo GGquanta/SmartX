@@ -225,12 +225,16 @@ async function readManifestMeta(skillDir: string): Promise<ManifestMeta | null> 
 }
 
 async function readPreinstalledMeta(skillDir: string): Promise<PreinstalledMeta | null> {
-  const parsed = await safeReadJson<Record<string, unknown>>(join(skillDir, '.clawx-preinstalled.json'));
-  if (!parsed) return null;
-  return {
-    slug: toStringValue(parsed.slug),
-    version: toStringValue(parsed.version),
-  };
+  const markerNames = ['.smartx-preinstalled.json', '.clawx-preinstalled.json'];
+  for (const markerName of markerNames) {
+    const parsed = await safeReadJson<Record<string, unknown>>(join(skillDir, markerName));
+    if (!parsed) continue;
+    return {
+      slug: toStringValue(parsed.slug),
+      version: toStringValue(parsed.version),
+    };
+  }
+  return null;
 }
 
 async function resolveSafeRoot(root: string): Promise<string | null> {

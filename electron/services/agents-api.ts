@@ -56,7 +56,7 @@ export function createAgentsApi(ctx: AgentsApiContext): CompleteHostServiceRegis
       });
       scheduleGatewayReload(ctx, 'create-agent');
       void ensureSmartXContext({ waitForAllConfiguredWorkspaces: true }).catch((err: unknown) => {
-        console.warn('[agents] Failed to ensure ClawX context after agent creation:', err);
+        console.warn('[agents] Failed to ensure SmartX context after agent creation:', err);
       });
       return { success: true, ...snapshot };
     },

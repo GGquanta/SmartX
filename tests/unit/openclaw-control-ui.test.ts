@@ -14,8 +14,8 @@ describe('buildOpenClawControlUiUrl', () => {
   });
 
   it('opens the Dreams view without moving the token out of the fragment', () => {
-    expect(buildOpenClawControlUiUrl(18789, 'clawx-test-token', { view: 'dreams' })).toBe(
-      'http://127.0.0.1:18789/dreaming#token=clawx-test-token',
+    expect(buildOpenClawControlUiUrl(18789, 'smartx-test-token', { view: 'dreams' })).toBe(
+      'http://127.0.0.1:18789/dreaming#token=smartx-test-token',
     );
   });
 

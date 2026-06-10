@@ -414,7 +414,7 @@ async function initialize(): Promise<void> {
     });
   }
 
-  // Keep community builds aligned with Clawx-biz by physically trimming
+  // Keep community builds aligned with SmartX-biz by physically trimming
   // bundled OpenClaw consumer skills on startup (dev + packaged), keeping only
   // `skill-creator`. This also prunes stale openclaw.json entries for trimmed
   // bundled skills so we do not keep `enabled: false` config for skills that no

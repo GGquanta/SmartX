@@ -570,7 +570,7 @@ describe('Chat execution graph lifecycle', () => {
         {
           role: 'assistant',
           id: 'plain-final-turn',
-          content: [{ type: 'text', text: '你好！我是 ClawX，你的桌面 AI 助手。' }],
+          content: [{ type: 'text', text: '你好！我是 SmartX，你的桌面 AI 助手。' }],
         },
       ],
       loading: false,
@@ -601,7 +601,7 @@ describe('Chat execution graph lifecycle', () => {
     });
 
     expect(screen.queryByTestId('chat-execution-step-thinking-trailing')).not.toBeInTheDocument();
-    expect(screen.getByText('你好！我是 ClawX，你的桌面 AI 助手。')).toBeInTheDocument();
+    expect(screen.getByText('你好！我是 SmartX，你的桌面 AI 助手。')).toBeInTheDocument();
     expect(screen.queryByTestId('chat-typing-indicator')).not.toBeInTheDocument();
     expect(screen.queryByTestId('chat-activity-indicator')).not.toBeInTheDocument();
   });

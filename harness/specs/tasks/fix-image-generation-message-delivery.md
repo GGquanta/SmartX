@@ -3,7 +3,7 @@ id: fix-image-generation-message-delivery
 title: Surface async image-generation message-tool deliveries in Chat
 scenario: gateway-backend-communication
 taskType: runtime-bridge
-intent: Ensure generated images delivered through the OpenClaw message tool remain visible in ClawX chat even when Gateway does not append an assistant-media transcript bubble.
+intent: Ensure generated images delivered through the OpenClaw message tool remain visible in SmartX chat even when Gateway does not append an assistant-media transcript bubble.
 touchedAreas:
   - harness/specs/tasks/fix-image-generation-message-delivery.md
   - src/pages/Chat/index.tsx

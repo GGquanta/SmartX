@@ -186,13 +186,13 @@
     "whatsNew": "Что нового:",
     "errorDetails": "Детали ошибки:",
     "toast": {
-      "availableTitle": "Доступно обновление ClawX",
+      "availableTitle": "Доступно обновление SmartX",
       "availableDescription": "Доступна версия v{{version}}. Скачайте её, когда будете готовы.",
-      "downloadedTitle": "Обновление ClawX готово",
+      "downloadedTitle": "Обновление SmartX готово",
       "downloadedDescription": "Версия v{{version}} загружена. Перезапустите приложение для установки.",
       "unknownVersion": "новая"
     },
-    "help": "ClawX автоматически проверяет обновления и показывает уведомление перед загрузкой или установкой."
+    "help": "SmartX автоматически проверяет обновления и показывает уведомление перед загрузкой или установкой."
   },
   "advanced": {
     "title": "Дополнительные",

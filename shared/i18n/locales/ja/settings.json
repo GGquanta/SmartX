@@ -186,13 +186,13 @@
     "whatsNew": "更新内容：",
     "errorDetails": "エラー詳細：",
     "toast": {
-      "availableTitle": "ClawX の更新があります",
+      "availableTitle": "SmartX の更新があります",
       "availableDescription": "バージョン v{{version}} を利用できます。準備ができたらダウンロードしてください。",
-      "downloadedTitle": "ClawX の更新準備ができました",
+      "downloadedTitle": "SmartX の更新準備ができました",
       "downloadedDescription": "バージョン v{{version}} のダウンロードが完了しました。再起動してインストールしてください。",
       "unknownVersion": "新しい"
     },
-    "help": "ClawX は自動的に更新を確認し、ダウンロードやインストールの前に通知します。"
+    "help": "SmartX は自動的に更新を確認し、ダウンロードやインストールの前に通知します。"
   },
   "advanced": {
     "title": "詳細設定",
@@ -200,7 +200,7 @@
     "devMode": "開発者モード",
     "devModeDesc": "開発者ツールとショートカットを表示",
     "telemetry": "匿名利用データ",
-    "telemetryDesc": "ClawX 改善のため、匿名の基本的な利用データの提供を許可します"
+    "telemetryDesc": "SmartX 改善のため、匿名の基本的な利用データの提供を許可します"
   },
   "developer": {
     "title": "開発者",

@@ -5,8 +5,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { testHome, testUserData, getSettingMock } = vi.hoisted(() => {
   const suffix = Math.random().toString(36).slice(2);
   return {
-    testHome: `/tmp/clawx-openclaw-auth-${suffix}`,
-    testUserData: `/tmp/clawx-openclaw-auth-user-data-${suffix}`,
+    testHome: `/tmp/smartx-openclaw-auth-${suffix}`,
+    testUserData: `/tmp/smartx-openclaw-auth-user-data-${suffix}`,
     getSettingMock: vi.fn(),
   };
 });
@@ -1871,7 +1871,7 @@ describe('syncOpenAiCompatibleImageRelay', () => {
     await rm(testUserData, { recursive: true, force: true });
   });
 
-  it('writes a ClawX-owned provider with a custom image base URL without changing OpenAI chat config', async () => {
+  it('writes a SmartX-owned provider with a custom image base URL without changing OpenAI chat config', async () => {
     await writeOpenClawJson({
       models: {
         providers: {
@@ -1891,7 +1891,7 @@ describe('syncOpenAiCompatibleImageRelay', () => {
     const result = await readOpenClawJson();
     const providers = (result.models as Record<string, unknown>).providers as Record<string, unknown>;
     const openai = providers.openai as Record<string, unknown>;
-    const imageRelay = providers['clawx-openai-image'] as Record<string, unknown>;
+    const imageRelay = providers['smartx-openai-image'] as Record<string, unknown>;
     expect(openai.baseUrl).toBe('https://api.openai.com/v1');
     expect(openai.api).toBe('openai-responses');
     expect(imageRelay.baseUrl).toBe('https://relay.example.com/v1');
@@ -1901,28 +1901,28 @@ describe('syncOpenAiCompatibleImageRelay', () => {
 
     const plugins = result.plugins as Record<string, unknown>;
     const entries = plugins.entries as Record<string, unknown>;
-    expect((entries['clawx-openai-image'] as Record<string, unknown>).enabled).toBe(true);
+    expect((entries['smartx-openai-image'] as Record<string, unknown>).enabled).toBe(true);
 
     const auth = await readAuthProfiles('main');
-    expect((auth.profiles['clawx-openai-image:default'] as Record<string, unknown>).key).toBe('sk-relay-test');
+    expect((auth.profiles['smartx-openai-image:default'] as Record<string, unknown>).key).toBe('sk-relay-test');
   });
 
-  it('removes only the ClawX image provider when relay is disabled', async () => {
+  it('removes only the SmartX image provider when relay is disabled', async () => {
     await writeOpenClawJson({
       models: {
         providers: {
           openai: { baseUrl: 'https://api.openai.com/v1', api: 'openai-responses', models: [] },
-          'clawx-openai-image': { baseUrl: 'https://relay.example.com/v1', api: 'openai-completions', models: [] },
+          'smartx-openai-image': { baseUrl: 'https://relay.example.com/v1', api: 'openai-completions', models: [] },
         },
       },
       agents: {
         defaults: {
-          imageGenerationModel: { primary: 'clawx-openai-image/gpt-image-2', timeoutMs: 180000 },
+          imageGenerationModel: { primary: 'smartx-openai-image/gpt-image-2', timeoutMs: 180000 },
         },
       },
       plugins: {
-        allow: ['clawx-openai-image'],
-        entries: { 'clawx-openai-image': { enabled: true } },
+        allow: ['smartx-openai-image'],
+        entries: { 'smartx-openai-image': { enabled: true } },
       },
     });
 
@@ -1932,7 +1932,7 @@ describe('syncOpenAiCompatibleImageRelay', () => {
     const result = await readOpenClawJson();
     const providers = (result.models as Record<string, unknown>).providers as Record<string, unknown>;
     expect(providers.openai).toEqual({ baseUrl: 'https://api.openai.com/v1', api: 'openai-responses', models: [] });
-    expect(providers['clawx-openai-image']).toBeUndefined();
+    expect(providers['smartx-openai-image']).toBeUndefined();
     const defaults = (result.agents as Record<string, unknown>).defaults as Record<string, unknown>;
     expect(defaults.imageGenerationModel).toBeUndefined();
     expect(result.plugins).toBeUndefined();

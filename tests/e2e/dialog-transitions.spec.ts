@@ -28,7 +28,7 @@ async function expectSubtleDialogAnimation(locator: Locator): Promise<void> {
     };
   });
 
-  expect(animation.name).toContain('clawx-dialog-content-in');
+  expect(animation.name).toContain('smartx-dialog-content-in');
   expect(animation.duration).toContain('0.1s');
 
   const firstFrameOffset = await locator.evaluate(async (element) => {
@@ -100,8 +100,8 @@ test.describe('dialog transitions', () => {
                 modelRef: 'openai/gpt-5.5',
                 overrideModelRef: null,
                 inheritedModel: true,
-                workspace: '/tmp/clawx-main-agent',
-                agentDir: '/tmp/clawx-main-agent/agent',
+                workspace: '/tmp/smartx-main-agent',
+                agentDir: '/tmp/smartx-main-agent/agent',
                 mainSessionKey: 'main/default',
                 channelTypes: [],
               }],

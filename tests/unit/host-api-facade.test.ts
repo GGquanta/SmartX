@@ -8,7 +8,7 @@ beforeEach(() => {
   hostInvoke.mockReset();
   vi.resetModules();
   vi.stubGlobal('window', {
-    clawx: { hostInvoke },
+    smartx: { hostInvoke },
   });
 });
 
@@ -111,11 +111,11 @@ describe('hostApi facade', () => {
     hostInvoke.mockResolvedValueOnce({ id: 'req', ok: true, data: { content: 'tail' } });
     const { hostApi } = await import('@/lib/host-api');
 
-    await expect(hostApi.logs.readFile('/tmp/clawx.log', 50)).resolves.toEqual({ content: 'tail' });
+    await expect(hostApi.logs.readFile('/tmp/smartx.log', 50)).resolves.toEqual({ content: 'tail' });
     expect(hostInvoke).toHaveBeenCalledWith(expect.objectContaining({
       module: 'logs',
       action: 'readFile',
-      payload: { path: '/tmp/clawx.log', tailLines: 50 },
+      payload: { path: '/tmp/smartx.log', tailLines: 50 },
     }));
   });
 

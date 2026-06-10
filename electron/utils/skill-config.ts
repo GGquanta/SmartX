@@ -54,7 +54,7 @@ interface PreinstalledLockFile {
 }
 
 interface PreinstalledMarker {
-    source: 'clawx-preinstalled';
+    source: 'smartx-preinstalled';
     slug: string;
     version: string;
     installedAt: string;
@@ -474,7 +474,8 @@ export async function ensureBuiltinSkillsInstalled(): Promise<void> {
 }
 
 const PREINSTALLED_MANIFEST_NAME = 'preinstalled-manifest.json';
-const PREINSTALLED_MARKER_NAME = '.clawx-preinstalled.json';
+const PREINSTALLED_MARKER_NAME = '.smartx-preinstalled.json';
+const LEGACY_PREINSTALLED_MARKER_NAME = '.clawx-preinstalled.json';
 
 async function readPreinstalledManifest(): Promise<PreinstalledSkillSpec[]> {
     const candidates = [
@@ -588,10 +589,11 @@ export async function ensurePreinstalledSkillsInstalled(): Promise<void> {
         const targetDir = join(targetRoot, spec.slug);
         const targetManifest = join(targetDir, 'SKILL.md');
         const markerPath = join(targetDir, PREINSTALLED_MARKER_NAME);
+        const legacyMarkerPath = join(targetDir, LEGACY_PREINSTALLED_MARKER_NAME);
         const desiredVersion = lockVersions.get(spec.slug)
             || (spec.version || 'unknown').trim()
             || 'unknown';
-        const marker = await tryReadMarker(markerPath);
+        const marker = await tryReadMarker(markerPath) ?? await tryReadMarker(legacyMarkerPath);
 
         if (existsSync(targetManifest)) {
             if (!marker) {
@@ -609,7 +611,7 @@ export async function ensurePreinstalledSkillsInstalled(): Promise<void> {
             await mkdir(targetDir, { recursive: true });
             await cpAsyncSafe(sourceDir, targetDir);
             const markerPayload: PreinstalledMarker = {
-                source: 'clawx-preinstalled',
+                source: 'smartx-preinstalled',
                 slug: spec.slug,
                 version: desiredVersion,
                 installedAt: new Date().toISOString(),

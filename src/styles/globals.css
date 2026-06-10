@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* ──────────────────────────────────────────────────────────────────────────
- * ClawX design tokens — CSS variable layer
+ * SmartX design tokens — CSS variable layer
  * ──────────────────────────────────────────────────────────────────────────
  *
  * This file is the *CSS variable layer only*. HSL channel triplets are
@@ -16,9 +16,9 @@
  *      / ...). The standard shadcn/ui palette — do not rename or remove,
  *      Radix-driven components read these directly.
  *
- *   2. ClawX surface tokens (--surface-modal / --surface-input /
+ *   2. SmartX surface tokens (--surface-modal / --surface-input /
  *      --surface-sidebar). Three light-mode "cream paper" layers added
- *      by ClawX. In dark mode each one is redirected to an existing
+ *      by SmartX. In dark mode each one is redirected to an existing
  *      shadcn token (--card / --muted / --background) so we don't have
  *      to maintain a second dark-cream palette.
  *
@@ -140,7 +140,7 @@
     --radius: 0.5rem;
     --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
-    /* ── ClawX cream surfaces (light) ────────────────────────────
+    /* ── SmartX cream surfaces (light) ────────────────────────────
      *
      * Three stacked cream layers — think "a cream paper laid on top
      * of a slightly paler cream paper". The contrast between layers
@@ -160,7 +160,7 @@
     --surface-input: 214 22% 95%;
     --surface-sidebar: 214 33% 93.5%;
 
-    /* ── ClawX usage accents (light) ─────────────────────────────
+    /* ── SmartX usage accents (light) ─────────────────────────────
      *
      * Three semantic accents reused everywhere that we visualise
      * token usage / activity. Mirrors the Cron page convention so
@@ -240,42 +240,42 @@
     @apply text-sm font-normal leading-4;
   }
 
-  .clawx-dialog-overlay {
+  .smartx-dialog-overlay {
     @apply fixed inset-0 z-50 bg-black/30 dark:bg-black/60;
   }
 
-  .clawx-dialog-content {
+  .smartx-dialog-content {
     @apply fixed left-1/2 top-1/2 z-50 w-full outline-none;
     transform: translate(-50%, -50%);
     transform-origin: center;
     will-change: opacity, transform;
   }
 
-  .clawx-dialog-overlay[data-state='open'] {
-    animation: clawx-dialog-overlay-in 100ms ease-out both;
+  .smartx-dialog-overlay[data-state='open'] {
+    animation: smartx-dialog-overlay-in 100ms ease-out both;
   }
 
-  .clawx-dialog-overlay[data-state='closed'] {
-    animation: clawx-dialog-overlay-out 80ms ease-in both;
+  .smartx-dialog-overlay[data-state='closed'] {
+    animation: smartx-dialog-overlay-out 80ms ease-in both;
   }
 
-  .clawx-dialog-content[data-state='open'] {
-    animation: clawx-dialog-content-in 100ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  .smartx-dialog-content[data-state='open'] {
+    animation: smartx-dialog-content-in 100ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
-  .clawx-dialog-content[data-state='closed'] {
-    animation: clawx-dialog-content-out 80ms ease-in both;
+  .smartx-dialog-content[data-state='closed'] {
+    animation: smartx-dialog-content-out 80ms ease-in both;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .clawx-dialog-overlay[data-state],
-    .clawx-dialog-content[data-state] {
+    .smartx-dialog-overlay[data-state],
+    .smartx-dialog-content[data-state] {
       animation: none;
     }
   }
 }
 
-@keyframes clawx-dialog-overlay-in {
+@keyframes smartx-dialog-overlay-in {
   from {
     opacity: 0;
   }
@@ -285,7 +285,7 @@
   }
 }
 
-@keyframes clawx-dialog-overlay-out {
+@keyframes smartx-dialog-overlay-out {
   from {
     opacity: 1;
   }
@@ -295,7 +295,7 @@
   }
 }
 
-@keyframes clawx-dialog-content-in {
+@keyframes smartx-dialog-content-in {
   from {
     opacity: 0;
     transform: translate(-50%, -50%) scale(0.985);
@@ -307,7 +307,7 @@
   }
 }
 
-@keyframes clawx-dialog-content-out {
+@keyframes smartx-dialog-content-out {
   from {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
@@ -350,13 +350,13 @@
   @apply bg-muted-foreground/30;
 }
 
-/* Monaco's default light diff theme is pure white; keep it aligned with ClawX's cream app background. */
-:root:not(.dark) .clawx-diff-editor .monaco-diff-editor,
-:root:not(.dark) .clawx-diff-editor .monaco-editor,
-:root:not(.dark) .clawx-diff-editor .monaco-editor-background,
-:root:not(.dark) .clawx-diff-editor .monaco-editor .margin,
-:root:not(.dark) .clawx-diff-editor .monaco-editor .gutter,
-:root:not(.dark) .clawx-diff-editor .diffOverview {
+/* Monaco's default light diff theme is pure white; keep it aligned with SmartX's cream app background. */
+:root:not(.dark) .smartx-diff-editor .monaco-diff-editor,
+:root:not(.dark) .smartx-diff-editor .monaco-editor,
+:root:not(.dark) .smartx-diff-editor .monaco-editor-background,
+:root:not(.dark) .smartx-diff-editor .monaco-editor .margin,
+:root:not(.dark) .smartx-diff-editor .monaco-editor .gutter,
+:root:not(.dark) .smartx-diff-editor .diffOverview {
   background-color: hsl(var(--background)) !important;
 }
 

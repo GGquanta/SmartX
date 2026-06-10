@@ -3,7 +3,7 @@ id: preserve-provider-model-metadata
 title: Preserve explicit provider model capabilities during runtime sync
 scenario: gateway-backend-communication
 taskType: runtime-bridge
-intent: Prevent ClawX provider save, update, and default-switch flows from deleting user-authored models.providers model metadata, while giving newly selected custom-provider models the same image-input inference used by OpenClaw onboarding.
+intent: Prevent SmartX provider save, update, and default-switch flows from deleting user-authored models.providers model metadata, while giving newly selected custom-provider models the same image-input inference used by OpenClaw onboarding.
 touchedAreas:
   - docs/superpowers/specs/2026-06-09-provider-model-metadata-preservation-design.md
   - docs/superpowers/plans/2026-06-09-provider-model-metadata-preservation.md
@@ -44,7 +44,7 @@ docs:
 
 ## Background
 
-ClawX explicit-provider sync paths rebuild model rows from the currently selected
+SmartX explicit-provider sync paths rebuild model rows from the currently selected
 model ID. Before this task, those paths replaced rich rows such as
 `{ id, name, input, reasoning, contextWindow, maxTokens, cost }` with
 `{ id, name }`. OpenClaw then treated previously image-capable custom models as

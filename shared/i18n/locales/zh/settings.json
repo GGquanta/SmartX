@@ -186,13 +186,13 @@
     "whatsNew": "更新内容：",
     "errorDetails": "错误详情：",
     "toast": {
-      "availableTitle": "ClawX 有新版本可用",
+      "availableTitle": "SmartX 有新版本可用",
       "availableDescription": "v{{version}} 已可下载。准备好后可开始下载。",
-      "downloadedTitle": "ClawX 更新已就绪",
+      "downloadedTitle": "SmartX 更新已就绪",
       "downloadedDescription": "v{{version}} 已下载完成。重启即可安装。",
       "unknownVersion": "新版本"
     },
-    "help": "ClawX 会自动检查更新，并在下载或安装前提示您确认。"
+    "help": "SmartX 会自动检查更新，并在下载或安装前提示您确认。"
   },
   "advanced": {
     "title": "高级",

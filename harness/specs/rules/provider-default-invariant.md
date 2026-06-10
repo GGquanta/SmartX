@@ -9,7 +9,7 @@ requiredProfiles:
   - comms
 ---
 
-Provider account deletion must keep the ClawX account store and OpenClaw runtime default model aligned.
+Provider account deletion must keep the SmartX account store and OpenClaw runtime default model aligned.
 
 Rules:
 
