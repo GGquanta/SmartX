@@ -90,6 +90,7 @@ export function DownloadSection() {
                         platformLabel={platform.label}
                         variant={variant}
                         version={data.version}
+                        assetBaseUrl={data.assetBaseUrl}
                         highlighted={isVariantRecommendedForPlatform(
                           platform.id,
                           variant,

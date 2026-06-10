@@ -7,9 +7,24 @@ interface DownloadCardProps {
   variant: DownloadVariant;
   highlighted: boolean;
   version: string;
+  assetBaseUrl: string;
 }
 
-export function DownloadCard({ platformLabel, variant, highlighted, version }: DownloadCardProps) {
+function resolveDownloadHref(assetBaseUrl: string, path: string): string {
+  if (path === '#') return path;
+  const base = assetBaseUrl.replace(/\/$/, '');
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  return `${base}${normalized}`;
+}
+
+export function DownloadCard({
+  platformLabel,
+  variant,
+  highlighted,
+  version,
+  assetBaseUrl,
+}: DownloadCardProps) {
+  const href = resolveDownloadHref(assetBaseUrl, variant.path);
   const ariaLabel = `下载 ${platformLabel} ${variant.label} ${variant.format}（${variant.arch}）`;
 
   return (
@@ -47,14 +62,14 @@ export function DownloadCard({ platformLabel, variant, highlighted, version }: D
       </p>
 
       <a
-        href={variant.url}
+        href={href}
         aria-label={ariaLabel}
         className={`mt-auto inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue ${
           highlighted
             ? 'bg-gradient-to-r from-brand-blue to-brand-sky text-white hover:scale-[1.02]'
             : 'bg-ink text-white hover:bg-ink/90'
         }`}
-        {...(variant.url === '#' ? { onClick: (e: MouseEvent) => e.preventDefault() } : {})}
+        {...(href === '#' ? { onClick: (e: MouseEvent) => e.preventDefault() } : {})}
       >
         <Download className="h-4 w-4" aria-hidden />
         下载 v{version}

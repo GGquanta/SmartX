@@ -5,7 +5,7 @@ export interface DownloadVariant {
   label: string;
   format: string;
   arch: string;
-  url: string;
+  path: string;
   size: string | null;
   recommended?: boolean;
 }
@@ -21,5 +21,6 @@ export interface DownloadsManifest {
   productName: string;
   version: string;
   updatedAt: string;
+  assetBaseUrl: string;
   platforms: DownloadPlatform[];
 }
