@@ -1,7 +1,8 @@
 /**
  * OpenClaw Auth Profiles Utility
- * Writes API keys to configured OpenClaw agent auth-profiles.json files
- * so the OpenClaw Gateway can load them for AI provider calls.
+ * Writes API keys to OpenClaw agent auth storage (SQLite primary since 2026.6+,
+ * with auth-profiles.json kept for migration compatibility) so the Gateway can
+ * load them for AI provider calls.
  *
  * All file I/O is asynchronous (fs/promises) to avoid blocking the
  * Electron main thread.  On Windows + NTFS + Defender the synchronous
@@ -39,6 +40,13 @@ import {
   CLAWX_OPENAI_IMAGE_DEFAULT_MODEL,
   CLAWX_OPENAI_IMAGE_PROVIDER_KEY,
 } from './openclaw-image-relay-constants';
+import {
+  migrateAuthProfilesJsonToSqliteIfNeeded,
+  readAuthProfilesFromSqlite,
+  readAuthProfilesJson,
+  writeAuthProfilesToSqlite,
+  type PersistedAuthProfilesStore,
+} from './openclaw-auth-sqlite';
 
 const AUTH_STORE_VERSION = 1;
 const AUTH_PROFILE_FILENAME = 'auth-profiles.json';
@@ -324,12 +332,7 @@ interface OAuthProfileEntry {
   projectId?: string;
 }
 
-interface AuthProfilesStore {
-  version: number;
-  profiles: Record<string, AuthProfileEntry | OAuthProfileEntry>;
-  order?: Record<string, string[]>;
-  lastGood?: Record<string, string>;
-}
+type AuthProfilesStore = PersistedAuthProfilesStore;
 
 function removeProfilesForProvider(store: AuthProfilesStore, provider: string): boolean {
   const removedProfileIds = new Set<string>();
@@ -414,20 +417,40 @@ function getAuthProfilesPath(agentId = 'main'): string {
 }
 
 async function readAuthProfiles(agentId = 'main'): Promise<AuthProfilesStore> {
-  const filePath = getAuthProfilesPath(agentId);
-  try {
-    const data = await readJsonFile<AuthProfilesStore>(filePath);
-    if (data?.version && data.profiles && typeof data.profiles === 'object') {
-      return data;
-    }
-  } catch (error) {
-    console.warn('Failed to read auth-profiles.json, creating fresh store:', error);
+  const sqliteStore = readAuthProfilesFromSqlite(agentId);
+  if (sqliteStore?.profiles && Object.keys(sqliteStore.profiles).length > 0) {
+    return sqliteStore;
   }
+
+  const jsonStore = await readAuthProfilesJson(agentId);
+  if (jsonStore?.profiles && Object.keys(jsonStore.profiles).length > 0) {
+    try {
+      writeAuthProfilesToSqlite(jsonStore, agentId);
+      console.log(`[auth-sync] Backfilled SQLite auth store from JSON for agent "${agentId}"`);
+    } catch (error) {
+      console.warn(`Failed to backfill SQLite auth store for agent "${agentId}":`, error);
+    }
+    return jsonStore;
+  }
+
   return { version: AUTH_STORE_VERSION, profiles: {} };
 }
 
 async function writeAuthProfiles(store: AuthProfilesStore, agentId = 'main'): Promise<void> {
+  writeAuthProfilesToSqlite(store, agentId);
   await writeJsonFile(getAuthProfilesPath(agentId), store);
+}
+
+/** Migrate legacy JSON-only auth profiles into SQLite for all configured agents. */
+export async function migrateAllAgentAuthProfilesToSqlite(): Promise<void> {
+  const agentIds = await discoverAgentIds();
+  for (const agentId of agentIds) {
+    try {
+      await migrateAuthProfilesJsonToSqliteIfNeeded(agentId);
+    } catch (error) {
+      console.warn(`Failed to migrate auth profiles to SQLite for agent "${agentId}":`, error);
+    }
+  }
 }
 
 function getApiKeyFromAuthProfilesStore(
@@ -622,6 +645,7 @@ function normalizeAuthProfileProviderKey(provider: string): string {
 function addProvidersFromProfileEntries(
   profiles: Record<string, unknown> | undefined,
   target: Set<string>,
+  options?: { includeRawKeys?: boolean },
 ): void {
   if (!profiles || typeof profiles !== 'object') {
     return;
@@ -632,17 +656,28 @@ function addProvidersFromProfileEntries(
       ? ((profile as Record<string, unknown>).provider as string)
       : undefined;
     if (!provider) continue;
-    target.add(normalizeAuthProfileProviderKey(provider));
+    const normalized = normalizeAuthProfileProviderKey(provider);
+    target.add(normalized);
+    // The raw runtime key (e.g. "openai-codex") matters for active-provider
+    // checks: filterActiveProviderKeysForUi() and the OAuth account matching
+    // in ProviderService.listAccounts() both key off it. Newer OpenClaw
+    // versions no longer keep explicit models.providers/plugins entries for
+    // these providers, so the auth profile is the only remaining signal.
+    if (options?.includeRawKeys && provider !== normalized) {
+      target.add(provider);
+    }
   }
 }
 
-async function getProvidersFromAuthProfileStores(): Promise<Set<string>> {
+async function getProvidersFromAuthProfileStores(
+  options?: { includeRawKeys?: boolean },
+): Promise<Set<string>> {
   const providers = new Set<string>();
   const agentIds = await discoverAgentIds();
 
   for (const agentId of agentIds) {
     const store = await readAuthProfiles(agentId);
-    addProvidersFromProfileEntries(store.profiles, providers);
+    addProvidersFromProfileEntries(store.profiles, providers, options);
   }
 
   return providers;
@@ -675,9 +710,13 @@ async function collectActiveProviderIdsFromConfig(config: Record<string, unknown
   }
 
   const auth = config.auth as Record<string, unknown> | undefined;
-  addProvidersFromProfileEntries(auth?.profiles as Record<string, unknown> | undefined, activeProviders);
+  addProvidersFromProfileEntries(
+    auth?.profiles as Record<string, unknown> | undefined,
+    activeProviders,
+    { includeRawKeys: true },
+  );
 
-  const authProfileProviders = await getProvidersFromAuthProfileStores();
+  const authProfileProviders = await getProvidersFromAuthProfileStores({ includeRawKeys: true });
   for (const provider of authProfileProviders) {
     activeProviders.add(provider);
   }
@@ -1952,10 +1991,16 @@ export async function getActiveOpenClawProviders(): Promise<Set<string>> {
 
     // 4. auth.profiles — OAuth/device-token based providers may exist only in
     //    auth-profiles without explicit models.providers entries yet.
+    //    Raw keys (e.g. "openai-codex") are included so downstream logic can
+    //    distinguish OAuth runtime providers from their UI alias ("openai").
     const auth = config.auth as Record<string, unknown> | undefined;
-    addProvidersFromProfileEntries(auth?.profiles as Record<string, unknown> | undefined, activeProviders);
+    addProvidersFromProfileEntries(
+      auth?.profiles as Record<string, unknown> | undefined,
+      activeProviders,
+      { includeRawKeys: true },
+    );
 
-    const authProfileProviders = await getProvidersFromAuthProfileStores();
+    const authProfileProviders = await getProvidersFromAuthProfileStores({ includeRawKeys: true });
     for (const provider of authProfileProviders) {
       activeProviders.add(provider);
     }
