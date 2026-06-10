@@ -8,6 +8,7 @@ export const initialChatState: Pick<
   | 'messages'
   | 'loading'
   | 'error'
+  | 'runError'
   | 'sending'
   | 'activeRunId'
   | 'streamingText'
@@ -21,13 +22,12 @@ export const initialChatState: Pick<
   | 'currentAgentId'
   | 'sessionLabels'
   | 'sessionLastActivity'
-  | 'showThinking'
   | 'thinkingLevel'
-  | 'showExecutionInfo'
 > = {
   messages: [],
   loading: false,
   error: null,
+  runError: null,
 
   sending: false,
   activeRunId: null,
@@ -44,9 +44,7 @@ export const initialChatState: Pick<
   sessionLabels: {},
   sessionLastActivity: {},
 
-  showThinking: true,
   thinkingLevel: null,
-  showExecutionInfo: true,
 };
 
 export function createChatActions(
@@ -58,13 +56,12 @@ export function createChatActions(
   | 'switchSession'
   | 'newSession'
   | 'deleteSession'
+  | 'renameSession'
   | 'cleanupEmptySession'
   | 'loadHistory'
   | 'sendMessage'
   | 'abortRun'
   | 'handleChatEvent'
-  | 'toggleThinking'
-  | 'toggleExecutionInfo'
   | 'refresh'
   | 'clearError'
 > {

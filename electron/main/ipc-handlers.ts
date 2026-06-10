@@ -2,24 +2,17 @@
  * IPC Handlers
  * Registers all IPC handlers for main-renderer communication
  */
-import { ipcMain, BrowserWindow, shell, dialog, app, nativeImage } from 'electron';
+import { ipcMain, BrowserWindow, shell, dialog, app } from 'electron';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join, extname, basename } from 'node:path';
-import crypto from 'node:crypto';
+import { join, extname, basename, resolve, sep, relative } from 'node:path';
+import { syncMacTrafficLightPosition } from './traffic-light-layout';
 import { GatewayManager } from '../gateway/manager';
-import { ClawHubService, ClawHubSearchParams, ClawHubInstallParams, ClawHubUninstallParams } from '../gateway/clawhub';
+import { ClawHubService } from '../gateway/clawhub';
 import {
   type ProviderConfig,
 } from '../utils/secure-storage';
-import {
-  getOpenClawStatus,
-  getOpenClawDir,
-  getOpenClawConfigDir,
-  getOpenClawSkillsDir,
-  ensureDir,
-  getCompanyKnowledgeWebviewPreloadPath,
-} from '../utils/paths';
+import { getOpenClawStatus, getOpenClawSkillsDir, ensureDir, expandPath, getCompanyKnowledgeWebviewPreloadPath } from '../utils/paths';
 import { getOpenClawCliCommand } from '../utils/openclaw-cli';
 import { getAllSettings, getSetting, resetSettings, setSetting, type AppSettings } from '../utils/store';
 import {
@@ -27,38 +20,16 @@ import {
   removeProviderFromOpenClaw,
 } from '../utils/openclaw-auth';
 import { syncProxyConfigToOpenClaw } from '../utils/openclaw-proxy';
-import { buildOpenClawControlUiUrl } from '../utils/openclaw-control-ui';
 import { logger } from '../utils/logger';
-import {
-  saveChannelConfig,
-  getChannelConfig,
-  getChannelFormValues,
-  deleteChannelConfig,
-  listConfiguredChannels,
-  setChannelEnabled,
-  validateChannelConfig,
-  validateChannelCredentials,
-} from '../utils/channel-config';
-import { toOpenClawChannelType, toUiChannelType } from '../utils/channel-alias';
-import { checkUvInstalled, installUv, setupManagedPython } from '../utils/uv-setup';
-import {
-  ensureDingTalkPluginInstalled,
-  ensureFeishuPluginInstalled,
-  ensureWeComPluginInstalled,
-} from '../utils/plugin-install';
-import {
-  updateSkillConfig,
-  getSkillConfig,
-  getAllSkillConfigs,
-  bindCompanyKnowledgeFromWebview,
-} from '../utils/skill-config';
+import { resolveAgentIdFromChannel } from '../utils/agent-config';
+import { resolveAccountIdFromSessionHistory } from '../utils/session-util';
+import { bindCompanyKnowledgeFromWebview } from '../utils/skill-config';
 import { whatsAppLoginManager } from '../utils/whatsapp-login';
 import { getProviderConfig } from '../utils/provider-registry';
-import { deviceOAuthManager, OAuthProviderType } from '../utils/device-oauth';
-import { browserOAuthManager, type BrowserOAuthProviderType } from '../utils/browser-oauth';
+import { deviceOAuthManager } from '../utils/device-oauth';
+import { browserOAuthManager } from '../utils/browser-oauth';
 import { applyProxySettings } from './proxy';
 import { syncLaunchAtStartupSettingFromStore } from './launch-at-startup';
-import { proxyAwareFetch } from '../utils/proxy-fetch';
 import { getRecentTokenUsageHistory } from '../utils/token-usage';
 import { getProviderService } from '../services/providers/provider-service';
 import {
@@ -72,7 +43,28 @@ import {
 } from '../services/providers/provider-runtime-sync';
 import { validateApiKeyWithProvider } from '../services/providers/provider-validation';
 import { appUpdater } from './updater';
-import { registerHostApiProxyHandlers } from './ipc/host-api-proxy';
+import { GatewayRpcBackpressure } from '../gateway/rpc-backpressure';
+import { HostApiRegistry, registerHostInvokeHandler } from './ipc/host-invoke';
+import { createAppApi } from '../services/app-api';
+import { createOpenClawApi } from '../services/openclaw-api';
+import { createShellApi } from '../services/shell-api';
+import { createDialogApi } from '../services/dialog-api';
+import { createWindowApi } from '../services/window-api';
+import { createUpdatesApi } from '../services/updates-api';
+import { createUvApi } from '../services/uv-api';
+import { createGatewayApi } from '../services/gateway-api';
+import { createLogsApi } from '../services/logs-api';
+import { createSettingsApi } from '../services/settings-api';
+import { createChannelsApi } from '../services/channels-api';
+import { createAgentsApi } from '../services/agents-api';
+import { createChatApi } from '../services/chat-api';
+import { createCronApi } from '../services/cron-api';
+import { createFilesApi } from '../services/files-api';
+import { createMediaApi } from '../services/media-api';
+import { createProvidersApi } from '../services/providers-api';
+import { createSessionsApi } from '../services/sessions-api';
+import { createSkillsApi } from '../services/skills-api';
+import { createUsageApi } from '../services/usage-api';
 import {
   isLaunchAtStartupKey,
   isProxyKey,
@@ -80,6 +72,9 @@ import {
   type AppRequest,
   type AppResponse,
 } from './ipc/request-helpers';
+import { createMenu } from './menu';
+
+const gatewayRpcBackpressure = new GatewayRpcBackpressure();
 
 /**
  * Register all IPC handlers
@@ -87,22 +82,20 @@ import {
 export function registerIpcHandlers(
   gatewayManager: GatewayManager,
   clawHubService: ClawHubService,
-  mainWindow: BrowserWindow
+  mainWindow: BrowserWindow,
+  hostApiRegistry: HostApiRegistry,
 ): void {
   // Unified request protocol (non-breaking: legacy channels remain available)
   registerUnifiedRequestHandlers(gatewayManager);
 
-  // Host API proxy handlers
-  registerHostApiProxyHandlers();
+  // Typed host invoke handlers (new renderer facade; legacy channels remain available)
+  registerTypedHostHandlers(gatewayManager, clawHubService, mainWindow, hostApiRegistry);
 
   // Gateway handlers
-  registerGatewayHandlers(gatewayManager, mainWindow);
-
-  // ClawHub handlers
-  registerClawHubHandlers(clawHubService);
+  registerGatewayHandlers(gatewayManager);
 
   // OpenClaw handlers
-  registerOpenClawHandlers(gatewayManager);
+  registerOpenClawHandlers();
 
   // Provider handlers
   registerProviderHandlers(gatewayManager);
@@ -113,26 +106,14 @@ export function registerIpcHandlers(
   // Dialog handlers
   registerDialogHandlers();
 
-  // Session handlers
-  registerSessionHandlers();
-
   // App handlers
   registerAppHandlers();
 
   // Settings handlers
   registerSettingsHandlers(gatewayManager);
 
-  // UV handlers
-  registerUvHandlers();
-
-  // Log handlers (for UI to read gateway/app logs)
-  registerLogHandlers();
-
   // Usage handlers
   registerUsageHandlers();
-
-  // Skill config handlers (direct file access, no Gateway RPC)
-  registerSkillConfigHandlers();
 
   // Cron task handlers (proxy to Gateway RPC)
   registerCronHandlers(gatewayManager);
@@ -143,11 +124,39 @@ export function registerIpcHandlers(
   // WhatsApp handlers
   registerWhatsAppHandlers(mainWindow);
 
-  // Device OAuth handlers (Code Plan)
-  registerDeviceOAuthHandlers(mainWindow);
+  // File preview handlers (sandboxed read/write/list for inline viewer)
+  registerFilePreviewHandlers();
+}
 
-  // File staging handlers (upload/send separation)
-  registerFileHandlers();
+function registerTypedHostHandlers(
+  gatewayManager: GatewayManager,
+  clawHubService: ClawHubService,
+  mainWindow: BrowserWindow,
+  hostApiRegistry: HostApiRegistry,
+): void {
+  hostApiRegistry.registerCoreServices({
+    app: createAppApi(),
+    openclaw: createOpenClawApi(),
+    shell: createShellApi(),
+    dialog: createDialogApi(),
+    window: createWindowApi(mainWindow),
+    updates: createUpdatesApi(appUpdater),
+    uv: createUvApi(),
+    settings: createSettingsApi(gatewayManager),
+    gateway: createGatewayApi(gatewayManager, gatewayRpcBackpressure),
+    logs: createLogsApi(),
+    channels: createChannelsApi({ gatewayManager, mainWindow }),
+    agents: createAgentsApi({ gatewayManager }),
+    providers: createProvidersApi({ gatewayManager, mainWindow }),
+    files: createFilesApi(),
+    media: createMediaApi(),
+    sessions: createSessionsApi(),
+    chat: createChatApi({ gatewayManager }),
+    cron: createCronApi({ gatewayManager }),
+    skills: createSkillsApi({ clawHubService, gatewayManager }),
+    usage: createUsageApi(),
+  });
+  registerHostInvokeHandler(hostApiRegistry);
 }
 
 function registerUnifiedRequestHandlers(gatewayManager: GatewayManager): void {
@@ -498,108 +507,6 @@ function registerUnifiedRequestHandlers(gatewayManager: GatewayManager): void {
             },
           };
         }
-        case 'cron': {
-          if (request.action === 'list') {
-            const result = await gatewayManager.rpc('cron.list', { includeDisabled: true });
-            const jobs = (result as { jobs?: GatewayCronJob[] })?.jobs ?? [];
-            data = jobs.map(transformCronJob);
-            break;
-          }
-          if (request.action === 'create') {
-            type CronCreateInput = {
-              name: string;
-              message: string;
-              schedule: string;
-              delivery?: { mode: string; channel?: string; to?: string };
-              enabled?: boolean;
-            };
-            const payload = request.payload as
-              | { input?: CronCreateInput }
-              | [CronCreateInput]
-              | CronCreateInput
-              | undefined;
-            let input: CronCreateInput | undefined;
-            if (Array.isArray(payload)) {
-              input = payload[0];
-            } else if (payload && typeof payload === 'object' && 'input' in payload) {
-              input = payload.input;
-            } else {
-              input = payload as CronCreateInput | undefined;
-            }
-            if (!input) throw new Error('Invalid cron.create payload');
-            const gatewayInput = {
-              name: input.name,
-              schedule: { kind: 'cron', expr: input.schedule },
-              payload: { kind: 'agentTurn', message: input.message },
-              enabled: input.enabled ?? true,
-              wakeMode: 'next-heartbeat',
-              sessionTarget: 'isolated',
-              delivery: normalizeCronDelivery(input.delivery),
-            };
-            const unsupportedDeliveryError = getUnsupportedCronDeliveryError(gatewayInput.delivery.channel);
-            if (gatewayInput.delivery.mode === 'announce' && unsupportedDeliveryError) {
-              throw new Error(unsupportedDeliveryError);
-            }
-            const created = await gatewayManager.rpc('cron.add', gatewayInput);
-            data = created && typeof created === 'object' ? transformCronJob(created as GatewayCronJob) : created;
-            break;
-          }
-          if (request.action === 'update') {
-            const payload = request.payload as
-              | { id?: string; input?: Record<string, unknown> }
-              | [string, Record<string, unknown>]
-              | undefined;
-            const id = Array.isArray(payload) ? payload[0] : payload?.id;
-            const input = Array.isArray(payload) ? payload[1] : payload?.input;
-            if (!id || !input) throw new Error('Invalid cron.update payload');
-            const patch = buildCronUpdatePatch(input);
-            const deliveryPatch = patch.delivery && typeof patch.delivery === 'object'
-              ? patch.delivery as Record<string, unknown>
-              : undefined;
-            const deliveryChannel = typeof deliveryPatch?.channel === 'string' && deliveryPatch.channel.trim()
-              ? deliveryPatch.channel.trim()
-              : undefined;
-            const deliveryMode = typeof deliveryPatch?.mode === 'string' && deliveryPatch.mode.trim()
-              ? deliveryPatch.mode.trim()
-              : undefined;
-            const unsupportedDeliveryError = getUnsupportedCronDeliveryError(deliveryChannel);
-            if (unsupportedDeliveryError && deliveryMode !== 'none') {
-              throw new Error(unsupportedDeliveryError);
-            }
-            data = await gatewayManager.rpc('cron.update', { id, patch });
-            break;
-          }
-          if (request.action === 'delete') {
-            const payload = request.payload as { id?: string } | string | undefined;
-            const id = typeof payload === 'string' ? payload : payload?.id;
-            if (!id) throw new Error('Invalid cron.delete payload');
-            data = await gatewayManager.rpc('cron.remove', { id });
-            break;
-          }
-          if (request.action === 'toggle') {
-            const payload = request.payload as { id?: string; enabled?: boolean } | [string, boolean] | undefined;
-            const id = Array.isArray(payload) ? payload[0] : payload?.id;
-            const enabled = Array.isArray(payload) ? payload[1] : payload?.enabled;
-            if (!id || typeof enabled !== 'boolean') throw new Error('Invalid cron.toggle payload');
-            data = await gatewayManager.rpc('cron.update', { id, patch: { enabled } });
-            break;
-          }
-          if (request.action === 'trigger') {
-            const payload = request.payload as { id?: string } | string | undefined;
-            const id = typeof payload === 'string' ? payload : payload?.id;
-            if (!id) throw new Error('Invalid cron.trigger payload');
-            data = await gatewayManager.rpc('cron.run', { id, mode: 'force' });
-            break;
-          }
-          return {
-            id: request.id,
-            ok: false,
-            error: {
-              code: 'UNSUPPORTED',
-              message: `APP_REQUEST_UNSUPPORTED:${request.module}.${request.action}`,
-            },
-          };
-        }
         case 'usage': {
           if (request.action === 'recentTokenHistory') {
             const payload = request.payload as { limit?: number } | number | undefined;
@@ -646,6 +553,9 @@ function registerUnifiedRequestHandlers(gatewayManager: GatewayManager): void {
             if (isLaunchAtStartupKey(key)) {
               await syncLaunchAtStartupSettingFromStore();
             }
+            if (key === 'language') {
+              await createMenu(typeof value === 'string' ? value : undefined);
+            }
             data = { success: true };
             break;
           }
@@ -661,6 +571,9 @@ function registerUnifiedRequestHandlers(gatewayManager: GatewayManager): void {
             if (entries.some(([key]) => isLaunchAtStartupKey(key))) {
               await syncLaunchAtStartupSettingFromStore();
             }
+            if (entries.some(([key]) => key === 'language')) {
+              await createMenu(typeof patch.language === 'string' ? patch.language : undefined);
+            }
             data = { success: true };
             break;
           }
@@ -669,6 +582,7 @@ function registerUnifiedRequestHandlers(gatewayManager: GatewayManager): void {
             const settings = await getAllSettings();
             await handleProxySettingsChange();
             await syncLaunchAtStartupSettingFromStore();
+            await createMenu(settings.language);
             data = { success: true, settings };
             break;
           }
@@ -707,464 +621,87 @@ function registerUnifiedRequestHandlers(gatewayManager: GatewayManager): void {
 }
 
 /**
- * Skill config IPC handlers
- * Direct read/write to ~/.openclaw/openclaw.json (bypasses Gateway RPC)
- */
-function registerSkillConfigHandlers(): void {
-  // Update skill config (apiKey and env)
-  ipcMain.handle('skill:updateConfig', async (_, params: {
-    skillKey: string;
-    apiKey?: string;
-    env?: Record<string, string>;
-  }) => {
-    return await updateSkillConfig(params.skillKey, {
-      apiKey: params.apiKey,
-      env: params.env,
-    });
-  });
-
-  // Get skill config
-  ipcMain.handle('skill:getConfig', async (_, skillKey: string) => {
-    return await getSkillConfig(skillKey);
-  });
-
-  // Get all skill configs
-  ipcMain.handle('skill:getAllConfigs', async () => {
-    return await getAllSkillConfigs();
-  });
-
-  ipcMain.handle('company-knowledge:bindWebview', async (_, raw: unknown) => {
-    return await bindCompanyKnowledgeFromWebview(raw);
-  });
-}
-
-/**
- * Gateway CronJob type (as returned by cron.list RPC)
- */
-interface GatewayCronJob {
-  id: string;
-  name: string;
-  description?: string;
-  enabled: boolean;
-  createdAtMs: number;
-  updatedAtMs: number;
-  schedule: { kind: string; expr?: string; everyMs?: number; at?: string; tz?: string };
-  payload: { kind: string; message?: string; text?: string };
-  delivery?: { mode: string; channel?: string; to?: string; accountId?: string };
-  sessionTarget?: string;
-  state: {
-    nextRunAtMs?: number;
-    lastRunAtMs?: number;
-    lastStatus?: string;
-    lastError?: string;
-    lastDurationMs?: number;
-  };
-}
-
-type GatewayCronDelivery = NonNullable<GatewayCronJob['delivery']>;
-
-function getUnsupportedCronDeliveryError(_channel: string | undefined): string | null {
-  // Channel support is gated by the frontend whitelist (TESTED_CRON_DELIVERY_CHANNELS).
-  // No per-channel backend blocks are needed.
-  return null;
-}
-
-function normalizeCronDelivery(
-  rawDelivery: unknown,
-  fallbackMode: GatewayCronDelivery['mode'] = 'none',
-): GatewayCronDelivery {
-  if (!rawDelivery || typeof rawDelivery !== 'object') {
-    return { mode: fallbackMode };
-  }
-
-  const delivery = rawDelivery as Record<string, unknown>;
-  const mode = typeof delivery.mode === 'string' && delivery.mode.trim()
-    ? delivery.mode.trim()
-    : fallbackMode;
-  const channel = typeof delivery.channel === 'string' && delivery.channel.trim()
-    ? toOpenClawChannelType(delivery.channel.trim())
-    : undefined;
-  const to = typeof delivery.to === 'string' && delivery.to.trim()
-    ? delivery.to.trim()
-    : undefined;
-  const accountId = typeof delivery.accountId === 'string' && delivery.accountId.trim()
-    ? delivery.accountId.trim()
-    : undefined;
-
-  if (mode === 'announce' && !channel) {
-    return { mode: 'none' };
-  }
-
-  return {
-    mode,
-    ...(channel ? { channel } : {}),
-    ...(to ? { to } : {}),
-    ...(accountId ? { accountId } : {}),
-  };
-}
-
-function normalizeCronDeliveryPatch(rawDelivery: unknown): Record<string, unknown> {
-  if (!rawDelivery || typeof rawDelivery !== 'object') {
-    return {};
-  }
-
-  const delivery = rawDelivery as Record<string, unknown>;
-  const patch: Record<string, unknown> = {};
-  if ('mode' in delivery) {
-    patch.mode = typeof delivery.mode === 'string' && delivery.mode.trim()
-      ? delivery.mode.trim()
-      : 'none';
-  }
-  if ('channel' in delivery) {
-    patch.channel = typeof delivery.channel === 'string' && delivery.channel.trim()
-      ? toOpenClawChannelType(delivery.channel.trim())
-      : '';
-  }
-  if ('to' in delivery) {
-    patch.to = typeof delivery.to === 'string' ? delivery.to : '';
-  }
-  if ('accountId' in delivery) {
-    patch.accountId = typeof delivery.accountId === 'string' ? delivery.accountId : '';
-  }
-  return patch;
-}
-
-function buildCronUpdatePatch(input: Record<string, unknown>): Record<string, unknown> {
-  const patch = { ...input };
-
-  if (typeof patch.schedule === 'string') {
-    patch.schedule = { kind: 'cron', expr: patch.schedule };
-  }
-
-  if (typeof patch.message === 'string') {
-    patch.payload = { kind: 'agentTurn', message: patch.message };
-    delete patch.message;
-  }
-
-  if ('delivery' in patch) {
-    patch.delivery = normalizeCronDeliveryPatch(patch.delivery);
-  }
-
-  return patch;
-}
-
-/**
- * Transform a Gateway CronJob to the frontend CronJob format
- */
-function transformCronJob(job: GatewayCronJob) {
-  // Extract message from payload
-  const message = job.payload?.message || job.payload?.text || '';
-  const gatewayDelivery = normalizeCronDelivery(job.delivery);
-  const channelType = gatewayDelivery.channel ? toUiChannelType(gatewayDelivery.channel) : undefined;
-  const delivery = channelType
-    ? { ...gatewayDelivery, channel: channelType }
-    : gatewayDelivery;
-
-  // Build target from delivery info — only if a delivery channel is specified
-  const target = channelType
-    ? { channelType, channelId: delivery.accountId || gatewayDelivery.channel, channelName: channelType, recipient: delivery.to }
-    : undefined;
-
-  // Build lastRun from state
-  const lastRun = job.state?.lastRunAtMs
-    ? {
-      time: new Date(job.state.lastRunAtMs).toISOString(),
-      success: job.state.lastStatus === 'ok',
-      error: job.state.lastError,
-      duration: job.state.lastDurationMs,
-    }
-    : undefined;
-
-  // Build nextRun from state
-  const nextRun = job.state?.nextRunAtMs
-    ? new Date(job.state.nextRunAtMs).toISOString()
-    : undefined;
-
-  return {
-    id: job.id,
-    name: job.name,
-    message,
-    schedule: job.schedule, // Pass the object through; frontend parseCronSchedule handles it
-    delivery,
-    target,
-    enabled: job.enabled,
-    createdAt: new Date(job.createdAtMs).toISOString(),
-    updatedAt: new Date(job.updatedAtMs).toISOString(),
-    lastRun,
-    nextRun,
-  };
-}
-
-/**
- * Cron task IPC handlers
- * Proxies cron operations to the Gateway RPC service.
- * The frontend works with plain cron expression strings, but the Gateway
- * expects CronSchedule objects ({ kind: "cron", expr: "..." }).
- * These handlers bridge the two formats.
+ * Cron maintenance
  */
 function registerCronHandlers(gatewayManager: GatewayManager): void {
-  // List all cron jobs — transforms Gateway CronJob format to frontend CronJob format
-  ipcMain.handle('cron:list', async () => {
+  // Periodic cron job repair: checks for jobs with undefined agentId and repairs them
+  // This handles cases where cron jobs were created via openclaw CLI without specifying agent
+  const CRON_AGENT_REPAIR_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+  let _lastRepairErrorLogAt = 0;
+  const REPAIR_ERROR_LOG_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+  setInterval(async () => {
     try {
+      const status = gatewayManager.getStatus();
+      if (status.state !== 'running') return;
+
       const result = await gatewayManager.rpc('cron.list', { includeDisabled: true });
-      const data = result as { jobs?: GatewayCronJob[] };
-      const jobs = data?.jobs ?? [];
+      const jobs = Array.isArray(result)
+        ? result
+        : (result as { jobs?: Array<{ id: string; name: string; sessionTarget?: string; payload?: { kind: string }; delivery?: { mode: string; channel?: string; to?: string; accountId?: string }; state?: Record<string, unknown> }> })?.jobs ?? [];
 
-      // Auto-repair legacy UI-created jobs that were saved without
-      // delivery: { mode: 'none' }.  The Gateway auto-normalizes them
-      // to delivery: { mode: 'announce' } which then fails with
-      // "Channel is required" when no external channels are configured.
       for (const job of jobs) {
-        const isIsolatedAgent =
+        const jobAgentId = (job as unknown as { agentId?: string }).agentId;
+        if (
           (job.sessionTarget === 'isolated' || !job.sessionTarget) &&
-          job.payload?.kind === 'agentTurn';
-        const needsRepair =
-          isIsolatedAgent &&
+          job.payload?.kind === 'agentTurn' &&
           job.delivery?.mode === 'announce' &&
-          !job.delivery?.channel;
+          job.delivery?.channel &&
+          jobAgentId === undefined
+        ) {
+          const channel = job.delivery.channel;
+          const accountId = job.delivery.accountId;
+          const toAddress = job.delivery.to;
 
-        if (needsRepair) {
-          try {
-            await gatewayManager.rpc('cron.update', {
-              id: job.id,
-              patch: { delivery: { mode: 'none' } },
-            });
-            job.delivery = { mode: 'none' };
-            // Clear stale channel-resolution error from the last run
-            if (job.state?.lastError?.includes('Channel is required')) {
-              job.state.lastError = undefined;
-              job.state.lastStatus = 'ok';
+          let correctAgentId = await resolveAgentIdFromChannel(channel, accountId);
+
+          // If no accountId, try to resolve it from session history
+          let resolvedAccountId: string | null = null;
+          if (!correctAgentId && !accountId && toAddress) {
+            resolvedAccountId = await resolveAccountIdFromSessionHistory(toAddress, channel);
+            if (resolvedAccountId) {
+              correctAgentId = await resolveAgentIdFromChannel(channel, resolvedAccountId);
             }
-          } catch (e) {
-            console.warn(`Failed to auto-repair cron job ${job.id}:`, e);
+          }
+
+          if (correctAgentId) {
+            console.debug(`Periodic repair: job "${job.name}" agentId undefined -> "${correctAgentId}"`);
+            // When accountId was resolved via to address, include it in the patch
+            const patch: Record<string, unknown> = { agentId: correctAgentId };
+            if (resolvedAccountId && !accountId) {
+              patch.delivery = { accountId: resolvedAccountId };
+            }
+            await gatewayManager.rpc('cron.update', { id: job.id, patch });
           }
         }
       }
-
-      // Transform Gateway format to frontend format
-      return jobs.map(transformCronJob);
     } catch (error) {
-      console.error('Failed to list cron jobs:', error);
-      throw error;
-    }
-  });
-
-  // Create a new cron job
-  // UI-created tasks have no delivery target — results go to the SmartX chat page.
-  // Tasks created via external channels (Feishu, Discord, etc.) are handled
-  // directly by the OpenClaw Gateway and do not pass through this IPC handler.
-  ipcMain.handle('cron:create', async (_, input: {
-    name: string;
-    message: string;
-    schedule: string;
-    delivery?: GatewayCronDelivery;
-    enabled?: boolean;
-  }) => {
-    try {
-      const gatewayInput = {
-        name: input.name,
-        schedule: { kind: 'cron', expr: input.schedule },
-        payload: { kind: 'agentTurn', message: input.message },
-        enabled: input.enabled ?? true,
-        wakeMode: 'next-heartbeat',
-        sessionTarget: 'isolated',
-        // UI-created jobs deliver results via SmartX WebSocket chat events,
-        // not external messaging channels.  Setting mode='none' prevents
-        // the Gateway from attempting channel delivery (which would fail
-        // with "Channel is required" when no channels are configured).
-        delivery: normalizeCronDelivery(input.delivery),
-      };
-      const unsupportedDeliveryError = getUnsupportedCronDeliveryError(gatewayInput.delivery.channel);
-      if (gatewayInput.delivery.mode === 'announce' && unsupportedDeliveryError) {
-        throw new Error(unsupportedDeliveryError);
+      const now = Date.now();
+      if (now - _lastRepairErrorLogAt >= REPAIR_ERROR_LOG_INTERVAL_MS) {
+        _lastRepairErrorLogAt = now;
+        console.debug('Periodic cron repair error:', error);
       }
-      const result = await gatewayManager.rpc('cron.add', gatewayInput);
-      // Transform the returned job to frontend format
-      if (result && typeof result === 'object') {
-        return transformCronJob(result as GatewayCronJob);
-      }
-      return result;
-    } catch (error) {
-      console.error('Failed to create cron job:', error);
-      throw error;
     }
-  });
-
-  // Update an existing cron job
-  ipcMain.handle('cron:update', async (_, id: string, input: Record<string, unknown>) => {
-    try {
-      const patch = buildCronUpdatePatch(input);
-      const deliveryPatch = patch.delivery && typeof patch.delivery === 'object'
-        ? patch.delivery as Record<string, unknown>
-        : undefined;
-      const deliveryChannel = typeof deliveryPatch?.channel === 'string' && deliveryPatch.channel.trim()
-        ? deliveryPatch.channel.trim()
-        : undefined;
-      const deliveryMode = typeof deliveryPatch?.mode === 'string' && deliveryPatch.mode.trim()
-        ? deliveryPatch.mode.trim()
-        : undefined;
-      const unsupportedDeliveryError = getUnsupportedCronDeliveryError(deliveryChannel);
-      if (unsupportedDeliveryError && deliveryMode !== 'none') {
-        throw new Error(unsupportedDeliveryError);
-      }
-      const result = await gatewayManager.rpc('cron.update', { id, patch });
-      return result && typeof result === 'object' ? transformCronJob(result as GatewayCronJob) : result;
-    } catch (error) {
-      console.error('Failed to update cron job:', error);
-      throw error;
-    }
-  });
-
-  // Delete a cron job
-  ipcMain.handle('cron:delete', async (_, id: string) => {
-    try {
-      const result = await gatewayManager.rpc('cron.remove', { id });
-      return result;
-    } catch (error) {
-      console.error('Failed to delete cron job:', error);
-      throw error;
-    }
-  });
-
-  // Toggle a cron job enabled/disabled
-  ipcMain.handle('cron:toggle', async (_, id: string, enabled: boolean) => {
-    try {
-      const result = await gatewayManager.rpc('cron.update', { id, patch: { enabled } });
-      return result;
-    } catch (error) {
-      console.error('Failed to toggle cron job:', error);
-      throw error;
-    }
-  });
-
-  // Trigger a cron job manually
-  ipcMain.handle('cron:trigger', async (_, id: string) => {
-    try {
-      const result = await gatewayManager.rpc('cron.run', { id, mode: 'force' });
-      return result;
-    } catch (error) {
-      console.error('Failed to trigger cron job:', error);
-      throw error;
-    }
-  });
-}
-
-/**
- * UV-related IPC handlers
- */
-function registerUvHandlers(): void {
-  // Check if uv is installed
-  ipcMain.handle('uv:check', async () => {
-    return await checkUvInstalled();
-  });
-
-  // Install uv and setup managed Python
-  ipcMain.handle('uv:install-all', async () => {
-    try {
-      const isInstalled = await checkUvInstalled();
-      if (!isInstalled) {
-        await installUv();
-      }
-      // Always run python setup to ensure it exists in uv's cache
-      await setupManagedPython();
-      return { success: true };
-    } catch (error) {
-      console.error('Failed to setup uv/python:', error);
-      return { success: false, error: String(error) };
-    }
-  });
-}
-
-/**
- * Log-related IPC handlers
- * Allows the renderer to read application logs for diagnostics
- */
-function registerLogHandlers(): void {
-  // Get recent logs from memory ring buffer
-  ipcMain.handle('log:getRecent', async (_, count?: number) => {
-    return logger.getRecentLogs(count);
-  });
-
-  // Read log file content (last N lines)
-  ipcMain.handle('log:readFile', async (_, tailLines?: number) => {
-    return await logger.readLogFile(tailLines);
-  });
-
-  // Get log file path (so user can open in file explorer)
-  ipcMain.handle('log:getFilePath', async () => {
-    return logger.getLogFilePath();
-  });
-
-  // Get log directory path
-  ipcMain.handle('log:getDir', async () => {
-    return logger.getLogDir();
-  });
-
-  // List all log files
-  ipcMain.handle('log:listFiles', async () => {
-    return await logger.listLogFiles();
-  });
+  }, CRON_AGENT_REPAIR_INTERVAL_MS);
 }
 
 /**
  * Gateway-related IPC handlers
  */
-function registerGatewayHandlers(
-  gatewayManager: GatewayManager,
-  mainWindow: BrowserWindow
-): void {
-  type GatewayHttpProxyRequest = {
-    path?: string;
-    method?: string;
-    headers?: Record<string, string>;
-    body?: unknown;
-    timeoutMs?: number;
-  };
-
+function registerGatewayHandlers(gatewayManager: GatewayManager): void {
   // Get Gateway status
   ipcMain.handle('gateway:status', () => {
     return gatewayManager.getStatus();
   });
 
-  // Check if Gateway is connected
-  ipcMain.handle('gateway:isConnected', () => {
-    return gatewayManager.isConnected();
-  });
-
-  // Start Gateway
-  ipcMain.handle('gateway:start', async () => {
-    try {
-      await gatewayManager.start();
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: String(error) };
-    }
-  });
-
-  // Stop Gateway
-  ipcMain.handle('gateway:stop', async () => {
-    try {
-      await gatewayManager.stop();
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: String(error) };
-    }
-  });
-
-  // Restart Gateway
-  ipcMain.handle('gateway:restart', async () => {
-    try {
-      await gatewayManager.restart();
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: String(error) };
-    }
-  });
-
   // Gateway RPC call
   ipcMain.handle('gateway:rpc', async (_, method: string, params?: unknown, timeoutMs?: number) => {
     try {
-      const result = await gatewayManager.rpc(method, params, timeoutMs);
+      const result = await gatewayRpcBackpressure.run(
+        method,
+        params,
+        timeoutMs,
+        (rpcMethod, rpcParams, rpcTimeoutMs) => gatewayManager.rpc(rpcMethod, rpcParams, rpcTimeoutMs),
+      );
       return { success: true, result };
     } catch (error) {
       logger.warn(`[gateway:rpc] ${method} failed (timeoutMs=${timeoutMs ?? 30000}): ${String(error)}`);
@@ -1172,283 +709,21 @@ function registerGatewayHandlers(
     }
   });
 
-  // Gateway HTTP proxy
-  // Renderer must not call gateway HTTP directly (CORS); all HTTP traffic
-  // should go through this main-process proxy.
-  ipcMain.handle('gateway:httpProxy', async (_, request: GatewayHttpProxyRequest) => {
-    try {
-      const status = gatewayManager.getStatus();
-      const port = status.port || 18789;
-      const path = request?.path && request.path.startsWith('/') ? request.path : '/';
-      const method = (request?.method || 'GET').toUpperCase();
-      const timeoutMs =
-        typeof request?.timeoutMs === 'number' && request.timeoutMs > 0
-          ? request.timeoutMs
-          : 15000;
-
-      const token = await getSetting('gatewayToken');
-      const headers: Record<string, string> = {
-        ...(request?.headers ?? {}),
-      };
-      if (!headers.Authorization && !headers.authorization && token) {
-        headers.Authorization = `Bearer ${token}`;
-      }
-
-      let body: string | undefined;
-      if (request?.body !== undefined && request?.body !== null) {
-        body = typeof request.body === 'string' ? request.body : JSON.stringify(request.body);
-        if (!headers['Content-Type'] && !headers['content-type']) {
-          headers['Content-Type'] = 'application/json';
-        }
-      }
-
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-      const response = await (async () => {
-        try {
-          return await proxyAwareFetch(`http://127.0.0.1:${port}${path}`, {
-            method,
-            headers,
-            body,
-            signal: controller.signal,
-          });
-        } finally {
-          clearTimeout(timer);
-        }
-      })();
-
-      const contentType = (response.headers.get('content-type') || '').toLowerCase();
-      if (contentType.includes('application/json')) {
-        const json = await response.json();
-        return {
-          success: true,
-          status: response.status,
-          ok: response.ok,
-          json,
-        };
-      }
-
-      const text = await response.text();
-      return {
-        success: true,
-        status: response.status,
-        ok: response.ok,
-        text,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: String(error),
-      };
-    }
-  });
-
-  // Chat send with media — reads staged files from disk and builds attachments.
-  // Raster images (png/jpg/gif/webp) are inlined as base64 vision attachments.
-  // All other files are referenced by path in the message text so the model
-  // can access them via tools (the same format channels use).
-  const VISION_MIME_TYPES = new Set([
-    'image/png', 'image/jpeg', 'image/bmp', 'image/webp',
-  ]);
-
-  ipcMain.handle('chat:sendWithMedia', async (_, params: {
-    sessionKey: string;
-    message: string;
-    deliver?: boolean;
-    idempotencyKey: string;
-    media?: Array<{ filePath: string; mimeType: string; fileName: string }>;
-  }) => {
-    try {
-      let message = params.message;
-      // The Gateway processes image attachments through TWO parallel paths:
-      // Path A: `attachments` param → parsed via `parseMessageWithAttachments` →
-      //   injected as inline vision content when the model supports images.
-      //   Format: { content: base64, mimeType: string, fileName?: string }
-      // Path B: `[media attached: ...]` in message text → Gateway's native image
-      //   detection (`detectAndLoadPromptImages`) reads the file from disk and
-      //   injects it as inline vision content. Also works for history messages.
-      // We use BOTH paths for maximum reliability.
-      const imageAttachments: Array<Record<string, unknown>> = [];
-      const fileReferences: string[] = [];
-
-      if (params.media && params.media.length > 0) {
-        const fsP = await import('fs/promises');
-        for (const m of params.media) {
-          const exists = await fsP.access(m.filePath).then(() => true, () => false);
-          logger.info(`[chat:sendWithMedia] Processing file: ${m.fileName} (${m.mimeType}), path: ${m.filePath}, exists: ${exists}, isVision: ${VISION_MIME_TYPES.has(m.mimeType)}`);
-
-          // Always add file path reference so the model can access it via tools
-          fileReferences.push(
-            `[media attached: ${m.filePath} (${m.mimeType}) | ${m.filePath}]`,
-          );
-
-          if (VISION_MIME_TYPES.has(m.mimeType)) {
-            // Send as base64 attachment in the format the Gateway expects:
-            // { content: base64String, mimeType: string, fileName?: string }
-            // The Gateway normalizer looks for `a.content` (NOT `a.source.data`).
-            const fileBuffer = await fsP.readFile(m.filePath);
-            const base64Data = fileBuffer.toString('base64');
-            logger.info(`[chat:sendWithMedia] Read ${fileBuffer.length} bytes, base64 length: ${base64Data.length}`);
-            imageAttachments.push({
-              content: base64Data,
-              mimeType: m.mimeType,
-              fileName: m.fileName,
-            });
-          }
-        }
-      }
-
-      // Append file references to message text so the model knows about them
-      if (fileReferences.length > 0) {
-        const refs = fileReferences.join('\n');
-        message = message ? `${message}\n\n${refs}` : refs;
-      }
-
-      const rpcParams: Record<string, unknown> = {
-        sessionKey: params.sessionKey,
-        message,
-        deliver: params.deliver ?? false,
-        idempotencyKey: params.idempotencyKey,
-      };
-
-      if (imageAttachments.length > 0) {
-        rpcParams.attachments = imageAttachments;
-      }
-
-      logger.info(`[chat:sendWithMedia] Sending: message="${message.substring(0, 100)}", attachments=${imageAttachments.length}, fileRefs=${fileReferences.length}`);
-
-      // Longer timeout for chat sends to tolerate high-latency networks (avoids connect error)
-      const timeoutMs = 120000;
-      const result = await gatewayManager.rpc('chat.send', rpcParams, timeoutMs);
-      logger.info(`[chat:sendWithMedia] RPC result: ${JSON.stringify(result)}`);
-      return { success: true, result };
-    } catch (error) {
-      logger.error(`[chat:sendWithMedia] Error: ${String(error)}`);
-      return { success: false, error: String(error) };
-    }
-  });
-
-  // Get the Control UI URL with token for embedding
-  ipcMain.handle('gateway:getControlUiUrl', async () => {
-    try {
-      const status = gatewayManager.getStatus();
-      const token = await getSetting('gatewayToken');
-      const port = status.port || 18789;
-      const url = buildOpenClawControlUiUrl(port, token);
-      return { success: true, url, port, token };
-    } catch (error) {
-      return { success: false, error: String(error) };
-    }
-  });
-
-  // Health check
-  ipcMain.handle('gateway:health', async () => {
-    try {
-      const health = await gatewayManager.checkHealth();
-      return { success: true, ...health };
-    } catch (error) {
-      return { success: false, ok: false, error: String(error) };
-    }
-  });
-
-  // Forward Gateway events to renderer
-  gatewayManager.on('status', (status) => {
-    if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('gateway:status-changed', status);
-    }
-  });
-
-  gatewayManager.on('message', (message) => {
-    if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('gateway:message', message);
-    }
-  });
-
-  gatewayManager.on('notification', (notification) => {
-    if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('gateway:notification', notification);
-    }
-  });
-
-  gatewayManager.on('channel:status', (data) => {
-    if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('gateway:channel-status', data);
-    }
-  });
-
-  gatewayManager.on('chat:message', (data) => {
-    if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('gateway:chat-message', data);
-    }
-  });
-
-  gatewayManager.on('exit', (code) => {
-    if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('gateway:exit', code);
-    }
-  });
-
-  gatewayManager.on('error', (error) => {
-    if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('gateway:error', error.message);
-    }
-  });
+  // Gateway events are bridged once in main/index.ts through the typed
+  // hostEvents surface. Keeping listener forwarding here would double-deliver
+  // streaming/runtime events to the renderer.
 }
 
 /**
  * OpenClaw-related IPC handlers
  * For checking package status and channel configuration
  */
-function registerOpenClawHandlers(gatewayManager: GatewayManager): void {
-  // Plugin-based channels require a full Gateway process restart to properly
-  // initialize / tear-down plugin connections.  SIGUSR1 in-process reload is
-  // not sufficient for channel plugins (see restartGatewayForAgentDeletion).
-  const forceRestartChannels = new Set(['dingtalk', 'wecom', 'whatsapp', 'feishu', 'qqbot']);
-
-  const scheduleGatewayChannelRestart = (reason: string): void => {
-    if (gatewayManager.getStatus().state !== 'stopped') {
-      logger.info(`Scheduling Gateway restart after ${reason}`);
-      gatewayManager.debouncedRestart();
-    } else {
-      logger.info(`Gateway is stopped; skip immediate restart after ${reason}`);
-    }
-  };
-
-  const scheduleGatewayChannelSaveRefresh = (channelType: string, reason: string): void => {
-    if (gatewayManager.getStatus().state === 'stopped') {
-      logger.info(`Gateway is stopped; skip immediate refresh after ${reason}`);
-      return;
-    }
-    if (forceRestartChannels.has(channelType)) {
-      logger.info(`Scheduling Gateway restart after ${reason}`);
-      gatewayManager.debouncedRestart();
-      return;
-    }
-    logger.info(`Scheduling Gateway reload after ${reason}`);
-    gatewayManager.debouncedReload();
-  };
-
+function registerOpenClawHandlers(): void {
   // Get OpenClaw package status
   ipcMain.handle('openclaw:status', () => {
     const status = getOpenClawStatus();
     logger.info('openclaw:status IPC called', status);
     return status;
-  });
-
-  // Check if OpenClaw is ready (package present)
-  ipcMain.handle('openclaw:isReady', () => {
-    const status = getOpenClawStatus();
-    return status.packageExists;
-  });
-
-  // Get the resolved OpenClaw directory path (for diagnostics)
-  ipcMain.handle('openclaw:getDir', () => {
-    return getOpenClawDir();
-  });
-
-  // Get the OpenClaw config directory (~/.openclaw)
-  ipcMain.handle('openclaw:getConfigDir', () => {
-    return getOpenClawConfigDir();
   });
 
   // Get the OpenClaw skills directory (~/.openclaw/skills)
@@ -1473,182 +748,12 @@ function registerOpenClawHandlers(gatewayManager: GatewayManager): void {
       return { success: false, error: String(error) };
     }
   });
-
-
-  // ==================== Channel Configuration Handlers ====================
-
-  // Save channel configuration
-  ipcMain.handle('channel:saveConfig', async (_, channelType: string, config: Record<string, unknown>) => {
-    try {
-      logger.info('channel:saveConfig', { channelType, keys: Object.keys(config || {}) });
-      if (channelType === 'dingtalk') {
-        const installResult = await ensureDingTalkPluginInstalled();
-        if (!installResult.installed) {
-          return {
-            success: false,
-            error: installResult.warning || 'DingTalk plugin install failed',
-          };
-        }
-        await saveChannelConfig(channelType, config);
-        scheduleGatewayChannelSaveRefresh(channelType, `channel:saveConfig (${channelType})`);
-        return {
-          success: true,
-          pluginInstalled: installResult.installed,
-          warning: installResult.warning,
-        };
-      }
-      if (channelType === 'wecom') {
-        const installResult = await ensureWeComPluginInstalled();
-        if (!installResult.installed) {
-          return {
-            success: false,
-            error: installResult.warning || 'WeCom plugin install failed',
-          };
-        }
-        await saveChannelConfig(channelType, config);
-        scheduleGatewayChannelSaveRefresh(channelType, `channel:saveConfig (${channelType})`);
-        return {
-          success: true,
-          pluginInstalled: installResult.installed,
-          warning: installResult.warning,
-        };
-      }
-      // QQBot is a built-in channel since OpenClaw 3.31 — no plugin install needed
-      if (channelType === 'feishu') {
-        const installResult = await ensureFeishuPluginInstalled();
-        if (!installResult.installed) {
-          return {
-            success: false,
-            error: installResult.warning || 'Feishu plugin install failed',
-          };
-        }
-        await saveChannelConfig(channelType, config);
-        scheduleGatewayChannelSaveRefresh(channelType, `channel:saveConfig (${channelType})`);
-        return {
-          success: true,
-          pluginInstalled: installResult.installed,
-          warning: installResult.warning,
-        };
-      }
-      await saveChannelConfig(channelType, config);
-      scheduleGatewayChannelSaveRefresh(channelType, `channel:saveConfig (${channelType})`);
-      return { success: true };
-    } catch (error) {
-      console.error('Failed to save channel config:', error);
-      return { success: false, error: String(error) };
-    }
-  });
-
-  // Get channel configuration
-  ipcMain.handle('channel:getConfig', async (_, channelType: string) => {
-    try {
-      const config = await getChannelConfig(channelType);
-      return { success: true, config };
-    } catch (error) {
-      console.error('Failed to get channel config:', error);
-      return { success: false, error: String(error) };
-    }
-  });
-
-  // Get channel form values (reverse-transformed for UI pre-fill)
-  ipcMain.handle('channel:getFormValues', async (_, channelType: string) => {
-    try {
-      const values = await getChannelFormValues(channelType);
-      return { success: true, values };
-    } catch (error) {
-      console.error('Failed to get channel form values:', error);
-      return { success: false, error: String(error) };
-    }
-  });
-
-  // Delete channel configuration
-  ipcMain.handle('channel:deleteConfig', async (_, channelType: string) => {
-    try {
-      await deleteChannelConfig(channelType);
-      scheduleGatewayChannelRestart(`channel:deleteConfig (${channelType})`);
-      return { success: true };
-    } catch (error) {
-      console.error('Failed to delete channel config:', error);
-      return { success: false, error: String(error) };
-    }
-  });
-
-  // List configured channels
-  ipcMain.handle('channel:listConfigured', async () => {
-    try {
-      const channels = await listConfiguredChannels();
-      return { success: true, channels };
-    } catch (error) {
-      console.error('Failed to list channels:', error);
-      return { success: false, error: String(error) };
-    }
-  });
-
-  // Enable or disable a channel
-  ipcMain.handle('channel:setEnabled', async (_, channelType: string, enabled: boolean) => {
-    try {
-      await setChannelEnabled(channelType, enabled);
-      scheduleGatewayChannelRestart(`channel:setEnabled (${channelType}, enabled=${enabled})`);
-      return { success: true };
-    } catch (error) {
-      console.error('Failed to set channel enabled:', error);
-      return { success: false, error: String(error) };
-    }
-  });
-
-  // Validate channel configuration
-  ipcMain.handle('channel:validate', async (_, channelType: string) => {
-    try {
-      const result = await validateChannelConfig(channelType);
-      return { success: true, ...result };
-    } catch (error) {
-      console.error('Failed to validate channel:', error);
-      return { success: false, valid: false, errors: [String(error)], warnings: [] };
-    }
-  });
-
-  // Validate channel credentials by calling actual service APIs (before saving)
-  ipcMain.handle('channel:validateCredentials', async (_, channelType: string, config: Record<string, string>) => {
-    try {
-      const result = await validateChannelCredentials(channelType, config);
-      return { success: true, ...result };
-    } catch (error) {
-      console.error('Failed to validate channel credentials:', error);
-      return { success: false, valid: false, errors: [String(error)], warnings: [] };
-    }
-  });
 }
 
 /**
  * WhatsApp Login Handlers
  */
 function registerWhatsAppHandlers(mainWindow: BrowserWindow): void {
-  // Request WhatsApp QR code
-  ipcMain.handle('channel:requestWhatsAppQr', async (_, accountId: string) => {
-    try {
-      logger.info('channel:requestWhatsAppQr', { accountId });
-      await whatsAppLoginManager.start(accountId);
-      return { success: true };
-    } catch (error) {
-      logger.error('channel:requestWhatsAppQr failed', error);
-      return { success: false, error: String(error) };
-    }
-  });
-
-  // Cancel WhatsApp login
-  ipcMain.handle('channel:cancelWhatsAppQr', async () => {
-    try {
-      await whatsAppLoginManager.stop();
-      return { success: true };
-    } catch (error) {
-      logger.error('channel:cancelWhatsAppQr failed', error);
-      return { success: false, error: String(error) };
-    }
-  });
-
-  // Check WhatsApp status (is it active?)
-  // ipcMain.handle('channel:checkWhatsAppStatus', ...)
-
   // Forward events to renderer
   whatsAppLoginManager.on('qr', (data) => {
     if (!mainWindow.isDestroyed()) {
@@ -1667,50 +772,6 @@ function registerWhatsAppHandlers(mainWindow: BrowserWindow): void {
     if (!mainWindow.isDestroyed()) {
       logger.error('whatsapp:login-error', error);
       mainWindow.webContents.send('channel:whatsapp-error', error);
-    }
-  });
-}
-
-/**
- * Device OAuth Handlers (Code Plan)
- */
-function registerDeviceOAuthHandlers(mainWindow: BrowserWindow): void {
-  deviceOAuthManager.setWindow(mainWindow);
-  browserOAuthManager.setWindow(mainWindow);
-
-  // Request Provider OAuth initialization
-  ipcMain.handle(
-    'provider:requestOAuth',
-    async (
-      _,
-      provider: OAuthProviderType | BrowserOAuthProviderType,
-      region?: 'global' | 'cn',
-      options?: { accountId?: string; label?: string },
-    ) => {
-      try {
-        logger.info(`provider:requestOAuth for ${provider}`);
-        if (provider === 'google' || provider === 'openai') {
-          await browserOAuthManager.startFlow(provider, options);
-        } else {
-          await deviceOAuthManager.startFlow(provider, region, options);
-        }
-        return { success: true };
-      } catch (error) {
-        logger.error('provider:requestOAuth failed', error);
-        return { success: false, error: String(error) };
-      }
-    },
-  );
-
-  // Cancel Provider OAuth
-  ipcMain.handle('provider:cancelOAuth', async () => {
-    try {
-      await deviceOAuthManager.stopFlow();
-      await browserOAuthManager.stopFlow();
-      return { success: true };
-    } catch (error) {
-      logger.error('provider:cancelOAuth failed', error);
-      return { success: false, error: String(error) };
     }
   });
 }
@@ -1745,19 +806,6 @@ function registerProviderHandlers(gatewayManager: GatewayManager): void {
   ipcMain.handle('provider:list', async () => {
     logLegacyProviderChannel('provider:list');
     return await providerService.listLegacyProvidersWithKeyInfo();
-  });
-
-  // New provider-service endpoints used by the account-based refactor.
-  ipcMain.handle('provider:listVendors', async () => {
-    return await providerService.listVendors();
-  });
-
-  ipcMain.handle('provider:listAccounts', async () => {
-    return await providerService.listAccounts();
-  });
-
-  ipcMain.handle('provider:getAccount', async (_, accountId: string) => {
-    return await providerService.getAccount(accountId);
   });
 
   // Get a specific provider
@@ -1995,7 +1043,7 @@ function registerProviderHandlers(gatewayManager: GatewayManager): void {
         const resolvedBaseUrl = options?.baseUrl || provider?.baseUrl || registryBaseUrl;
         const resolvedProtocol = options?.apiProtocol || provider?.apiProtocol;
 
-        console.log(`[smartx-validate] validating provider type: ${providerType}`);
+        console.log(`[clawx-validate] validating provider type: ${providerType}`);
         return await validateApiKeyWithProvider(providerType, apiKey, {
           baseUrl: resolvedBaseUrl,
           apiProtocol: resolvedProtocol,
@@ -2011,6 +1059,14 @@ function registerProviderHandlers(gatewayManager: GatewayManager): void {
 /**
  * Shell-related IPC handlers
  */
+function expandShellPath(input: string): string {
+  if (input === '~') return homedir();
+  if (input.startsWith(`~${sep}`) || input.startsWith('~/') || input.startsWith('~\\')) {
+    return join(homedir(), input.slice(2));
+  }
+  return input;
+}
+
 function registerShellHandlers(): void {
   // Open external URL
   ipcMain.handle('shell:openExternal', async (_, url: string) => {
@@ -2019,67 +1075,12 @@ function registerShellHandlers(): void {
 
   // Open path in file explorer
   ipcMain.handle('shell:showItemInFolder', async (_, path: string) => {
-    shell.showItemInFolder(path);
+    shell.showItemInFolder(expandShellPath(path));
   });
 
   // Open path
   ipcMain.handle('shell:openPath', async (_, path: string) => {
-    return await shell.openPath(path);
-  });
-}
-
-/**
- * ClawHub-related IPC handlers
- */
-function registerClawHubHandlers(clawHubService: ClawHubService): void {
-  // Search skills
-  ipcMain.handle('clawhub:search', async (_, params: ClawHubSearchParams) => {
-    try {
-      const results = await clawHubService.search(params);
-      return { success: true, results };
-    } catch (error) {
-      return { success: false, error: String(error) };
-    }
-  });
-
-  // Install skill
-  ipcMain.handle('clawhub:install', async (_, params: ClawHubInstallParams) => {
-    try {
-      await clawHubService.install(params);
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: String(error) };
-    }
-  });
-
-  // Uninstall skill
-  ipcMain.handle('clawhub:uninstall', async (_, params: ClawHubUninstallParams) => {
-    try {
-      await clawHubService.uninstall(params);
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: String(error) };
-    }
-  });
-
-  // List installed skills
-  ipcMain.handle('clawhub:list', async () => {
-    try {
-      const results = await clawHubService.listInstalled();
-      return { success: true, results };
-    } catch (error) {
-      return { success: false, error: String(error) };
-    }
-  });
-
-  // Open skill readme
-  ipcMain.handle('clawhub:openSkillReadme', async (_, slug: string) => {
-    try {
-      await clawHubService.openSkillReadme(slug);
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: String(error) };
-    }
+    return await shell.openPath(expandShellPath(path));
   });
 }
 
@@ -2090,12 +1091,6 @@ function registerDialogHandlers(): void {
   // Show open dialog
   ipcMain.handle('dialog:open', async (_, options: Electron.OpenDialogOptions) => {
     const result = await dialog.showOpenDialog(options);
-    return result;
-  });
-
-  // Show save dialog
-  ipcMain.handle('dialog:save', async (_, options: Electron.SaveDialogOptions) => {
-    const result = await dialog.showSaveDialog(options);
     return result;
   });
 
@@ -2115,16 +1110,9 @@ function registerAppHandlers(): void {
     return app.getVersion();
   });
 
-  ipcMain.handle('app:getCompanyKnowledgeWebviewPreloadPath', () => getCompanyKnowledgeWebviewPreloadPath());
-
   // Get app name
   ipcMain.handle('app:name', () => {
     return app.getName();
-  });
-
-  // Get app path
-  ipcMain.handle('app:getPath', (_, name: Parameters<typeof app.getPath>[0]) => {
-    return app.getPath(name);
   });
 
   // Get platform
@@ -2132,16 +1120,12 @@ function registerAppHandlers(): void {
     return process.platform;
   });
 
-  // Quit app
-  ipcMain.handle('app:quit', () => {
-    app.quit();
+  ipcMain.handle('app:getCompanyKnowledgeWebviewPreloadPath', () => getCompanyKnowledgeWebviewPreloadPath());
+
+  ipcMain.handle('company-knowledge:bindWebview', async (_, raw: unknown) => {
+    return await bindCompanyKnowledgeFromWebview(raw);
   });
 
-  // Relaunch app
-  ipcMain.handle('app:relaunch', () => {
-    app.relaunch();
-    app.quit();
-  });
 }
 
 function registerSettingsHandlers(gatewayManager: GatewayManager): void {
@@ -2178,6 +1162,9 @@ function registerSettingsHandlers(gatewayManager: GatewayManager): void {
     if (key === 'launchAtStartup') {
       await syncLaunchAtStartupSettingFromStore();
     }
+    if (key === 'language') {
+      await createMenu(typeof value === 'string' ? value : undefined);
+    }
 
     return { success: true };
   });
@@ -2201,6 +1188,9 @@ function registerSettingsHandlers(gatewayManager: GatewayManager): void {
     if (entries.some(([key]) => key === 'launchAtStartup')) {
       await syncLaunchAtStartupSettingFromStore();
     }
+    if (entries.some(([key]) => key === 'language')) {
+      await createMenu(typeof patch.language === 'string' ? patch.language : undefined);
+    }
 
     return { success: true };
   });
@@ -2210,6 +1200,7 @@ function registerSettingsHandlers(gatewayManager: GatewayManager): void {
     const settings = await getAllSettings();
     await handleProxySettingsChange();
     await syncLaunchAtStartupSettingFromStore();
+    await createMenu(settings.language);
     return { success: true, settings };
   });
 }
@@ -2225,6 +1216,13 @@ function registerUsageHandlers(): void {
  * Window control handlers (for custom title bar on Windows)
  */
 function registerWindowHandlers(mainWindow: BrowserWindow): void {
+  ipcMain.handle('window:syncTrafficLightPosition', (_, sidebarCollapsed: unknown) => {
+    if (typeof sidebarCollapsed !== 'boolean') {
+      return;
+    }
+    syncMacTrafficLightPosition(mainWindow, sidebarCollapsed);
+  });
+
   ipcMain.handle('window:minimize', () => {
     mainWindow.minimize();
   });
@@ -2278,6 +1276,7 @@ const EXT_MIME_MAP: Record<string, string> = {
   '.txt': 'text/plain',
   '.md': 'text/markdown',
   '.html': 'text/html',
+  '.htm': 'text/html',
   '.css': 'text/css',
   '.js': 'text/javascript',
   '.ts': 'text/typescript',
@@ -2294,296 +1293,417 @@ function getMimeType(ext: string): string {
   return EXT_MIME_MAP[ext.toLowerCase()] || 'application/octet-stream';
 }
 
-function mimeToExt(mimeType: string): string {
-  for (const [ext, mime] of Object.entries(EXT_MIME_MAP)) {
-    if (mime === mimeType) return ext;
-  }
-  return '';
-}
-
 const OUTBOUND_DIR = join(homedir(), '.openclaw', 'media', 'outbound');
 
-/**
- * Generate a preview data URL for image files.
- * Resizes large images while preserving aspect ratio (only constrain the
- * longer side so the image is never squished). The frontend handles
- * square cropping via CSS object-fit: cover.
- */
-async function generateImagePreview(filePath: string, mimeType: string): Promise<string | null> {
-  try {
-    const img = nativeImage.createFromPath(filePath);
-    if (img.isEmpty()) return null;
-    const size = img.getSize();
-    const maxDim = 512; // keep enough resolution for crisp display on Retina
-    // Only resize if larger than threshold — specify ONE dimension to keep ratio
-    if (size.width > maxDim || size.height > maxDim) {
-      const resized = size.width >= size.height
-        ? img.resize({ width: maxDim })   // landscape / square → constrain width
-        : img.resize({ height: maxDim }); // portrait → constrain height
-      return `data:image/png;base64,${resized.toPNG().toString('base64')}`;
-    }
-    // Small image — use original (async read to avoid blocking)
-    const { readFile: readFileAsync } = await import('fs/promises');
-    const buf = await readFileAsync(filePath);
-    return `data:${mimeType};base64,${buf.toString('base64')}`;
-  } catch {
-    return null;
+// ── File preview (sandboxed) ──────────────────────────────────────────
+//
+// IPC channels backing the in-app file preview / overlay components.
+// Reads, writes, dir listings and tree scans are restricted to a small
+// allowlist of roots so the renderer can never reach arbitrary disk paths
+// (defence in depth on top of contextIsolation).
+
+const FILE_PREVIEW_MAX_TEXT_BYTES = 2 * 1024 * 1024; // 2 MB
+// Binary preview ceiling for inline PDF / spreadsheet rendering.  Anything
+// over this still falls back to "open with system app" via the existing
+// confirmAndOpenFile flow so we never balloon the renderer with huge
+// buffers, but typical work-product PDFs / XLSX files (a few MB) sail
+// through.
+const FILE_PREVIEW_MAX_BINARY_BYTES = 50 * 1024 * 1024; // 50 MB
+const FILE_PREVIEW_TREE_MAX_DEPTH = 6;
+const FILE_PREVIEW_TREE_MAX_NODES = 5000;
+const FILE_PREVIEW_DIR_BLACKLIST = new Set([
+  'node_modules',
+  '.venv',
+  '__pycache__',
+  '.git',
+  'dist',
+  'build',
+  '.next',
+  '.turbo',
+  '.cache',
+]);
+
+interface FilePreviewTreeOptions {
+  maxDepth?: number;
+  maxNodes?: number;
+  includeHidden?: boolean;
+}
+
+interface FilePreviewTreeNode {
+  name: string;
+  relPath: string;
+  absPath: string;
+  isDir: boolean;
+  size?: number;
+  mtime?: number;
+  children?: FilePreviewTreeNode[];
+}
+
+function isPathInside(child: string, parent: string): boolean {
+  const c = resolve(child);
+  const p = resolve(parent);
+  // Windows file systems are case-insensitive: realpath() returns the
+  // on-disk casing while `homedir()` / `resolve()` may preserve whatever
+  // casing the OS reported, leading to false `outsideSandbox` rejections
+  // (e.g. `C:\Users\Foo\.openclaw\…` vs `c:\users\foo\.openclaw\…`).
+  // Compare case-insensitively on Windows; keep strict comparison on
+  // POSIX so we don't accidentally widen the sandbox there.
+  if (process.platform === 'win32') {
+    const cl = c.toLowerCase();
+    const pl = p.toLowerCase();
+    return cl === pl || cl.startsWith(pl + sep);
   }
+  return c === p || c.startsWith(p + sep);
 }
 
 /**
- * File staging IPC handlers
- * Stage files to ~/.openclaw/media/outbound/ for gateway access
+ * Roots inside which the file preview pipeline can READ AND WRITE.
+ * These are the user's own data directories — modifying them is safe.
  */
-function registerFileHandlers(): void {
-  // Stage files from real disk paths (used with dialog:open)
-  ipcMain.handle('file:stage', async (_, filePaths: string[]) => {
-    const fsP = await import('fs/promises');
-    await fsP.mkdir(OUTBOUND_DIR, { recursive: true });
+function getFilePreviewWriteRoots(): string[] {
+  const roots: string[] = [];
+  const openclawDir = join(homedir(), '.openclaw');
+  roots.push(resolve(openclawDir));
+  try {
+    roots.push(resolve(app.getPath('userData')));
+  } catch {
+    // ignore — userData should always exist
+  }
+  roots.push(resolve(OUTBOUND_DIR));
+  return roots;
+}
 
-    const results = [];
-    for (const filePath of filePaths) {
-      const id = crypto.randomUUID();
-      const ext = extname(filePath);
-      const stagedPath = join(OUTBOUND_DIR, `${id}${ext}`);
-      await fsP.copyFile(filePath, stagedPath);
+interface ResolvedSandboxedPath {
+  realPath: string;
+  /** True when the resolved path lives in a read-only-only root (e.g. bundled skill). */
+  readOnly: boolean;
+}
 
-      const s = await fsP.stat(stagedPath);
-      const mimeType = getMimeType(ext);
-      const fileName = basename(filePath);
+async function resolveSandboxedPath(
+  input: string,
+  mode: 'read' | 'write' = 'read',
+): Promise<ResolvedSandboxedPath> {
+  if (typeof input !== 'string' || !input.trim()) {
+    throw new Error('outsideSandbox');
+  }
+  // OpenClaw stores agent.workspace / agentDir paths as `~/.openclaw/...`
+  // literals; expand the tilde before realpath so sandbox resolution
+  // matches what the user actually sees on disk.
+  const expanded = expandPath(input);
+  const fsP = await import('fs/promises');
+  let real: string;
+  try {
+    real = await fsP.realpath(expanded);
+  } catch {
+    // Path may not exist yet (e.g. write that should fail later);
+    // resolve without realpath fallback so the sandbox check is still applied.
+    real = resolve(expanded);
+  }
+  const writeRoots = getFilePreviewWriteRoots();
+  if (writeRoots.some((root) => isPathInside(real, root))) {
+    return { realPath: real, readOnly: false };
+  }
+  if (mode === 'write') {
+    // Preview is broadly read-only, but mutations stay confined to the
+    // app-owned write roots. This avoids path-specific allowlists (which
+    // are fragile on Windows, OneDrive, localized folders, Chinese user
+    // names, etc.) while preserving a strict write boundary.
+    throw new Error('readOnlyRoot');
+  }
 
-      // Generate preview for images
-      let preview: string | null = null;
-      if (mimeType.startsWith('image/')) {
-        preview = await generateImagePreview(stagedPath, mimeType);
-      }
+  // Read-only preview should work for any real local path surfaced by the
+  // desktop app/runtime. `realpath()` above canonicalizes Windows casing,
+  // Unicode path segments and symlinks; individual handlers still enforce
+  // file-vs-directory checks, size caps, hidden directory skips and binary
+  // detection where appropriate.
+  return { realPath: real, readOnly: true };
+}
 
-      results.push({ id, fileName, mimeType, fileSize: s.size, stagedPath, preview });
-    }
-    return results;
-  });
+function looksLikeBinary(buf: Buffer): boolean {
+  // Treat presence of a NUL byte in the first 8 KB as binary, matching
+  // the heuristic used by isbinaryfile / git.
+  const limit = Math.min(buf.length, 8192);
+  for (let i = 0; i < limit; i += 1) {
+    if (buf[i] === 0) return true;
+  }
+  return false;
+}
 
-  // Stage file from buffer (used for clipboard paste / drag-drop)
-  ipcMain.handle('file:stageBuffer', async (_, payload: {
-    base64: string;
-    fileName: string;
-    mimeType: string;
-  }) => {
-    const fsP = await import('fs/promises');
-    await fsP.mkdir(OUTBOUND_DIR, { recursive: true });
+function shouldSkipDirEntry(name: string, includeHidden: boolean): boolean {
+  if (FILE_PREVIEW_DIR_BLACKLIST.has(name)) return true;
+  if (!includeHidden && name.startsWith('.')) return true;
+  return false;
+}
 
-    const id = crypto.randomUUID();
-    const ext = extname(payload.fileName) || mimeToExt(payload.mimeType);
-    const stagedPath = join(OUTBOUND_DIR, `${id}${ext}`);
-    const buffer = Buffer.from(payload.base64, 'base64');
-    await fsP.writeFile(stagedPath, buffer);
+function shouldSkipFileEntry(name: string, includeHidden: boolean): boolean {
+  if (!includeHidden && name.startsWith('.')) return true;
+  return false;
+}
 
-    const mimeType = payload.mimeType || getMimeType(ext);
-    const fileSize = buffer.length;
-
-    // Generate preview for images
-    let preview: string | null = null;
-    if (mimeType.startsWith('image/')) {
-      preview = await generateImagePreview(stagedPath, mimeType);
-    }
-
-    return { id, fileName: payload.fileName, mimeType, fileSize, stagedPath, preview };
-  });
-
-  // Load thumbnails for file paths on disk (used to restore previews in history)
-  // Save an image to a user-chosen location (base64 data URI or existing file path)
-  ipcMain.handle('media:saveImage', async (_, params: {
-    base64?: string;
-    mimeType?: string;
-    filePath?: string;
-    defaultFileName: string;
-  }) => {
+function registerFilePreviewHandlers(): void {
+  ipcMain.handle('file:readText', async (_, inputPath: string) => {
     try {
-      const ext = params.defaultFileName.includes('.')
-        ? params.defaultFileName.split('.').pop()!
-        : (params.mimeType?.split('/')[1] || 'png');
-      const result = await dialog.showSaveDialog({
-        defaultPath: join(homedir(), 'Downloads', params.defaultFileName),
-        filters: [
-          { name: 'Images', extensions: [ext, 'png', 'jpg', 'jpeg', 'webp', 'gif'] },
-          { name: 'All Files', extensions: ['*'] },
-        ],
-      });
-      if (result.canceled || !result.filePath) return { success: false };
-
+      const { realPath: real, readOnly } = await resolveSandboxedPath(inputPath, 'read');
       const fsP = await import('fs/promises');
-      if (params.filePath) {
-        try {
-          await fsP.access(params.filePath);
-          await fsP.copyFile(params.filePath, result.filePath);
-        } catch {
-          return { success: false, error: 'Source file not found' };
-        }
-      } else if (params.base64) {
-        const buffer = Buffer.from(params.base64, 'base64');
-        await fsP.writeFile(result.filePath, buffer);
-      } else {
-        return { success: false, error: 'No image data provided' };
+      const stat = await fsP.stat(real);
+      if (!stat.isFile()) {
+        return { ok: false, error: 'notFound' };
       }
-      return { success: true, savedPath: result.filePath };
+      if (stat.size > FILE_PREVIEW_MAX_TEXT_BYTES) {
+        return { ok: false, error: 'tooLarge', size: stat.size };
+      }
+      const buf = await fsP.readFile(real);
+      if (looksLikeBinary(buf)) {
+        return { ok: false, error: 'binary', size: stat.size };
+      }
+      return {
+        ok: true,
+        content: buf.toString('utf8'),
+        mimeType: getMimeType(extname(real)),
+        size: stat.size,
+        readOnly,
+      };
     } catch (err) {
-      return { success: false, error: String(err) };
+      const message = err instanceof Error ? err.message : String(err);
+      if (message === 'outsideSandbox') {
+        return { ok: false, error: 'outsideSandbox' };
+      }
+      if (message.includes('ENOENT')) {
+        return { ok: false, error: 'notFound' };
+      }
+      return { ok: false, error: message };
     }
   });
 
-  ipcMain.handle('media:getThumbnails', async (_, paths: Array<{ filePath: string; mimeType: string }>) => {
-    const fsP = await import('fs/promises');
-    const results: Record<string, { preview: string | null; fileSize: number }> = {};
-    for (const { filePath, mimeType } of paths) {
+  ipcMain.handle('file:readBinary', async (_, inputPath: string, opts?: { maxBytes?: number }) => {
+    try {
+      const { realPath: real, readOnly } = await resolveSandboxedPath(inputPath, 'read');
+      const fsP = await import('fs/promises');
+      const stat = await fsP.stat(real);
+      if (!stat.isFile()) {
+        return { ok: false, error: 'notFound' };
+      }
+      const cap = Math.max(
+        1,
+        Math.min(opts?.maxBytes ?? FILE_PREVIEW_MAX_BINARY_BYTES, FILE_PREVIEW_MAX_BINARY_BYTES),
+      );
+      if (stat.size > cap) {
+        return { ok: false, error: 'tooLarge', size: stat.size };
+      }
+      const buf = await fsP.readFile(real);
+      // Electron serialises Node Buffers as ArrayBuffer-backed Uint8Arrays
+      // through structured clone, so the renderer receives a Uint8Array
+      // without the heavyweight base64 round-trip.
+      const view = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+      return {
+        ok: true,
+        data: view,
+        mimeType: getMimeType(extname(real)),
+        size: stat.size,
+        readOnly,
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (message === 'outsideSandbox') {
+        return { ok: false, error: 'outsideSandbox' };
+      }
+      if (message.includes('ENOENT')) {
+        return { ok: false, error: 'notFound' };
+      }
+      return { ok: false, error: message };
+    }
+  });
+
+  ipcMain.handle('file:writeText', async (_, inputPath: string, content: string) => {
+    try {
+      if (typeof content !== 'string') {
+        return { ok: false, error: 'invalidContent' };
+      }
+      if (Buffer.byteLength(content, 'utf8') > FILE_PREVIEW_MAX_TEXT_BYTES) {
+        return { ok: false, error: 'tooLarge' };
+      }
+      const { realPath: real } = await resolveSandboxedPath(inputPath, 'write');
+      const fsP = await import('fs/promises');
+      // Only allow writing existing files to avoid surprise creation.
+      let stat;
       try {
-        const s = await fsP.stat(filePath);
-        let preview: string | null = null;
-        if (mimeType.startsWith('image/')) {
-          preview = await generateImagePreview(filePath, mimeType);
-        }
-        results[filePath] = { preview, fileSize: s.size };
+        stat = await fsP.stat(real);
       } catch {
-        results[filePath] = { preview: null, fileSize: 0 };
+        return { ok: false, error: 'notFound' };
       }
-    }
-    return results;
-  });
-}
-
-/**
- * Session IPC handlers
- *
- * Performs a soft-delete of a session's JSONL transcript on disk.
- * sessionKey format: "agent:<agentId>:<suffix>" — e.g. "agent:main:session-1234567890".
- * The JSONL file lives at: ~/.openclaw/agents/<agentId>/sessions/<suffix>.jsonl
- * Renaming to <suffix>.deleted.jsonl hides it from sessions.list.
- */
-function registerSessionHandlers(): void {
-  ipcMain.handle('session:delete', async (_, sessionKey: string) => {
-    try {
-      if (!sessionKey || !sessionKey.startsWith('agent:')) {
-        return { success: false, error: `Invalid sessionKey: ${sessionKey}` };
+      if (!stat.isFile()) {
+        return { ok: false, error: 'notFound' };
       }
-
-      const parts = sessionKey.split(':');
-      if (parts.length < 3) {
-        return { success: false, error: `sessionKey has too few parts: ${sessionKey}` };
-      }
-
-      const agentId = parts[1];
-      const openclawConfigDir = getOpenClawConfigDir();
-      const sessionsDir = join(openclawConfigDir, 'agents', agentId, 'sessions');
-      const sessionsJsonPath = join(sessionsDir, 'sessions.json');
-
-      logger.info(`[session:delete] key=${sessionKey} agentId=${agentId}`);
-      logger.info(`[session:delete] sessionsJson=${sessionsJsonPath}`);
-
-      const fsP = await import('fs/promises');
-
-      // ── Step 1: read sessions.json to find the UUID file for this sessionKey ──
-      let sessionsJson: Record<string, unknown> = {};
-      try {
-        const raw = await fsP.readFile(sessionsJsonPath, 'utf8');
-        sessionsJson = JSON.parse(raw) as Record<string, unknown>;
-      } catch (e) {
-        logger.warn(`[session:delete] Could not read sessions.json: ${String(e)}`);
-        return { success: false, error: `Could not read sessions.json: ${String(e)}` };
-      }
-
-      // sessions.json structure: try common shapes used by OpenClaw Gateway:
-      //   Shape A (array):  { sessions: [{ key, file, ... }] }
-      //   Shape B (object): { [sessionKey]: { file, ... } }
-      //   Shape C (array):  { sessions: [{ key, id, ... }] }  — id is the UUID
-      let uuidFileName: string | undefined;
-
-      // Shape A / C — array under "sessions" key
-      if (Array.isArray(sessionsJson.sessions)) {
-        const entry = (sessionsJson.sessions as Array<Record<string, unknown>>)
-          .find((s) => s.key === sessionKey || s.sessionKey === sessionKey);
-        if (entry) {
-          // Could be "file", "fileName", "id" + ".jsonl", or "path"
-          uuidFileName = (entry.file ?? entry.fileName ?? entry.path) as string | undefined;
-          if (!uuidFileName && typeof entry.id === 'string') {
-            uuidFileName = `${entry.id}.jsonl`;
-          }
-        }
-      }
-
-      // Shape B — flat object keyed by sessionKey; value may be a string or an object.
-      // Actual Gateway format: { sessionFile: "/abs/path/uuid.jsonl", sessionId: "uuid", ... }
-      let resolvedSrcPath: string | undefined;
-
-      if (!uuidFileName && sessionsJson[sessionKey] != null) {
-        const val = sessionsJson[sessionKey];
-        if (typeof val === 'string') {
-          uuidFileName = val;
-        } else if (typeof val === 'object' && val !== null) {
-          const entry = val as Record<string, unknown>;
-          // Priority: absolute sessionFile path > relative file/fileName/path > id/sessionId as UUID
-          const absFile = (entry.sessionFile ?? entry.file ?? entry.fileName ?? entry.path) as string | undefined;
-          if (absFile) {
-            if (absFile.startsWith('/') || absFile.match(/^[A-Za-z]:\\/)) {
-              // Absolute path — use directly
-              resolvedSrcPath = absFile;
-            } else {
-              uuidFileName = absFile;
-            }
-          } else {
-            // Fall back to UUID fields
-            const uuidVal = (entry.id ?? entry.sessionId) as string | undefined;
-            if (uuidVal) uuidFileName = uuidVal.endsWith('.jsonl') ? uuidVal : `${uuidVal}.jsonl`;
-          }
-        }
-      }
-
-      if (!uuidFileName && !resolvedSrcPath) {
-        const rawVal = sessionsJson[sessionKey];
-        logger.warn(`[session:delete] Cannot resolve file for "${sessionKey}". Raw value: ${JSON.stringify(rawVal)}`);
-        return { success: false, error: `Cannot resolve file for session: ${sessionKey}` };
-      }
-
-      // Normalise: if we got a relative filename, resolve it against sessionsDir
-      if (!resolvedSrcPath) {
-        if (!uuidFileName!.endsWith('.jsonl')) uuidFileName = `${uuidFileName}.jsonl`;
-        resolvedSrcPath = join(sessionsDir, uuidFileName!);
-      }
-
-      const dstPath = resolvedSrcPath.replace(/\.jsonl$/, '.deleted.jsonl');
-      logger.info(`[session:delete] file: ${resolvedSrcPath}`);
-
-      // ── Step 2: rename the JSONL file ──
-      try {
-        await fsP.access(resolvedSrcPath);
-        await fsP.rename(resolvedSrcPath, dstPath);
-        logger.info(`[session:delete] Renamed ${resolvedSrcPath} → ${dstPath}`);
-      } catch (e) {
-        logger.warn(`[session:delete] Could not rename file: ${String(e)}`);
-      }
-
-      // ── Step 3: remove the entry from sessions.json ──
-      try {
-        // Re-read to avoid race conditions
-        const raw2 = await fsP.readFile(sessionsJsonPath, 'utf8');
-        const json2 = JSON.parse(raw2) as Record<string, unknown>;
-
-        if (Array.isArray(json2.sessions)) {
-          json2.sessions = (json2.sessions as Array<Record<string, unknown>>)
-            .filter((s) => s.key !== sessionKey && s.sessionKey !== sessionKey);
-        } else if (json2[sessionKey]) {
-          delete json2[sessionKey];
-        }
-
-        await fsP.writeFile(sessionsJsonPath, JSON.stringify(json2, null, 2), 'utf8');
-        logger.info(`[session:delete] Removed "${sessionKey}" from sessions.json`);
-      } catch (e) {
-        logger.warn(`[session:delete] Could not update sessions.json: ${String(e)}`);
-        // Non-fatal — JSONL rename already done
-      }
-
-      return { success: true };
+      await fsP.writeFile(real, content, 'utf8');
+      return { ok: true };
     } catch (err) {
-      logger.error(`[session:delete] Unexpected error for ${sessionKey}:`, err);
-      return { success: false, error: String(err) };
+      const message = err instanceof Error ? err.message : String(err);
+      if (message === 'outsideSandbox') {
+        return { ok: false, error: 'outsideSandbox' };
+      }
+      if (message === 'readOnlyRoot') {
+        return { ok: false, error: 'readOnlyRoot' };
+      }
+      return { ok: false, error: message };
+    }
+  });
+
+  ipcMain.handle('file:stat', async (_, inputPath: string) => {
+    try {
+      const { realPath: real, readOnly } = await resolveSandboxedPath(inputPath, 'read');
+      const fsP = await import('fs/promises');
+      const stat = await fsP.stat(real);
+      return {
+        ok: true,
+        size: stat.size,
+        mtime: stat.mtimeMs,
+        isFile: stat.isFile(),
+        isDir: stat.isDirectory(),
+        readOnly,
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (message === 'outsideSandbox') {
+        return { ok: false, error: 'outsideSandbox' };
+      }
+      if (message.includes('ENOENT')) {
+        return { ok: false, error: 'notFound' };
+      }
+      return { ok: false, error: message };
+    }
+  });
+
+  ipcMain.handle('file:listDir', async (_, inputPath: string) => {
+    try {
+      const { realPath: real } = await resolveSandboxedPath(inputPath, 'read');
+      const fsP = await import('fs/promises');
+      const dirents = await fsP.readdir(real, { withFileTypes: true });
+      const entries = await Promise.all(dirents.map(async (entry) => {
+        const abs = join(real, entry.name);
+        let size = 0;
+        try {
+          if (entry.isFile()) {
+            size = (await fsP.stat(abs)).size;
+          }
+        } catch {
+          // non-fatal
+        }
+        return {
+          name: entry.name,
+          path: abs,
+          isDir: entry.isDirectory(),
+          size,
+        };
+      }));
+      return { ok: true, entries };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (message === 'outsideSandbox') {
+        return { ok: false, error: 'outsideSandbox' };
+      }
+      if (message.includes('ENOENT')) {
+        return { ok: false, error: 'notFound' };
+      }
+      return { ok: false, error: message };
+    }
+  });
+
+  ipcMain.handle('file:listTree', async (_, inputPath: string, opts?: FilePreviewTreeOptions) => {
+    try {
+      const { realPath: real } = await resolveSandboxedPath(inputPath, 'read');
+      const fsP = await import('fs/promises');
+      const stat = await fsP.stat(real);
+      if (!stat.isDirectory()) {
+        return { ok: false, error: 'notDirectory' };
+      }
+      const maxDepth = Math.max(1, Math.min(opts?.maxDepth ?? FILE_PREVIEW_TREE_MAX_DEPTH, 12));
+      const maxNodes = Math.max(1, Math.min(opts?.maxNodes ?? FILE_PREVIEW_TREE_MAX_NODES, 50000));
+      const includeHidden = !!opts?.includeHidden;
+
+      let nodeCount = 0;
+      let truncated = false;
+
+      const walk = async (
+        absDir: string,
+        depth: number,
+      ): Promise<FilePreviewTreeNode[] | undefined> => {
+        if (depth > maxDepth || truncated) return undefined;
+        let dirents;
+        try {
+          dirents = await fsP.readdir(absDir, { withFileTypes: true });
+        } catch {
+          return [];
+        }
+        const children: FilePreviewTreeNode[] = [];
+        for (const entry of dirents) {
+          if (truncated) break;
+          const isDir = entry.isDirectory();
+          const isFile = entry.isFile();
+          if (!isDir && !isFile) continue;
+          if (isDir && shouldSkipDirEntry(entry.name, includeHidden)) continue;
+          if (isFile && shouldSkipFileEntry(entry.name, includeHidden)) continue;
+          if (nodeCount >= maxNodes) {
+            truncated = true;
+            break;
+          }
+          nodeCount += 1;
+          const abs = join(absDir, entry.name);
+          // Normalise relPath to forward slashes for renderer use — the
+          // renderer derives the same value cross-platform when looking
+          // up a node by path, and Windows backslashes look out of place
+          // in URLs / display strings.
+          const rel = relative(real, abs).split(sep).join('/');
+          const node: FilePreviewTreeNode = {
+            name: entry.name,
+            relPath: rel,
+            absPath: abs,
+            isDir,
+          };
+          if (isFile) {
+            try {
+              const fstat = await fsP.stat(abs);
+              node.size = fstat.size;
+              node.mtime = fstat.mtimeMs;
+            } catch {
+              // non-fatal
+            }
+          } else if (isDir) {
+            try {
+              const fstat = await fsP.stat(abs);
+              node.mtime = fstat.mtimeMs;
+            } catch {
+              // non-fatal
+            }
+            node.children = await walk(abs, depth + 1) ?? [];
+          }
+          children.push(node);
+        }
+        children.sort((a, b) => {
+          if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
+          return a.name.localeCompare(b.name);
+        });
+        return children;
+      };
+
+      const root: FilePreviewTreeNode = {
+        name: basename(real) || real,
+        relPath: '',
+        absPath: real,
+        isDir: true,
+        mtime: stat.mtimeMs,
+        children: (await walk(real, 1)) ?? [],
+      };
+
+      return { ok: true, root, truncated };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (message === 'outsideSandbox') {
+        return { ok: false, error: 'outsideSandbox' };
+      }
+      if (message.includes('ENOENT')) {
+        return { ok: false, error: 'notFound' };
+      }
+      return { ok: false, error: message };
     }
   });
 }

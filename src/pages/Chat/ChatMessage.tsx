@@ -1,24 +1,39 @@
 /**
  * Chat Message Component
  * Renders user / assistant / system / toolresult messages
- * with markdown, thinking sections, images, and tool cards.
+ * with markdown and images. Tool steps render in ExecutionGraphCard;
+ * streaming runs may show a compact ToolStatusBar. Thinking output is
+ * surfaced via ExecutionGraphCard, not inside message bubbles.
  */
 import { useState, useCallback, useEffect, memo } from 'react';
-import { Sparkles, Copy, Check, ChevronDown, ChevronRight, Wrench, FileText, Film, Music, FileArchive, File, X, FolderOpen, ZoomIn, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Sparkles, Copy, Check, Wrench, FileText, Film, Music, FileArchive, File, X, FolderOpen, ZoomIn, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { invokeIpc } from '@/lib/api-client';
+import { statFile } from '@/lib/file-preview-client';
+import { hostApi } from '@/lib/host-api';
 import type { RawMessage, AttachedFileMeta } from '@/stores/chat';
-import { extractText, extractThinking, extractImages, extractToolUse, formatTimestamp } from './message-utils';
+import { extractText, extractImages, extractToolUse, formatTimestamp, isUnresolvableImageUrl } from './message-utils';
+import { copyImageToClipboard, type ImageCopyTarget } from './copy-image';
 
 interface ChatMessageProps {
   message: RawMessage;
-  showThinking: boolean;
+  textOverride?: string;
   suppressToolCards?: boolean;
   suppressProcessAttachments?: boolean;
+  /**
+   * When true, hides the assistant text bubble (and any thinking block that
+   * would be shown above it). Used when the message's text is being folded
+   * into an ExecutionGraphCard as a narration step, to prevent the same text
+   * from appearing both inside the graph and as an orphan bubble in the chat
+   * stream.
+   */
+  suppressAssistantText?: boolean;
   isStreaming?: boolean;
   streamingTools?: Array<{
     id?: string;
@@ -28,48 +43,300 @@ interface ChatMessageProps {
     durationMs?: number;
     summary?: string;
   }>;
+  /**
+   * Optional callback invoked when a non-image file card is clicked.
+   * When provided, the file opens in the in-app preview panel instead of
+   * the system default editor.
+   */
+  onOpenFile?: (file: AttachedFileMeta) => void;
 }
 
 interface ExtractedImage { url?: string; data?: string; mimeType: string; }
 
+const DIRECTORY_MIME_TYPE = 'application/x-directory';
+
+function isChatPreviewDocument(file: AttachedFileMeta): boolean {
+  const name = file.fileName.toLowerCase();
+  const mime = file.mimeType.toLowerCase();
+  return (
+    mime === 'application/pdf'
+    || mime === 'application/vnd.ms-excel'
+    || mime === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    || name.endsWith('.pdf')
+    || name.endsWith('.xls')
+    || name.endsWith('.xlsx')
+  );
+}
+
+function isDirectoryAttachment(file: AttachedFileMeta): boolean {
+  return file.mimeType === DIRECTORY_MIME_TYPE;
+}
+
+function isSkillFileAttachment(file: AttachedFileMeta): boolean {
+  const path = file.filePath ?? '';
+  return (
+    /(?:^|[\\/])\.openclaw[\\/]skills[\\/][^\\/]+[\\/].+\.[A-Za-z0-9]+$/i.test(path)
+    || /(?:^|[\\/])skills[\\/][^\\/]+[\\/]SKILL\.md$/i.test(path)
+  );
+}
+
+function isHtmlOrMarkdownPreview(file: AttachedFileMeta): boolean {
+  const name = file.fileName.toLowerCase();
+  const mime = file.mimeType.toLowerCase();
+  return (
+    mime === 'text/html'
+    || mime === 'text/markdown'
+    || name.endsWith('.html')
+    || name.endsWith('.htm')
+    || name.endsWith('.md')
+    || name.endsWith('.markdown')
+  );
+}
+
+/** User-facing artifacts that must stay visible when process output is folded into the graph. */
+function isUserFacingAttachmentWhenFolded(file: AttachedFileMeta): boolean {
+  if (file.mimeType.startsWith('image/')) return true;
+  if (isDirectoryAttachment(file)) return true;
+  if (isSkillFileAttachment(file)) return true;
+  if (isChatPreviewDocument(file)) return true;
+  // Paths parsed from the assistant reply (e.g. "/workspace/demo.html") are
+  // intentional user-facing links. Generic tool-result markdown attachments
+  // (e.g. CHECKLIST.md emitted mid-run) stay folded into the execution graph.
+  if (file.source === 'message-ref' && isHtmlOrMarkdownPreview(file)) return true;
+  return false;
+}
+
+function validationKindForAttachment(file: AttachedFileMeta): 'file' | 'dir' | null {
+  if (!file.filePath) return null;
+  // User-selected uploads and already enriched attachments are trusted enough
+  // for immediate display. Regex-derived message refs start at size 0/null and
+  // are validated through main-process stat before becoming clickable cards.
+  if (file.source !== 'message-ref' && file.source !== 'tool-result') return null;
+  if (file.fileSize > 0 || file.preview) return null;
+  return isDirectoryAttachment(file) ? 'dir' : 'file';
+}
+
+function previewMimeFromPath(filePath: string): string | null {
+  const lower = filePath.toLowerCase();
+  if (lower.endsWith('.md') || lower.endsWith('.markdown')) return 'text/markdown';
+  if (lower.endsWith('.html') || lower.endsWith('.htm')) return 'text/html';
+  if (lower.endsWith('.pdf')) return 'application/pdf';
+  if (lower.endsWith('.xls')) return 'application/vnd.ms-excel';
+  if (lower.endsWith('.xlsx')) return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  return null;
+}
+
+function fileNameFromPath(filePath: string): string {
+  return filePath.split(/[\\/]/).pop() || 'file';
+}
+
+function trimPathTerminators(filePath: string): string {
+  return filePath.replace(/[，。；;,.!?]+$/u, '');
+}
+
+function extractPreviewDocumentPaths(text: string): AttachedFileMeta[] {
+  if (!text) return [];
+  const refs: AttachedFileMeta[] = [];
+  const seen = new Set<string>();
+  const pushRef = (filePath: string, mimeType: string) => {
+    const normalizedPath = trimPathTerminators(filePath);
+    if (!normalizedPath || seen.has(normalizedPath)) return;
+    seen.add(normalizedPath);
+    refs.push({
+      fileName: fileNameFromPath(normalizedPath),
+      mimeType,
+      fileSize: 0,
+      preview: null,
+      filePath: normalizedPath,
+      source: 'message-ref',
+    });
+  };
+  // Deliberately narrow this render-layer fallback to user-facing artifacts:
+  // HTML / Markdown / PDF / spreadsheet previews and OpenClaw skill directories.
+  // The store-level extractor still handles broad file categories; this keeps
+  // visible outputs clickable even before history enrichment runs.
+  const exts = 'html?|md|markdown|pdf|xlsx?|HTML?|MD|MARKDOWN|PDF|XLSX?';
+  const taggedRegex = new RegExp(`(?:^|[\\s(\\[{>])(?:MEDIA|media):((?:\\/|~\\/)[^\\s\\n"'()\\[\\],<>]*?\\.(?:${exts}))`, 'g');
+  const unixRegex = new RegExp('(?<![\\w./:])((?:\\/|~\\/)[^\\s\\n"\'`()\\[\\],<>]*?\\.(?:' + exts + '))', 'g');
+  const skillPathBoundary = '(?=$|\\s|[\\x5b\\x5d"\'`(),<>，。；;,.!?])';
+  const skillPathPart = '[^\\\\/\\s\\n"\'`()\\x5b\\x5d,<>]+';
+  const skillPathTail = '[^\\s\\n"\'`()\\x5b\\x5d,<>]*?';
+  const skillDirRegex = new RegExp(
+    `(?<![\\w./:])((?:~[\\\\/]\\.openclaw[\\\\/]skills[\\\\/]${skillPathPart})|(?:(?:\\/|[A-Za-z]:\\\\)${skillPathTail}[\\\\/]\\.openclaw[\\\\/]skills[\\\\/]${skillPathPart}))${skillPathBoundary}`,
+    'gi',
+  );
+  const skillMarkdownRegex = new RegExp(
+    `(?<![\\w./:])((?:~[\\\\/]\\.openclaw[\\\\/]skills[\\\\/]${skillPathTail}\\.md)|(?:(?:\\/|[A-Za-z]:\\\\)${skillPathTail}[\\\\/]\\.openclaw[\\\\/]skills[\\\\/]${skillPathTail}\\.md))${skillPathBoundary}`,
+    'gi',
+  );
+
+  let workingText = text;
+  let taggedMatch: RegExpExecArray | null;
+  while ((taggedMatch = taggedRegex.exec(text)) !== null) {
+    const filePath = taggedMatch[1];
+    const mimeType = previewMimeFromPath(filePath);
+    if (mimeType) pushRef(filePath, mimeType);
+    const start = taggedMatch.index;
+    const end = start + taggedMatch[0].length;
+    workingText = workingText.slice(0, start) + ' '.repeat(end - start) + workingText.slice(end);
+  }
+
+  for (const regex of [unixRegex, skillMarkdownRegex, skillDirRegex]) {
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(workingText)) !== null) {
+      const filePath = match[1];
+      const mimeType = regex === skillDirRegex ? DIRECTORY_MIME_TYPE : previewMimeFromPath(filePath);
+      if (mimeType) pushRef(filePath, mimeType);
+    }
+  }
+
+  return refs;
+}
+
+/**
+ * Normalize LaTeX delimiters so `remark-math` can detect them.
+ *
+ * Many LLMs emit LaTeX using `\(` / `\)` for inline math and `\[` / `\]`
+ * for block math (OpenAI style), which are NOT recognized by remark-math.
+ * remark-math only parses `$...$` and `$$...$$`.
+ *
+ * We convert the backslash-paren/bracket forms to dollar-sign forms so the
+ * math is rendered regardless of which convention the model uses.
+ *
+ * Transformations are skipped inside fenced/inline code spans to avoid
+ * clobbering code samples that legitimately contain `\(` etc.
+ */
+function normalizeLatexDelimiters(input: string): string {
+  if (!input || (input.indexOf('\\(') === -1 && input.indexOf('\\[') === -1)) {
+    return input;
+  }
+
+  const parts = input.split(/(```[\s\S]*?```|`[^`\n]*`)/g);
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (!part) continue;
+    if (part.startsWith('```') || part.startsWith('`')) continue;
+    let next = part.replace(/\\\[([\s\S]+?)\\\]/g, (_m, body: string) => `\n$$\n${body.trim()}\n$$\n`);
+    next = next.replace(/\\\(([\s\S]+?)\\\)/g, (_m, body: string) => `$${body}$`);
+    parts[i] = next;
+  }
+  return parts.join('');
+}
+
 /** Resolve an ExtractedImage to a displayable src string, or null if not possible. */
 function imageSrc(img: ExtractedImage): string | null {
-  if (img.url) return img.url;
+  if (img.url) return isUnresolvableImageUrl(img.url) ? null : img.url;
   if (img.data) return `data:${img.mimeType};base64,${img.data}`;
   return null;
 }
 
 export const ChatMessage = memo(function ChatMessage({
   message,
-  showThinking,
+  textOverride,
   suppressToolCards = false,
   suppressProcessAttachments = false,
+  suppressAssistantText = false,
   isStreaming = false,
   streamingTools = [],
+  onOpenFile,
 }: ChatMessageProps) {
   const isUser = message.role === 'user';
   const role = typeof message.role === 'string' ? message.role.toLowerCase() : '';
   const isToolResult = role === 'toolresult' || role === 'tool_result';
-  const text = extractText(message);
-  const hasText = text.trim().length > 0;
-  const thinking = extractThinking(message);
+  const text = textOverride ?? extractText(message);
+  // When text is folded into an ExecutionGraphCard, treat the message as
+  // having no text for rendering purposes. Keeping this behind a flag (vs
+  // blanking `text` outright) lets future hover affordances still read the
+  // original content without surfacing the bubble.
+  const hideAssistantText = suppressAssistantText && !isUser;
+  const hasText = !hideAssistantText && text.trim().length > 0;
   const images = extractImages(message);
+  const resolvableContentImages = images.filter((img) => imageSrc(img) != null);
   const tools = extractToolUse(message);
-  const visibleThinking = showThinking ? thinking : null;
   const visibleTools = suppressToolCards ? [] : tools;
-  const shouldHideProcessAttachments = suppressProcessAttachments
-    && (hasText || !!visibleThinking || images.length > 0 || visibleTools.length > 0);
+  const [validatedPaths, setValidatedPaths] = useState<Record<string, boolean>>({});
+  const rawAttachedFiles = message._attachedFiles || [];
+  const textPreviewFiles = isUser ? [] : extractPreviewDocumentPaths(text);
+  const rawAttachedPaths = new Set(rawAttachedFiles.map((file) => file.filePath).filter(Boolean));
+  const derivedAttachedFiles = [
+    ...rawAttachedFiles,
+    ...textPreviewFiles.filter((file) => !file.filePath || !rawAttachedPaths.has(file.filePath)),
+  ];
+  const validationTargets = derivedAttachedFiles
+    .map((file) => {
+      const kind = validationKindForAttachment(file);
+      return kind && file.filePath ? { filePath: file.filePath, kind } : null;
+    })
+    .filter((target): target is { filePath: string; kind: 'file' | 'dir' } => !!target);
+  const validationKey = validationTargets
+    .map((target) => `${target.kind}:${target.filePath}`)
+    .sort()
+    .join('\n');
+  useEffect(() => {
+    if (!validationKey) return;
+    const pendingTargets = validationTargets.filter((target) => validatedPaths[target.filePath] === undefined);
+    if (pendingTargets.length === 0) return;
 
-  const attachedFiles = shouldHideProcessAttachments
-    ? (message._attachedFiles || []).filter((file) => file.source !== 'tool-result')
-    : (message._attachedFiles || []);
+    let cancelled = false;
+    void Promise.all(
+      pendingTargets.map(async (target) => {
+        try {
+          const stat = await statFile(target.filePath);
+          return {
+            filePath: target.filePath,
+            exists: !!stat.ok && (target.kind === 'dir' ? !!stat.isDir : !!stat.isFile),
+          };
+        } catch {
+          return { filePath: target.filePath, exists: false };
+        }
+      }),
+    ).then((results) => {
+      if (cancelled) return;
+      setValidatedPaths((current) => {
+        const next = { ...current };
+        for (const result of results) next[result.filePath] = result.exists;
+        return next;
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [validationKey, validationTargets, validatedPaths]);
+  const existingDerivedAttachedFiles = derivedAttachedFiles.filter((file) => {
+    const kind = validationKindForAttachment(file);
+    if (!kind || !file.filePath) return true;
+    return validatedPaths[file.filePath] === true;
+  });
+  const filteredProcessAttachments = derivedAttachedFiles.filter((file) => {
+    if (file.source !== 'tool-result' && file.source !== 'message-ref') return true;
+    // Runtime-produced user-facing artifacts (images, HTML/Markdown/PDF/XLSX,
+    // skill directories, ...) must remain visible in the reply bubble even
+    // when generic process attachments are folded into the execution graph.
+    // The graph card itself does not render `_attachedFiles`, so dropping
+    // them here would leave the user with no way to open previews from chat.
+    return isUserFacingAttachmentWhenFolded(file);
+  });
+  // When a message is attachment-only, keep those attachments visible even if
+  // process attachments are generally suppressed for this run segment —
+  // otherwise the reply disappears entirely.
+  const processVisibleAttachments = filteredProcessAttachments.filter((file) => {
+    const kind = validationKindForAttachment(file);
+    if (!kind || !file.filePath) return true;
+    return validatedPaths[file.filePath] === true;
+  });
+  const attachedFiles = suppressProcessAttachments && (hasText || resolvableContentImages.length > 0 || visibleTools.length > 0)
+    ? processVisibleAttachments
+    : existingDerivedAttachedFiles;
+  const imageCopyTarget = resolvePrimaryImageCopyTarget(resolvableContentImages, attachedFiles);
+  const showAssistantHoverBar = !isUser && (hasText || imageCopyTarget != null);
   const [lightboxImg, setLightboxImg] = useState<{ src: string; fileName: string; filePath?: string; base64?: string; mimeType?: string } | null>(null);
 
   // Never render tool result messages in chat UI
   if (isToolResult) return null;
 
   const hasStreamingToolStatus = isStreaming && streamingTools.length > 0;
-  if (!hasText && !visibleThinking && images.length === 0 && visibleTools.length === 0 && attachedFiles.length === 0 && !hasStreamingToolStatus) return null;
+  if (!hasText && resolvableContentImages.length === 0 && visibleTools.length === 0 && attachedFiles.length === 0 && !hasStreamingToolStatus) return null;
 
   return (
     <div
@@ -78,10 +345,17 @@ export const ChatMessage = memo(function ChatMessage({
         isUser ? 'flex-row-reverse' : 'flex-row',
       )}
     >
-      {/* Avatar */}
+      {/* Avatar — vertical center aligned with the first line of the reply.
+          The outer slot is sized to one prose-sm line (h-6 = 24px) so its
+          midpoint coincides with the first text line's midpoint; the 32px
+          avatar inside is centered within that slot and intentionally
+          overflows ±4px above/below the line, which mirrors how chat avatars
+          sit alongside a single line of text. */}
       {!isUser && (
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full mt-1 bg-black/5 dark:bg-white/5 text-foreground">
-          <Sparkles className="h-4 w-4" />
+        <div className="flex h-6 shrink-0 items-center">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-black/5 dark:bg-white/5 text-foreground">
+            <Sparkles className="h-4 w-4" />
+          </div>
         </div>
       )}
 
@@ -96,25 +370,11 @@ export const ChatMessage = memo(function ChatMessage({
           <ToolStatusBar tools={streamingTools} />
         )}
 
-        {/* Thinking section */}
-        {visibleThinking && (
-          <ThinkingBlock content={visibleThinking} />
-        )}
-
-        {/* Tool use cards */}
-        {visibleTools.length > 0 && (
-          <div className="space-y-1">
-            {visibleTools.map((tool, i) => (
-              <ToolCard key={tool.id || i} name={tool.name} input={tool.input} />
-            ))}
-          </div>
-        )}
-
         {/* Images — rendered ABOVE text bubble for user messages */}
         {/* Images from content blocks (Gateway session data / channel push photos) */}
-        {isUser && images.length > 0 && (
+        {isUser && resolvableContentImages.length > 0 && (
           <div className="flex flex-wrap gap-2">
-            {images.map((img, i) => {
+            {resolvableContentImages.map((img, i) => {
               const src = imageSrc(img);
               if (!src) return null;
               return (
@@ -137,7 +397,7 @@ export const ChatMessage = memo(function ChatMessage({
             {attachedFiles.map((file, i) => {
               const isImage = file.mimeType.startsWith('image/');
               // Skip image attachments if we already have images from content blocks
-              if (isImage && images.length > 0) return null;
+              if (isImage && resolvableContentImages.length > 0) return null;
               if (isImage) {
                 return file.preview ? (
                   <ImageThumbnail
@@ -149,33 +409,28 @@ export const ChatMessage = memo(function ChatMessage({
                     onPreview={() => setLightboxImg({ src: file.preview!, fileName: file.fileName, filePath: file.filePath, mimeType: file.mimeType })}
                   />
                 ) : (
-                  <div
-                    key={`local-${i}`}
-                    className="w-36 h-36 rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 flex items-center justify-center text-muted-foreground"
-                  >
-                    <File className="h-8 w-8" />
-                  </div>
+                  <ImagePreviewPlaceholder key={`local-${i}`} file={file} />
                 );
               }
               // Non-image files → file card
-              return <FileCard key={`local-${i}`} file={file} />;
+              return <FileCard key={`local-${i}`} file={file} onOpen={onOpenFile} />;
             })}
           </div>
         )}
 
-        {/* Main text bubble */}
+        {/* Main text */}
         {hasText && (
-          <MessageBubble
-            text={text}
-            isUser={isUser}
-            isStreaming={isStreaming}
-          />
+          isUser ? (
+            <UserMessageBubble text={text} />
+          ) : (
+            <AssistantMarkdown text={text} isStreaming={isStreaming} />
+          )
         )}
 
         {/* Images from content blocks — assistant messages (below text) */}
-        {!isUser && images.length > 0 && (
+        {!isUser && resolvableContentImages.length > 0 && (
           <div className="flex flex-wrap gap-2">
-            {images.map((img, i) => {
+            {resolvableContentImages.map((img, i) => {
               const src = imageSrc(img);
               if (!src) return null;
               return (
@@ -197,7 +452,7 @@ export const ChatMessage = memo(function ChatMessage({
           <div className="flex flex-wrap gap-2">
             {attachedFiles.map((file, i) => {
               const isImage = file.mimeType.startsWith('image/');
-              if (isImage && images.length > 0) return null;
+              if (isImage && resolvableContentImages.length > 0) return null;
               if (isImage && file.preview) {
                 return (
                   <ImagePreviewCard
@@ -211,13 +466,9 @@ export const ChatMessage = memo(function ChatMessage({
                 );
               }
               if (isImage && !file.preview) {
-                return (
-                  <div key={`local-${i}`} className="w-36 h-36 rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 flex items-center justify-center text-muted-foreground">
-                    <File className="h-8 w-8" />
-                  </div>
-                );
+                return <ImagePreviewPlaceholder key={`local-${i}`} file={file} />;
               }
-              return <FileCard key={`local-${i}`} file={file} />;
+              return <FileCard key={`local-${i}`} file={file} onOpen={onOpenFile} />;
             })}
           </div>
         )}
@@ -229,9 +480,9 @@ export const ChatMessage = memo(function ChatMessage({
           </span>
         )}
 
-        {/* Hover row for assistant messages — only when there is real text content */}
-        {!isUser && hasText && (
-          <AssistantHoverBar text={text} timestamp={message.timestamp} />
+        {/* Hover row for assistant messages */}
+        {showAssistantHoverBar && (
+          <AssistantHoverBar text={text} timestamp={message.timestamp} imageCopyTarget={imageCopyTarget} />
         )}
       </div>
 
@@ -269,7 +520,7 @@ function ToolStatusBar({
   }>;
 }) {
   return (
-    <div className="w-full space-y-1">
+    <div className="w-full space-y-1" data-testid="chat-streaming-tool-status-bar">
       {tools.map((tool) => {
         const duration = formatDuration(tool.durationMs);
         const isRunning = tool.status === 'running';
@@ -280,7 +531,7 @@ function ToolStatusBar({
             className={cn(
               'flex items-center gap-2 rounded-lg border px-3 py-2 text-xs transition-colors',
               isRunning && 'border-primary/30 bg-primary/5 text-foreground',
-              !isRunning && !isError && 'border-border/50 bg-muted/20 text-muted-foreground',
+              !isRunning && !isError && 'border-border/50 bg-surface-input/20 text-muted-foreground',
               isError && 'border-destructive/30 bg-destructive/5 text-destructive',
             )}
           >
@@ -288,10 +539,10 @@ function ToolStatusBar({
             {!isRunning && !isError && <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />}
             {isError && <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />}
             <Wrench className="h-3 w-3 shrink-0 opacity-60" />
-            <span className="font-mono text-[12px] font-medium">{tool.name}</span>
-            {duration && <span className="text-[11px] opacity-60">{tool.summary ? `(${duration})` : duration}</span>}
+            <span className="font-mono text-xs font-medium">{tool.name}</span>
+            {duration && <span className="text-tiny opacity-60">{tool.summary ? `(${duration})` : duration}</span>}
             {tool.summary && (
-              <span className="truncate text-[11px] opacity-70">{tool.summary}</span>
+              <span className="truncate text-tiny opacity-70">{tool.summary}</span>
             )}
           </div>
         );
@@ -300,16 +551,60 @@ function ToolStatusBar({
   );
 }
 
+function resolvePrimaryImageCopyTarget(
+  images: Array<{ mimeType: string; data?: string; url?: string }>,
+  attachedFiles: AttachedFileMeta[],
+): ImageCopyTarget | null {
+  for (const file of attachedFiles) {
+    if (!file.mimeType.startsWith('image/')) continue;
+    if (file.filePath || file.preview?.startsWith('data:')) {
+      return {
+        filePath: file.filePath,
+        preview: file.preview,
+        mimeType: file.mimeType,
+      };
+    }
+  }
+
+  for (const image of images) {
+    if (image.data) {
+      return { base64: image.data, mimeType: image.mimeType };
+    }
+    if (image.url?.startsWith('data:')) {
+      return { preview: image.url, mimeType: image.mimeType };
+    }
+  }
+
+  return null;
+}
+
 // ── Assistant hover bar (timestamp + copy, shown on group hover) ─
 
-function AssistantHoverBar({ text, timestamp }: { text: string; timestamp?: number }) {
+function AssistantHoverBar({
+  text,
+  timestamp,
+  imageCopyTarget,
+}: {
+  text: string;
+  timestamp?: number;
+  imageCopyTarget?: ImageCopyTarget | null;
+}) {
   const [copied, setCopied] = useState(false);
 
-  const copyContent = useCallback(() => {
-    navigator.clipboard.writeText(text);
+  const copyContent = useCallback(async () => {
+    if (imageCopyTarget) {
+      const copiedImage = await copyImageToClipboard(imageCopyTarget);
+      if (copiedImage) {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        return;
+      }
+    }
+    if (!text.trim()) return;
+    await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  }, [text]);
+  }, [text, imageCopyTarget]);
 
   return (
     <div className="flex items-center justify-between w-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 select-none px-1">
@@ -328,93 +623,80 @@ function AssistantHoverBar({ text, timestamp }: { text: string; timestamp?: numb
   );
 }
 
-// ── Message Bubble ──────────────────────────────────────────────
+// ── User Message Bubble ─────────────────────────────────────────
 
-function MessageBubble({
+function UserMessageBubble({
   text,
-  isUser,
-  isStreaming,
 }: {
   text: string;
-  isUser: boolean;
-  isStreaming: boolean;
 }) {
   return (
-    <div
-      className={cn(
-        'relative rounded-2xl px-4 py-3',
-        !isUser && 'w-full',
-        isUser
-          ? 'bg-[#0a84ff] text-white shadow-sm'
-          : 'bg-black/5 dark:bg-white/5 text-foreground',
-      )}
-    >
-      {isUser ? (
-        <p className="whitespace-pre-wrap break-words break-all text-sm">{text}</p>
-      ) : (
-        <div className="prose prose-sm dark:prose-invert max-w-none break-words break-all">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              code({ className, children, ...props }) {
-                const match = /language-(\w+)/.exec(className || '');
-                const isInline = !match && !className;
-                if (isInline) {
-                  return (
-                    <code className="bg-background/50 px-1.5 py-0.5 rounded text-sm font-mono break-words break-all" {...props}>
-                      {children}
-                    </code>
-                  );
-                }
-                return (
-                  <pre className="bg-background/50 rounded-lg p-4 overflow-x-auto">
-                    <code className={cn('text-sm font-mono', className)} {...props}>
-                      {children}
-                    </code>
-                  </pre>
-                );
-              },
-              a({ href, children }) {
-                return (
-                  <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-words break-all">
-                    {children}
-                  </a>
-                );
-              },
-            }}
-          >
-            {text}
-          </ReactMarkdown>
-          {isStreaming && (
-            <span className="inline-block w-2 h-4 bg-foreground/50 animate-pulse ml-0.5" />
-          )}
-        </div>
-      )}
-
+    <div className="relative rounded-2xl px-4 py-3 bg-brand text-white shadow-sm">
+      <p className="whitespace-pre-wrap break-words text-sm">{text}</p>
     </div>
   );
 }
 
-// ── Thinking Block ──────────────────────────────────────────────
+// ── Assistant Markdown ──────────────────────────────────────────
 
-function ThinkingBlock({ content }: { content: string }) {
-  const [expanded, setExpanded] = useState(false);
-
+function AssistantMarkdown({
+  text,
+  isStreaming,
+}: {
+  text: string;
+  isStreaming: boolean;
+}) {
   return (
-    <div className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 text-[14px]">
-      <button
-        className="flex items-center gap-2 w-full px-3 py-2 text-muted-foreground hover:text-foreground transition-colors"
-        onClick={() => setExpanded(!expanded)}
+    <div className="prose prose-sm dark:prose-invert w-full max-w-none break-words text-foreground">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[[rehypeKatex, { strict: false, throwOnError: false, output: 'html' }]]}
+        components={{
+          code({ className, children, ...props }) {
+            const match = /language-(\w+)/.exec(className || '');
+            const isInline = !match && !className;
+            if (isInline) {
+              return (
+                <code className="bg-black/5 dark:bg-white/5 px-1.5 py-0.5 rounded text-sm font-mono break-words break-all" {...props}>
+                  {children}
+                </code>
+              );
+            }
+            return (
+              <code className={cn('text-sm font-mono', className)} {...props}>
+                {children}
+              </code>
+            );
+          },
+          pre({ children, ...props }) {
+            return (
+              <pre
+                className="bg-black/5 dark:bg-white/5 rounded-lg p-4 overflow-x-auto whitespace-pre-wrap break-words"
+                {...props}
+              >
+                {children}
+              </pre>
+            );
+          },
+          a({ href, children }) {
+            return (
+              <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-words break-all">
+                {children}
+              </a>
+            );
+          },
+          img({ src, alt }) {
+            if (!src || isUnresolvableImageUrl(String(src))) return null;
+            return (
+              <img src={String(src)} alt={typeof alt === 'string' ? alt : 'image'} className="max-w-full rounded-lg" />
+            );
+          },
+        }}
       >
-        {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-        <span className="font-medium">Thinking</span>
-      </button>
-      {expanded && (
-        <div className="px-3 pb-3 text-muted-foreground">
-          <div className="prose prose-sm dark:prose-invert max-w-none opacity-75">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-          </div>
-        </div>
+        {normalizeLatexDelimiters(text)}
+      </ReactMarkdown>
+      {isStreaming && (
+        <span className="inline-block w-2 h-4 bg-foreground/50 animate-pulse ml-0.5" />
       )}
     </div>
   );
@@ -430,6 +712,7 @@ function formatFileSize(bytes: number): string {
 }
 
 function FileIcon({ mimeType, className }: { mimeType: string; className?: string }) {
+  if (mimeType === DIRECTORY_MIME_TYPE) return <FolderOpen className={className} />;
   if (mimeType.startsWith('video/')) return <Film className={className} />;
   if (mimeType.startsWith('audio/')) return <Music className={className} />;
   if (mimeType.startsWith('text/') || mimeType === 'application/json' || mimeType === 'application/xml') return <FileText className={className} />;
@@ -438,12 +721,15 @@ function FileIcon({ mimeType, className }: { mimeType: string; className?: strin
   return <File className={className} />;
 }
 
-function FileCard({ file }: { file: AttachedFileMeta }) {
+function FileCard({ file, onOpen }: { file: AttachedFileMeta; onOpen?: (file: AttachedFileMeta) => void }) {
   const handleOpen = useCallback(() => {
-    if (file.filePath) {
-      invokeIpc('shell:openPath', file.filePath);
+    if (!file.filePath) return;
+    if (onOpen) {
+      onOpen(file);
+    } else {
+      void hostApi.shell.openPath(file.filePath);
     }
-  }, [file.filePath]);
+  }, [file, onOpen]);
 
   return (
     <div 
@@ -457,10 +743,36 @@ function FileCard({ file }: { file: AttachedFileMeta }) {
       <FileIcon mimeType={file.mimeType} className="h-5 w-5 shrink-0 text-muted-foreground" />
       <div className="min-w-0 overflow-hidden">
         <p className="text-xs font-medium truncate">{file.fileName}</p>
-        <p className="text-[10px] text-muted-foreground">
-          {file.fileSize > 0 ? formatFileSize(file.fileSize) : 'File'}
+        <p className="text-2xs text-muted-foreground">
+          {file.mimeType === DIRECTORY_MIME_TYPE ? '文件夹' : file.fileSize > 0 ? formatFileSize(file.fileSize) : 'File'}
         </p>
       </div>
+    </div>
+  );
+}
+
+function ImagePreviewPlaceholder({ file }: { file: AttachedFileMeta }) {
+  const { t } = useTranslation('chat');
+  const unavailable = file.previewStatus === 'unavailable';
+  const label = unavailable
+    ? t('imageGeneration.previewUnavailable')
+    : t('imageGeneration.previewLoading');
+
+  return (
+    <div
+      className={cn(
+        'flex h-36 w-36 flex-col items-center justify-center gap-2 rounded-xl border border-black/10 bg-black/5 px-3 text-center text-muted-foreground dark:border-white/10 dark:bg-white/5',
+        unavailable && 'border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400',
+      )}
+      data-testid={unavailable ? 'image-preview-unavailable' : 'image-preview-loading'}
+      title={file.fileName}
+    >
+      {unavailable ? (
+        <AlertCircle className="h-5 w-5 shrink-0" />
+      ) : (
+        <Loader2 className="h-5 w-5 shrink-0 animate-spin text-primary" />
+      )}
+      <span className="text-xs leading-4">{label}</span>
     </div>
   );
 }
@@ -556,7 +868,7 @@ function ImageLightbox({
 
   const handleShowInFolder = useCallback(() => {
     if (filePath) {
-      invokeIpc('shell:showItemInFolder', filePath);
+      void hostApi.shell.showItemInFolder(filePath);
     }
   }, [filePath]);
 
@@ -602,30 +914,5 @@ function ImageLightbox({
       </div>
     </div>,
     document.body,
-  );
-}
-
-// ── Tool Card ───────────────────────────────────────────────────
-
-function ToolCard({ name, input }: { name: string; input: unknown }) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <div className="rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 text-[14px]">
-      <button
-        className="flex items-center gap-2 w-full px-3 py-1.5 text-muted-foreground hover:text-foreground transition-colors"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
-        <Wrench className="h-3 w-3 shrink-0 opacity-60" />
-        <span className="font-mono text-xs">{name}</span>
-        {expanded ? <ChevronDown className="h-3 w-3 ml-auto" /> : <ChevronRight className="h-3 w-3 ml-auto" />}
-      </button>
-      {expanded && input != null && (
-        <pre className="px-3 pb-2 text-xs text-muted-foreground overflow-x-auto">
-          {typeof input === 'string' ? input : JSON.stringify(input, null, 2) as string}
-        </pre>
-      )}
-    </div>
   );
 }

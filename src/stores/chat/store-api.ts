@@ -9,16 +9,10 @@ export type ChatGet = () => ChatState;
 
 export type SessionHistoryActions = Pick<
   ChatState,
-  'loadSessions' | 'switchSession' | 'newSession' | 'deleteSession' | 'cleanupEmptySession' | 'loadHistory'
+  'loadSessions' | 'switchSession' | 'newSession' | 'deleteSession' | 'renameSession' | 'cleanupEmptySession' | 'loadHistory' | 'loadMoreHistory'
 >;
 
 export type RuntimeActions = Pick<
   ChatState,
-  | 'sendMessage'
-  | 'abortRun'
-  | 'handleChatEvent'
-  | 'toggleThinking'
-  | 'toggleExecutionInfo'
-  | 'refresh'
-  | 'clearError'
+  'sendMessage' | 'abortRun' | 'handleChatEvent' | 'refresh' | 'clearError'
 >;

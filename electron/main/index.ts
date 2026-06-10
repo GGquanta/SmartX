@@ -3,12 +3,13 @@
  * Manages window creation, system tray, and IPC handlers
  */
 import { app, BrowserWindow, nativeImage, session, shell } from 'electron';
-import type { Server } from 'node:http';
 import { join } from 'path';
 import { GatewayManager } from '../gateway/manager';
 import { registerIpcHandlers } from './ipc-handlers';
+import { HostApiRegistry } from './ipc/host-invoke';
 import { createTray } from './tray';
 import { createMenu } from './menu';
+import { registerZoomShortcuts } from './zoom-shortcuts';
 
 import { appUpdater, registerUpdateHandlers } from './updater';
 import { logger } from '../utils/logger';
@@ -16,9 +17,19 @@ import { warmupNetworkOptimization } from '../utils/uv-env';
 import { initTelemetry } from '../utils/telemetry';
 
 import { ClawHubService } from '../gateway/clawhub';
-import { ensureSmartXContext, repairSmartXOnlyBootstrapFiles } from '../utils/openclaw-workspace';
+import { extensionRegistry } from '../extensions/registry';
+import { loadExtensionsFromManifest } from '../extensions/loader';
+import { registerAllBuiltinExtensions } from '../extensions/builtin';
+import { loadExternalMainExtensions } from '../extensions/_ext-bridge.generated';
+import {
+  ensureSmartXContext,
+  ensureSmartXDefaultIdentity,
+  repairSmartXOnlyBootstrapFiles,
+} from '../utils/openclaw-workspace';
 import { autoInstallCliIfNeeded, generateCompletionCache, installCompletionToProfile } from '../utils/openclaw-cli';
 import { isQuitting, setQuitting } from './app-state';
+import { getMacTrafficLightPosition, syncMacTrafficLightPosition } from './traffic-light-layout';
+import { getSetting } from '../utils/store';
 import { applyProxySettings } from './proxy';
 import { syncLaunchAtStartupSettingFromStore } from './launch-at-startup';
 import {
@@ -34,11 +45,8 @@ import {
 } from './quit-lifecycle';
 import { createSignalQuitHandler } from './signal-quit';
 import { acquireProcessInstanceFileLock } from './process-instance-lock';
-import { getSetting } from '../utils/store';
-import { ensureBuiltinSkillsInstalled, ensurePreinstalledSkillsInstalled } from '../utils/skill-config';
-import { ensureAllBundledPluginsInstalled } from '../utils/plugin-install';
-import { startHostApiServer } from '../api/server';
-import { HostEventBus } from '../api/event-bus';
+import { ensureBuiltinSkillsInstalled, ensurePreinstalledSkillsInstalled, trimBundledOpenClawSkillsAndConfigs } from '../utils/skill-config';
+
 import { deviceOAuthManager } from '../utils/device-oauth';
 import { browserOAuthManager } from '../utils/browser-oauth';
 import { whatsAppLoginManager } from '../utils/whatsapp-login';
@@ -51,6 +59,11 @@ loadProviderDefaultEnvFiles(resolveSmartXProjectRoot());
 
 const isE2EMode = process.env.SMARTX_E2E === '1';
 const requestedUserDataDir = process.env.SMARTX_USER_DATA_DIR?.trim();
+const requestedRemoteDebuggingPort = process.env.SMARTX_REMOTE_DEBUGGING_PORT?.trim();
+
+if (requestedRemoteDebuggingPort) {
+  app.commandLine.appendSwitch('remote-debugging-port', requestedRemoteDebuggingPort);
+}
 
 if (isE2EMode && requestedUserDataDir) {
   app.setPath('userData', requestedUserDataDir);
@@ -77,7 +90,8 @@ app.disableHardwareAcceleration();
 // on X11 it supplements the StartupWMClass matching.
 // Must be called before app.whenReady() / before any window is created.
 if (process.platform === 'linux') {
-  app.setDesktopName('smartx.desktop');
+  const linuxApp = app as typeof app & { setDesktopName?: (desktopName: string) => void };
+  linuxApp.setDesktopName?.('smartx.desktop');
 }
 
 // Prevent multiple instances of the app from running simultaneously.
@@ -122,10 +136,15 @@ const gotTheLock = gotElectronLock && gotFileLock;
 let mainWindow: BrowserWindow | null = null;
 let gatewayManager!: GatewayManager;
 let clawHubService!: ClawHubService;
-let hostEventBus!: HostEventBus;
-let hostApiServer: Server | null = null;
+const hostApiRegistry = new HostApiRegistry();
 const mainWindowFocusState = createMainWindowFocusState();
 const quitLifecycleState = createQuitLifecycleState();
+
+function sendMainWindowEvent(channel: string, payload: unknown): void {
+  const win = mainWindow;
+  if (!win || win.isDestroyed()) return;
+  win.webContents.send(channel, payload);
+}
 
 /**
  * Resolve the icons directory path (works in both dev and packaged mode)
@@ -177,10 +196,14 @@ function createWindow(): BrowserWindow {
       webviewTag: true, // Enable <webview> for embedding OpenClaw Control UI
     },
     titleBarStyle: isMac ? 'hiddenInset' : useCustomTitleBar ? 'hidden' : 'default',
-    trafficLightPosition: isMac ? { x: 16, y: 16 } : undefined,
+    trafficLightPosition: isMac
+      ? getMacTrafficLightPosition(false)
+      : undefined,
     frame: isMac || !useCustomTitleBar,
     show: false,
   });
+
+  registerZoomShortcuts(win);
 
   // Handle external links — only allow safe protocols to prevent arbitrary
   // command execution via shell.openExternal() (e.g. file://, ms-msdt:, etc.)
@@ -249,6 +272,12 @@ function createMainWindow(): BrowserWindow {
       return;
     }
 
+    if (process.platform === 'darwin') {
+      void getSetting('sidebarCollapsed').then((sidebarCollapsed) => {
+        syncMacTrafficLightPosition(win, sidebarCollapsed);
+      });
+    }
+
     const action = consumeMainWindowReady(mainWindowFocusState);
     if (action === 'focus') {
       focusWindow(win);
@@ -301,7 +330,7 @@ async function initialize(): Promise<void> {
   }
 
   // Set application menu
-  createMenu();
+  await createMenu();
 
   // Create the main window
   const window = createMainWindow();
@@ -335,20 +364,38 @@ async function initialize(): Promise<void> {
   );
 
   // Register IPC handlers
-  registerIpcHandlers(gatewayManager, clawHubService, window);
+  registerIpcHandlers(gatewayManager, clawHubService, window, hostApiRegistry);
 
-  hostApiServer = startHostApiServer({
+  // Initialize extension system
+  await extensionRegistry.initialize({
     gatewayManager,
-    clawHubService,
-    eventBus: hostEventBus,
-    mainWindow: window,
+    getMainWindow: () => mainWindow,
+    hostApi: {
+      register: (extensionId, contributions) => (
+        hostApiRegistry.registerExtensionContributions(extensionId, contributions)
+      ),
+    },
   });
+
+  // Wire marketplace provider to ClawHubService if an extension provides one
+  const marketplaceProvider = extensionRegistry.getMarketplaceProvider();
+  if (marketplaceProvider) {
+    clawHubService.setMarketplaceProvider(marketplaceProvider);
+  }
 
   // Register update handlers
   registerUpdateHandlers(appUpdater, window);
 
   // Note: Auto-check for updates is driven by the renderer (update store init)
   // so it respects the user's "Auto-check for updates" setting.
+
+  // Seed a stable default IDENTITY.md before the Gateway initializes the
+  // workspace so SmartX desktop sessions skip OpenClaw's chat-first bootstrap.
+  if (!isE2EMode) {
+    void ensureSmartXDefaultIdentity().catch((error) => {
+      logger.warn('Failed to seed default SmartX identity:', error);
+    });
+  }
 
   // Repair any bootstrap files that only contain SmartX markers (no OpenClaw
   // template content). This fixes a race condition where ensureSmartXContext()
@@ -367,6 +414,21 @@ async function initialize(): Promise<void> {
     });
   }
 
+  // Keep community builds aligned with Clawx-biz by physically trimming
+  // bundled OpenClaw consumer skills on startup (dev + packaged), keeping only
+  // `skill-creator`. This also prunes stale openclaw.json entries for trimmed
+  // bundled skills so we do not keep `enabled: false` config for skills that no
+  // longer exist.
+  if (!isE2EMode) {
+    void trimBundledOpenClawSkillsAndConfigs().then(({ removed, removedConfigs, kept }) => {
+      if (removed > 0 || removedConfigs > 0) {
+        logger.info(
+          `Trimmed bundled OpenClaw skills: removed ${removed}, pruned configs ${removedConfigs}, kept ${kept.join(', ')}`,
+        );
+      }
+    });
+  }
+
   // Pre-deploy bundled third-party skills from resources/preinstalled-skills.
   // This installs full skill directories (not only SKILL.md) in an idempotent,
   // non-destructive way and never blocks startup.
@@ -376,19 +438,15 @@ async function initialize(): Promise<void> {
     });
   }
 
-  // Pre-deploy/upgrade bundled OpenClaw plugins (dingtalk, wecom, feishu, wechat)
-  // to ~/.openclaw/extensions/ so they are always up-to-date after an app update.
-  // Note: qqbot was moved to a built-in channel in OpenClaw 3.31.
-  if (!isE2EMode) {
-    void ensureAllBundledPluginsInstalled().catch((error) => {
-      logger.warn('Failed to install/upgrade bundled plugins:', error);
-    });
-  }
+  // Plugin installation is now configuration-driven:
+  // - When a channel is added via UI: ensureXxxPluginInstalled() in IPC handlers
+  // - When Gateway starts: ensureConfiguredPluginsUpgraded() in config-sync.ts
+  // No need to pre-install all bundled plugins at app startup.
 
   // Bridge gateway and host-side events before any auto-start logic runs, so
   // renderer subscribers observe the full startup lifecycle.
   gatewayManager.on('status', (status: { state: string }) => {
-    hostEventBus.emit('gateway:status', status);
+    sendMainWindowEvent('gateway:status-changed', status);
     if (status.state === 'running' && !isE2EMode) {
       void ensureSmartXContext().catch((error) => {
         logger.warn('Failed to re-merge SmartX context after gateway reconnect:', error);
@@ -397,67 +455,71 @@ async function initialize(): Promise<void> {
   });
 
   gatewayManager.on('error', (error) => {
-    hostEventBus.emit('gateway:error', { message: error.message });
+    sendMainWindowEvent('gateway:error', { message: error.message });
   });
 
   gatewayManager.on('notification', (notification) => {
-    hostEventBus.emit('gateway:notification', notification);
+    sendMainWindowEvent('gateway:notification', notification);
+  });
+
+  gatewayManager.on('gateway:health', (data) => {
+    sendMainWindowEvent('gateway:health-changed', data);
+  });
+
+  gatewayManager.on('gateway:presence', (data) => {
+    sendMainWindowEvent('gateway:presence-changed', data);
   });
 
   gatewayManager.on('chat:message', (data) => {
-    hostEventBus.emit('gateway:chat-message', data);
+    sendMainWindowEvent('gateway:chat-message', data);
+  });
+
+  gatewayManager.on('chat:runtime-event', (data) => {
+    sendMainWindowEvent('chat:runtime-event', data);
   });
 
   gatewayManager.on('channel:status', (data) => {
-    hostEventBus.emit('gateway:channel-status', data);
+    sendMainWindowEvent('gateway:channel-status', data);
   });
 
   gatewayManager.on('exit', (code) => {
-    hostEventBus.emit('gateway:exit', { code });
+    sendMainWindowEvent('gateway:exit', { code });
   });
 
   deviceOAuthManager.on('oauth:code', (payload) => {
-    hostEventBus.emit('oauth:code', payload);
-  });
-
-  deviceOAuthManager.on('oauth:start', (payload) => {
-    hostEventBus.emit('oauth:start', payload);
+    sendMainWindowEvent('oauth:code', payload);
   });
 
   deviceOAuthManager.on('oauth:success', (payload) => {
-    hostEventBus.emit('oauth:success', { ...payload, success: true });
+    sendMainWindowEvent('oauth:success', { ...payload, success: true });
   });
 
   deviceOAuthManager.on('oauth:error', (error) => {
-    hostEventBus.emit('oauth:error', error);
-  });
-
-  browserOAuthManager.on('oauth:start', (payload) => {
-    hostEventBus.emit('oauth:start', payload);
+    sendMainWindowEvent('oauth:error', error);
   });
 
   browserOAuthManager.on('oauth:code', (payload) => {
-    hostEventBus.emit('oauth:code', payload);
+    sendMainWindowEvent('oauth:code', payload);
   });
 
   browserOAuthManager.on('oauth:success', (payload) => {
-    hostEventBus.emit('oauth:success', { ...payload, success: true });
+    sendMainWindowEvent('oauth:success', { ...payload, success: true });
   });
 
   browserOAuthManager.on('oauth:error', (error) => {
-    hostEventBus.emit('oauth:error', error);
+    sendMainWindowEvent('oauth:error', error);
   });
 
   whatsAppLoginManager.on('qr', (data) => {
-    hostEventBus.emit('channel:whatsapp-qr', data);
+    sendMainWindowEvent('channel:whatsapp-qr', data);
   });
 
   whatsAppLoginManager.on('success', (data) => {
-    hostEventBus.emit('channel:whatsapp-success', data);
+    sendMainWindowEvent('channel:whatsapp-success', data);
   });
 
   whatsAppLoginManager.on('error', (error) => {
-    hostEventBus.emit('channel:whatsapp-error', error);
+    sendMainWindowEvent('channel:whatsapp-error', error);
   });
 
   // Start Gateway automatically (this seeds missing bootstrap files with full templates)
@@ -523,7 +585,13 @@ if (gotTheLock) {
 
   gatewayManager = new GatewayManager();
   clawHubService = new ClawHubService();
-  hostEventBus = new HostEventBus();
+
+  // Register builtin extensions and load manifest
+  registerAllBuiltinExtensions();
+  loadExternalMainExtensions();
+  void loadExtensionsFromManifest().catch((err) => {
+    logger.warn('Failed to load extensions from manifest:', err);
+  });
 
   // When a second instance is launched, focus the existing window instead.
   app.on('second-instance', () => {
@@ -580,8 +648,7 @@ if (gotTheLock) {
       return;
     }
 
-    hostEventBus.closeAll();
-    hostApiServer?.close();
+    void extensionRegistry.teardownAll();
 
     const stopPromise = gatewayManager.stop().catch((err) => {
       logger.warn('gatewayManager.stop() error during quit:', err);

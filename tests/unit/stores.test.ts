@@ -5,18 +5,48 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useSettingsStore } from '@/stores/settings';
 import { useGatewayStore } from '@/stores/gateway';
 
+const hostApiMock = vi.hoisted(() => ({
+  gateway: {
+    status: vi.fn(),
+    start: vi.fn(),
+    stop: vi.fn(),
+    restart: vi.fn(),
+    health: vi.fn(),
+    rpc: vi.fn(),
+  },
+  settings: {
+    getAll: vi.fn(),
+    get: vi.fn(),
+    set: vi.fn(),
+    setMany: vi.fn(),
+    reset: vi.fn(),
+  },
+  logs: {
+    recent: vi.fn(),
+    dir: vi.fn(),
+    listFiles: vi.fn(),
+    readFile: vi.fn(),
+  },
+}));
+
+vi.mock('@/lib/host-api', () => ({
+  hostApi: hostApiMock,
+}));
+
 describe('Settings Store', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
+    hostApiMock.settings.set.mockResolvedValue({ success: true });
     // Reset store to default state
     useSettingsStore.setState({
       theme: 'system',
       language: 'en',
       sidebarCollapsed: false,
+      sidebarWidth: 280,
       devModeUnlocked: false,
       gatewayAutoStart: true,
       gatewayPort: 18789,
       autoCheckUpdate: true,
-      autoDownloadUpdate: false,
       startMinimized: false,
       launchAtStartup: false,
       updateChannel: 'stable',
@@ -41,53 +71,38 @@ describe('Settings Store', () => {
     setSidebarCollapsed(true);
     expect(useSettingsStore.getState().sidebarCollapsed).toBe(true);
   });
+
+  it('should clamp sidebar width', () => {
+    const { setSidebarWidth } = useSettingsStore.getState();
+
+    setSidebarWidth(320);
+    expect(useSettingsStore.getState().sidebarWidth).toBe(320);
+
+    setSidebarWidth(100);
+    expect(useSettingsStore.getState().sidebarWidth).toBe(220);
+
+    setSidebarWidth(600);
+    expect(useSettingsStore.getState().sidebarWidth).toBe(420);
+  });
   
   it('should unlock dev mode', () => {
-    const invoke = vi.mocked(window.electron.ipcRenderer.invoke);
-    invoke.mockResolvedValueOnce({
-      ok: true,
-      data: {
-        status: 200,
-        ok: true,
-        json: { success: true },
-      },
-    });
+    hostApiMock.settings.set.mockResolvedValueOnce({ success: true });
 
     const { setDevModeUnlocked } = useSettingsStore.getState();
     setDevModeUnlocked(true);
 
     expect(useSettingsStore.getState().devModeUnlocked).toBe(true);
-    expect(invoke).toHaveBeenCalledWith(
-      'hostapi:fetch',
-      expect.objectContaining({
-        path: '/api/settings/devModeUnlocked',
-        method: 'PUT',
-      }),
-    );
+    expect(hostApiMock.settings.set).toHaveBeenCalledWith('devModeUnlocked', true);
   });
 
   it('should persist launch-at-startup setting through host api', () => {
-    const invoke = vi.mocked(window.electron.ipcRenderer.invoke);
-    invoke.mockResolvedValueOnce({
-      ok: true,
-      data: {
-        status: 200,
-        ok: true,
-        json: { success: true },
-      },
-    });
+    hostApiMock.settings.set.mockResolvedValueOnce({ success: true });
 
     const { setLaunchAtStartup } = useSettingsStore.getState();
     setLaunchAtStartup(true);
 
     expect(useSettingsStore.getState().launchAtStartup).toBe(true);
-    expect(invoke).toHaveBeenCalledWith(
-      'hostapi:fetch',
-      expect.objectContaining({
-        path: '/api/settings/launchAtStartup',
-        method: 'PUT',
-      }),
-    );
+    expect(hostApiMock.settings.set).toHaveBeenCalledWith('launchAtStartup', true);
   });
 });
 
@@ -116,12 +131,11 @@ describe('Gateway Store', () => {
   });
 
   it('should proxy gateway rpc through ipc', async () => {
-    const invoke = vi.mocked(window.electron.ipcRenderer.invoke);
-    invoke.mockResolvedValueOnce({ success: true, result: { ok: true } });
+    hostApiMock.gateway.rpc.mockResolvedValueOnce({ ok: true });
 
     const result = await useGatewayStore.getState().rpc<{ ok: boolean }>('chat.history', { limit: 10 }, 5000);
 
     expect(result.ok).toBe(true);
-    expect(invoke).toHaveBeenCalledWith('gateway:rpc', 'chat.history', { limit: 10 }, 5000);
+    expect(hostApiMock.gateway.rpc).toHaveBeenCalledWith('chat.history', { limit: 10 }, 5000);
   });
 });

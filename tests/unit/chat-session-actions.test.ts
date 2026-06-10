@@ -1,17 +1,38 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const invokeIpcMock = vi.fn();
+const gatewayRpcMock = vi.fn();
+const sessionDeleteMock = vi.fn();
+const sessionRenameMock = vi.fn();
 
-vi.mock('@/lib/api-client', () => ({
-  invokeIpc: (...args: unknown[]) => invokeIpcMock(...args),
+vi.mock('@/lib/host-api', () => ({
+  hostApi: {
+    gateway: {
+      rpc: async (method: string, params?: unknown, timeoutMs?: number) => {
+        const result = await gatewayRpcMock(method, params, timeoutMs) as {
+          success?: boolean;
+          result?: unknown;
+          error?: string;
+        };
+        if (result?.success === false) {
+          throw new Error(result.error || `RPC ${method} failed`);
+        }
+        return result?.result;
+      },
+    },
+    sessions: {
+      delete: (id: string) => sessionDeleteMock(id),
+      rename: (id: string, title: string) => sessionRenameMock(id, title),
+    },
+  },
 }));
 
 type ChatLikeState = {
   currentSessionKey: string;
-  sessions: Array<{ key: string; displayName?: string; updatedAt?: number }>;
+  sessions: Array<{ key: string; displayName?: string; updatedAt?: number; status?: string; hasActiveRun?: boolean }>;
   messages: Array<{ role: string; timestamp?: number; content?: unknown }>;
   sessionLabels: Record<string, string>;
   sessionLastActivity: Record<string, number>;
+  sending: boolean;
   streamingText: string;
   streamingMessage: unknown | null;
   streamingTools: unknown[];
@@ -30,6 +51,7 @@ function makeHarness(initial?: Partial<ChatLikeState>) {
     messages: [],
     sessionLabels: {},
     sessionLastActivity: {},
+    sending: false,
     streamingText: '',
     streamingMessage: null,
     streamingTools: [],
@@ -52,7 +74,9 @@ function makeHarness(initial?: Partial<ChatLikeState>) {
 describe('chat session actions', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    invokeIpcMock.mockResolvedValue({ success: true });
+    gatewayRpcMock.mockResolvedValue({ success: true });
+    sessionDeleteMock.mockResolvedValue({ success: true });
+    sessionRenameMock.mockResolvedValue({ success: true });
   });
 
   it('switchSession preserves non-main session that has activity history', async () => {
@@ -109,7 +133,7 @@ describe('chat session actions', () => {
 
     await actions.deleteSession('agent:foo:session-a');
     const next = h.read();
-    expect(invokeIpcMock).toHaveBeenCalledWith('session:delete', 'agent:foo:session-a');
+    expect(sessionDeleteMock).toHaveBeenCalledWith('agent:foo:session-a');
     expect(next.currentSessionKey).toBe('agent:foo:main');
     expect(next.sessions.map((s) => s.key)).toEqual(['agent:foo:main']);
     expect(next.sessionLabels['agent:foo:session-a']).toBeUndefined();
@@ -149,7 +173,7 @@ describe('chat session actions', () => {
     });
     const actions = createSessionActions(h.set as never, h.get as never);
 
-    invokeIpcMock.mockResolvedValueOnce({
+    gatewayRpcMock.mockResolvedValueOnce({
       success: true,
       result: {
         sessions: [
@@ -173,5 +197,78 @@ describe('chat session actions', () => {
     expect(h.read().sessionLastActivity['agent:main:cron:job-1']).toBe(1773281731621);
     expect(h.read().sessions.find((session) => session.key === 'agent:main:cron:job-1')?.updatedAt).toBe(1773281731621);
   });
-});
 
+  it('clears stale current-run state when sessions.list reports the current session is idle', async () => {
+    const { createSessionActions } = await import('@/stores/chat/session-actions');
+    const h = makeHarness({
+      currentSessionKey: 'agent:main:main',
+      sessions: [{ key: 'agent:main:main' }],
+      sending: true,
+      activeRunId: 'run-stale',
+      pendingFinal: true,
+      lastUserMessageAt: 1779693769991,
+      streamingText: 'partial',
+      streamingMessage: { role: 'assistant', content: 'partial' },
+      streamingTools: [{ name: 'browser', status: 'completed' }],
+      pendingToolImages: [{ fileName: 'x.png' }],
+    });
+    const actions = createSessionActions(h.set as never, h.get as never);
+
+    gatewayRpcMock.mockResolvedValueOnce({
+      success: true,
+      result: {
+        sessions: [{
+          key: 'agent:main:main',
+          displayName: 'Main',
+          updatedAt: 1779694521057,
+          status: 'done',
+          hasActiveRun: false,
+        }],
+      },
+    });
+
+    await actions.loadSessions();
+
+    const next = h.read();
+    expect(next.sending).toBe(false);
+    expect(next.activeRunId).toBeNull();
+    expect(next.pendingFinal).toBe(false);
+    expect(next.lastUserMessageAt).toBeNull();
+    expect(next.streamingText).toBe('');
+    expect(next.streamingMessage).toBeNull();
+    expect(next.streamingTools).toEqual([]);
+    expect(next.pendingToolImages).toEqual([]);
+  });
+
+  it('does not clear current-run state from stale sessions.list metadata older than the send', async () => {
+    const { createSessionActions } = await import('@/stores/chat/session-actions');
+    const h = makeHarness({
+      currentSessionKey: 'agent:main:main',
+      sending: true,
+      activeRunId: 'run-current',
+      pendingFinal: true,
+      lastUserMessageAt: 2000,
+    });
+    const actions = createSessionActions(h.set as never, h.get as never);
+
+    gatewayRpcMock.mockResolvedValueOnce({
+      success: true,
+      result: {
+        sessions: [{
+          key: 'agent:main:main',
+          updatedAt: 1000,
+          status: 'done',
+          hasActiveRun: false,
+        }],
+      },
+    });
+
+    await actions.loadSessions();
+
+    const next = h.read();
+    expect(next.sending).toBe(true);
+    expect(next.activeRunId).toBe('run-current');
+    expect(next.pendingFinal).toBe(true);
+    expect(next.lastUserMessageAt).toBe(2000);
+  });
+});

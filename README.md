@@ -43,6 +43,8 @@ Whether you're automating workflows, managing AI-powered channels, or scheduling
 
 SmartX comes pre-configured with best-practice model providers and natively supports Windows as well as multi-language settings. Of course, you can also fine-tune advanced configurations via **Settings → Advanced → Developer Mode**.
 
+<p align="center"><strong style="font-size:1.1em; text-decoration: underline;">For a full enterprise edition, dedicated service support, or tailored deployment guidance for your business scenario, contact us at <a href="mailto:public@valuecell.ai">public@valuecell.ai</a>.</strong></p>
+
 ---
 ## Screenshot
 
@@ -81,14 +83,17 @@ Building AI agents shouldn't require mastering the command line. SmartX was desi
 | Complex CLI setup | One-click installation with guided setup wizard |
 | Configuration files | Visual settings with real-time validation |
 | Process management | Automatic gateway lifecycle management |
+| App updates | Startup update checks with a prompt before downloading or installing |
 | Multiple AI providers | Unified provider configuration panel |
-| Skill/plugin installation | Built-in skill marketplace and management |
+| Skill/plugin installation | Local-first skill management with optional extension-provided marketplace |
 
 ### OpenClaw Inside
 
 SmartX is built directly upon the official **OpenClaw** core. Instead of requiring a separate installation, we embed the runtime within the application to provide a seamless "battery-included" experience.
 
 We are committed to maintaining strict alignment with the upstream OpenClaw project, ensuring that you always have access to the latest capabilities, stability improvements, and ecosystem compatibility provided by the official releases.
+
+When Developer Mode is enabled, the sidebar also provides a native Dreams page for OpenClaw memory review, dream diary inspection, and basic maintenance actions. The full upstream OpenClaw Dreams UI remains available from that page when deeper diagnostics are needed.
 
 ---
 
@@ -98,7 +103,8 @@ We are committed to maintaining strict alignment with the upstream OpenClaw proj
 Complete the entire setup—from installation to your first AI interaction—through an intuitive graphical interface. No terminal commands, no YAML files, no environment variable hunting.
 
 ### 💬 Intelligent Chat Interface
-Communicate with AI agents through a modern chat experience. Support for multiple conversation contexts, message history, rich content rendering with Markdown, and direct `@agent` routing in the main composer for multi-agent setups.
+Communicate with AI agents through a modern chat experience. Support for multiple conversation contexts, message history, rich content rendering with Markdown (including GitHub-flavored tables and KaTeX-powered LaTeX math: `$inline$`, `$$block$$`, `\(inline\)`, and `\[block\]`), and direct `@agent` routing in the main composer for multi-agent setups.
+Skills you insert from the composer appear as `/skill-name` chips; click a chip to open the preview sidebar and read that skill's `SKILL.md`.
 When you target another agent with `@agent`, SmartX switches into that agent's own conversation context directly instead of relaying through the default agent. Agent workspaces stay separate by default, and stronger isolation depends on OpenClaw sandbox settings.
 Each agent can also override its own `provider/model` runtime setting; agents without overrides continue inheriting the global default model.
 
@@ -114,12 +120,11 @@ The Cron page now lets you configure external delivery directly in the task form
 
 
 ### 🧩 Extensible Skill System
-Extend your AI agents with pre-built skills. Browse, install, and manage skills through the integrated skill panel—no package managers required.
-SmartX also pre-bundles full document-processing skills (`pdf`, `xlsx`, `docx`, `pptx`), deploys them automatically to the managed skills directory (default `~/.openclaw/skills`) on startup, and enables them by default on first install. Additional bundled skills (`find-skills`, `self-improving-agent`, `tavily-search`, `brave-web-search`) are also enabled by default; if required API keys are missing, OpenClaw will surface configuration errors in runtime.  
-The Skills page can display skills discovered from multiple OpenClaw sources (managed dir, workspace, and extra skill dirs), and now shows each skill's actual location so you can open the real folder directly.
+Extend your AI agents with pre-built skills. The integrated Skills page is local-first: it scans managed/workspace skill directories, lets you enable or disable skills without depending on the Gateway, and can optionally expose an extension-provided marketplace in enterprise builds.
+SmartX also pre-bundles full document-processing skills (`pdf`, `xlsx`, `docx`, `pptx`), deploys them automatically to the managed skills directory (default `~/.openclaw/skills`) on startup, and enables them by default on first install. Additional bundled skills (`find-skills`, `self-improving-agent`, `tavily-search`) are also enabled by default; if required API keys are missing, OpenClaw will surface configuration errors in runtime.  
+The Skills page can display skills discovered from multiple OpenClaw sources (managed dir, workspace, and extra skill dirs), and now shows each skill's actual location so you can open the real folder directly. For bundled OpenClaw skills, community builds now ship and expose only `skill-creator`; non-allowlisted bundled skills are physically trimmed in both dev and packaged startup, and any stale `openclaw.json` entries left behind for those removed bundled skills are pruned.
 
 Environment variables for bundled search skills:
-- `BRAVE_SEARCH_API_KEY` for `brave-web-search`
 - `TAVILY_API_KEY` for `tavily-search` (OAuth may also be supported by upstream skill runtime)
 - `find-skills` and `self-improving-agent` do not require API keys
 
@@ -129,7 +134,9 @@ A dedicated preload injects `window.smartXBindKnowledgeBase(payload)` for one-wa
 
 ### 🔐 Secure Provider Integration
 Connect to multiple AI providers (OpenAI, Anthropic, and more) with credentials stored securely in your system's native keychain. OpenAI supports both API key and browser OAuth (Codex subscription) sign-in.
+In developer mode, the dedicated Image Generation page supports an independent OpenAI-compatible image-generation endpoint (Base URL, API key, and model name such as `gpt-image-2`) so image generation can use a dedicated `/v1/images/generations` service while chat continues using the normal OpenAI provider.
 For **Custom** providers used with OpenAI-compatible gateways, you can set a custom `User-Agent` in **Settings → AI Providers → Edit Provider** for compatibility-sensitive endpoints.
+When you edit or switch providers, SmartX preserves existing per-model capability metadata such as `input: ["text", "image"]`. Newly selected Custom-provider models use OpenClaw onboarding-compatible image-input inference, with unknown models defaulting to text-only.
 When a compatible gateway rejects `/models` for non-auth reasons, SmartX automatically falls back to a lightweight `/chat/completions` or `/responses` probe during API key validation.
 
 ### 🌙 Adaptive Theming
@@ -137,6 +144,9 @@ Light mode, dark mode, or system-synchronized themes. SmartX adapts to your pref
 
 ### 🚀 Startup Launch Control
 In **Settings → General**, you can enable **Launch at system startup** so SmartX starts automatically after login.
+
+### 🔔 Update Prompts
+SmartX can automatically check for new versions on startup. When an update is available, it shows an in-app prompt; downloading and installing only happen after you choose the action.
 
 ---
 
@@ -216,58 +226,59 @@ Notes:
 
 SmartX employs a **dual-process architecture** with a unified host API layer. The renderer talks to a single client abstraction, while Electron Main owns protocol selection and process lifecycle:
 
-```┌─────────────────────────────────────────────────────────────────┐
-│                        SmartX Desktop App                         │
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                        SmartX Desktop App                        │
 │                                                                  │
 │  ┌────────────────────────────────────────────────────────────┐  │
-│  │              Electron Main Process                          │  │
+│  │              Electron Main Process                         │  │
 │  │  • Window & application lifecycle management               │  │
-│  │  • Gateway process supervision                              │  │
-│  │  • System integration (tray, notifications, keychain)       │  │
-│  │  • Auto-update orchestration                                │  │
+│  │  • Gateway process supervision                             │  │
+│  │  • System integration (tray, notifications, keychain)      │  │
+│  │  • Auto-update orchestration                               │  │
 │  └────────────────────────────────────────────────────────────┘  │
-│                              │                                    │
-│                              │ IPC (authoritative control plane)  │
-│                              ▼                                    │
+│                              │                                   │
+│                              │ IPC (authoritative control plane) │
+│                              ▼                                   │
 │  ┌────────────────────────────────────────────────────────────┐  │
-│  │              React Renderer Process                         │  │
-│  │  • Modern component-based UI (React 19)                     │  │
-│  │  • State management with Zustand                            │  │
-│  │  • Unified host-api/api-client calls                        │  │
-│  │  • Rich Markdown rendering                                  │  │
+│  │              React Renderer Process                        │  │
+│  │  • Modern component-based UI (React 19)                    │  │
+│  │  • State management with Zustand                           │  │
+│  │  • Unified host-api/api-client calls                       │  │
+│  │  • Rich Markdown rendering                                 │  │
 │  └────────────────────────────────────────────────────────────┘  │
-└──────────────────────────────┬──────────────────────────────────┘
+└──────────────────────────────┬───────────────────────────────────┘
                                │
-                               │ Main-owned transport strategy
-                               │ (WS first, HTTP then IPC fallback)
+                               │ Typed IPC requests
                                ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                Host API & Main Process Proxies                  │
+┌──────────────────────────────────────────────────────────────────┐
+│                Main Host Services & Gateway Manager              │
 │                                                                  │
-│  • hostapi:fetch (Main proxy, avoids CORS in dev/prod)          │
-│  • gateway:httpProxy (Renderer never calls Gateway HTTP direct)  │
-│  • Unified error mapping & retry/backoff                         │
-└──────────────────────────────┬──────────────────────────────────┘
+│  • host:invoke typed service dispatcher                          │
+│  • Settings, files, sessions, skills, providers, diagnostics     │
+│  • Main-owned Gateway WebSocket and process supervision          │
+└──────────────────────────────┬───────────────────────────────────┘
                                │
-                               │ WS / HTTP / IPC fallback
+                               │ Main-owned WebSocket
                                ▼
-┌─────────────────────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────────────────────┐
 │                     OpenClaw Gateway                             │
 │                                                                  │
-│  • AI agent runtime and orchestration                           │
+│  • AI agent runtime and orchestration                            │
 │  • Message channel management                                    │
-│  • Skill/plugin execution environment                           │
+│  • Skill/plugin execution environment                            │
 │  • Provider abstraction layer                                    │
-└─────────────────────────────────────────────────────────────────┘
+└──────────────────────────────────────────────────────────────────┘
 ```
 ### Design Principles
 
 - **Process Isolation**: The AI runtime operates in a separate process, ensuring UI responsiveness even during heavy computation
 - **Single Entry for Frontend Calls**: Renderer requests go through host-api/api-client; protocol details are hidden behind a stable interface
-- **Main-Process Transport Ownership**: Electron Main controls WS/HTTP usage and fallback to IPC for reliability
+- **Main-Process Transport Ownership**: Electron Main owns the Gateway WebSocket; the renderer talks to Main over typed IPC
+- **Extension IPC Contributions**: Main-process extensions contribute host-api actions through the typed IPC registry instead of HTTP routes
 - **Graceful Recovery**: Built-in reconnect, timeout, and backoff logic handles transient failures automatically
 - **Secure Storage**: API keys and sensitive data leverage the operating system's native secure storage mechanisms
-- **CORS-Safe by Design**: Local HTTP access is proxied by Main, preventing renderer-side CORS issues
+- **CORS-Safe by Design**: The renderer does not call local Gateway or Host API HTTP endpoints directly
 
 ### Process Model & Gateway Troubleshooting
 
@@ -275,6 +286,7 @@ SmartX employs a **dual-process architecture** with a unified host API layer. Th
 - Single-instance protection uses Electron's lock plus a local process-file lock fallback, preventing duplicate app launch in environments where desktop IPC/session bus is unstable.
 - During rolling upgrades, mixed old/new app versions can still have asymmetric protection behavior. For best reliability, upgrade all desktop clients to the same version.
 - The OpenClaw Gateway listener should still be **single-owner**: only one process should listen on `127.0.0.1:18789`.
+- Gateway readiness is based on OpenClaw core signals such as `system-presence`, `health`, and `status`; memory, Dreams, or channel failures are shown as capability degradation instead of global Gateway failure.
 - To verify the active listener:
   - macOS/Linux: `lsof -nP -iTCP:18789 -sTCP:LISTEN`
   - Windows (PowerShell): `Get-NetTCPConnection -LocalPort 18789 -State Listen`
@@ -304,14 +316,17 @@ Chain multiple skills together to create sophisticated automation pipelines. Pro
 
 - **Node.js**: 22+ (LTS recommended)
 - **Package Manager**: pnpm 9+ (recommended) or npm
+- **Linux (Ubuntu/Debian)**: Install required system libraries before running Electron:
+  ```bash
+  sudo apt-get install -y libnss3 libgtk-3-0 libxss1 libxtst6 libatspi2.0-0 libnotify4 xdg-utils
+  ```
+  On Ubuntu 24.04+, some packages use a `t64` suffix; run the above command and `apt` will automatically select the correct variant.
 
 ### Project Structure
 
 ```SmartX/
 ├── electron/                 # Electron Main Process
-│   ├── api/                 # Main-side API router and handlers
-│   │   └── routes/          # RPC/HTTP proxy route modules
-│   ├── services/            # Provider, secrets and runtime services
+│   ├── services/            # Typed host APIs, provider, secrets and runtime services
 │   │   ├── providers/       # Provider/account model sync logic
 │   │   └── secrets/         # OS keychain and secret storage
 │   ├── shared/              # Shared provider schemas/constants
@@ -337,7 +352,7 @@ Chain multiple skills together to create sophisticated automation pipelines. Pro
 
 ```bash
 # Development
-pnpm run init             # Install dependencies + download uv
+pnpm run init             # Install dependencies + download bundled binaries (uv, agent-browser)
 pnpm dev                  # Start with hot reload (auto-prepares bundled skills if missing)
 
 # Quality

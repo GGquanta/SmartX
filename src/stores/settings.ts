@@ -5,8 +5,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import i18n from '@/i18n';
-import { hostApiFetch } from '@/lib/host-api';
-import { resolveSupportedLanguage } from '../../shared/language';
+import { hostApi } from '@/lib/host-api';
+import { resolveSupportedLanguage } from '@shared/language';
 
 type Theme = 'light' | 'dark' | 'system';
 type UpdateChannel = 'stable' | 'beta' | 'dev';
@@ -32,10 +32,10 @@ interface SettingsState {
   // Update
   updateChannel: UpdateChannel;
   autoCheckUpdate: boolean;
-  autoDownloadUpdate: boolean;
 
   // UI State
   sidebarCollapsed: boolean;
+  sidebarWidth: number;
   devModeUnlocked: boolean;
 
   // Setup
@@ -58,8 +58,8 @@ interface SettingsState {
   setProxyBypassRules: (value: string) => void;
   setUpdateChannel: (channel: UpdateChannel) => void;
   setAutoCheckUpdate: (value: boolean) => void;
-  setAutoDownloadUpdate: (value: boolean) => void;
   setSidebarCollapsed: (value: boolean) => void;
+  setSidebarWidth: (value: number) => void;
   setDevModeUnlocked: (value: boolean) => void;
   markSetupComplete: () => void;
   resetSettings: () => void;
@@ -81,11 +81,13 @@ const defaultSettings = {
   proxyBypassRules: '<local>;localhost;127.0.0.1;::1',
   updateChannel: 'stable' as UpdateChannel,
   autoCheckUpdate: true,
-  autoDownloadUpdate: false,
   sidebarCollapsed: false,
+  sidebarWidth: 280,
   devModeUnlocked: false,
   setupComplete: false,
 };
+
+const clampSidebarWidth = (value: number) => Math.min(420, Math.max(220, Math.round(value)));
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
@@ -94,7 +96,7 @@ export const useSettingsStore = create<SettingsState>()(
 
       init: async () => {
         try {
-          const settings = await hostApiFetch<Partial<typeof defaultSettings>>('/api/settings');
+          const settings = await hostApi.settings.getAll();
           const resolvedLanguage = settings.language
             ? resolveSupportedLanguage(settings.language)
             : undefined;
@@ -102,6 +104,9 @@ export const useSettingsStore = create<SettingsState>()(
             ...state,
             ...settings,
             ...(resolvedLanguage ? { language: resolvedLanguage } : {}),
+            ...(typeof settings.sidebarWidth === 'number'
+              ? { sidebarWidth: clampSidebarWidth(settings.sidebarWidth) }
+              : {}),
           }));
           if (resolvedLanguage) {
             i18n.changeLanguage(resolvedLanguage);
@@ -114,48 +119,30 @@ export const useSettingsStore = create<SettingsState>()(
 
       setTheme: (theme) => {
         set({ theme });
-        void hostApiFetch('/api/settings/theme', {
-          method: 'PUT',
-          body: JSON.stringify({ value: theme }),
-        }).catch(() => { });
+        void hostApi.settings.set('theme', theme).catch(() => { });
       },
       setLanguage: (language) => {
         const resolvedLanguage = resolveSupportedLanguage(language);
         i18n.changeLanguage(resolvedLanguage);
         set({ language: resolvedLanguage });
-        void hostApiFetch('/api/settings/language', {
-          method: 'PUT',
-          body: JSON.stringify({ value: resolvedLanguage }),
-        }).catch(() => { });
+        void hostApi.settings.set('language', resolvedLanguage).catch(() => { });
       },
       setStartMinimized: (startMinimized) => set({ startMinimized }),
       setLaunchAtStartup: (launchAtStartup) => {
         set({ launchAtStartup });
-        void hostApiFetch('/api/settings/launchAtStartup', {
-          method: 'PUT',
-          body: JSON.stringify({ value: launchAtStartup }),
-        }).catch(() => { });
+        void hostApi.settings.set('launchAtStartup', launchAtStartup).catch(() => { });
       },
       setTelemetryEnabled: (telemetryEnabled) => {
         set({ telemetryEnabled });
-        void hostApiFetch('/api/settings/telemetryEnabled', {
-          method: 'PUT',
-          body: JSON.stringify({ value: telemetryEnabled }),
-        }).catch(() => { });
+        void hostApi.settings.set('telemetryEnabled', telemetryEnabled).catch(() => { });
       },
       setGatewayAutoStart: (gatewayAutoStart) => {
         set({ gatewayAutoStart });
-        void hostApiFetch('/api/settings/gatewayAutoStart', {
-          method: 'PUT',
-          body: JSON.stringify({ value: gatewayAutoStart }),
-        }).catch(() => { });
+        void hostApi.settings.set('gatewayAutoStart', gatewayAutoStart).catch(() => { });
       },
       setGatewayPort: (gatewayPort) => {
         set({ gatewayPort });
-        void hostApiFetch('/api/settings/gatewayPort', {
-          method: 'PUT',
-          body: JSON.stringify({ value: gatewayPort }),
-        }).catch(() => { });
+        void hostApi.settings.set('gatewayPort', gatewayPort).catch(() => { });
       },
       setProxyEnabled: (proxyEnabled) => set({ proxyEnabled }),
       setProxyServer: (proxyServer) => set({ proxyServer }),
@@ -164,15 +151,16 @@ export const useSettingsStore = create<SettingsState>()(
       setProxyAllServer: (proxyAllServer) => set({ proxyAllServer }),
       setProxyBypassRules: (proxyBypassRules) => set({ proxyBypassRules }),
       setUpdateChannel: (updateChannel) => set({ updateChannel }),
-      setAutoCheckUpdate: (autoCheckUpdate) => set({ autoCheckUpdate }),
-      setAutoDownloadUpdate: (autoDownloadUpdate) => set({ autoDownloadUpdate }),
+      setAutoCheckUpdate: (autoCheckUpdate) => {
+        set({ autoCheckUpdate });
+        void hostApi.settings.set('autoCheckUpdate', autoCheckUpdate).catch(() => { });
+      },
+
       setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
+      setSidebarWidth: (sidebarWidth) => set({ sidebarWidth: clampSidebarWidth(sidebarWidth) }),
       setDevModeUnlocked: (devModeUnlocked) => {
         set({ devModeUnlocked });
-        void hostApiFetch('/api/settings/devModeUnlocked', {
-          method: 'PUT',
-          body: JSON.stringify({ value: devModeUnlocked }),
-        }).catch(() => { });
+        void hostApi.settings.set('devModeUnlocked', devModeUnlocked).catch(() => { });
       },
       markSetupComplete: () => set({ setupComplete: true }),
       resetSettings: () => set(defaultSettings),

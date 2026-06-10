@@ -42,6 +42,9 @@ coverage/
 playwright-report/
 test-results/
 
+# Local session transcript fixtures (may contain private conversation data)
+tests/fixtures/transcripts/
+
 # Cache
 .cache/
 .turbo/
@@ -63,8 +66,21 @@ resources/bin
 
 build/
 artifacts/
+.delivery/
 docs/pr-session-notes-*.md
 
 .cursor/
+.claude/
 .pnpm-store/
 package-lock.json
+
+# Generated extension bridges (created by scripts/generate-ext-bridge.mjs)
+electron/extensions/_ext-bridge.generated.ts
+src/extensions/_ext-bridge.generated.ts
+
+# Local playground artifacts
+playground/
+
+# ClawX-biz bridge workspace artifacts
+resources/enterprise-skills/
+resources/openclaw-plugins/skillshub/

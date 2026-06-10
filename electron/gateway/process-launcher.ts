@@ -10,10 +10,10 @@ const GATEWAY_FETCH_PRELOAD_SOURCE = `'use strict';
 (function () {
   var _f = globalThis.fetch;
   if (typeof _f !== 'function') return;
-  if (globalThis.__smartxFetchPatched) return;
-  globalThis.__smartxFetchPatched = true;
+  if (globalThis.__clawxFetchPatched) return;
+  globalThis.__clawxFetchPatched = true;
 
-  globalThis.fetch = function smartxFetch(input, init) {
+  globalThis.fetch = function clawxFetch(input, init) {
     var url =
       typeof input === 'string' ? input
         : input && typeof input === 'object' && typeof input.url === 'string'
@@ -32,8 +32,10 @@ const GATEWAY_FETCH_PRELOAD_SOURCE = `'use strict';
       delete flat['HTTP-Referer'];
       delete flat['x-title'];
       delete flat['X-Title'];
-      flat['HTTP-Referer'] = 'https://smart-x.com';
-      flat['X-Title'] = 'SmartX';
+      delete flat['x-openrouter-title'];
+      delete flat['X-OpenRouter-Title'];
+      flat['HTTP-Referer'] = 'https://claw-x.com';
+      flat['X-OpenRouter-Title'] = 'ClawX';
       init.headers = flat;
     }
     return _f.call(globalThis, input, init);
@@ -42,8 +44,8 @@ const GATEWAY_FETCH_PRELOAD_SOURCE = `'use strict';
   if (process.platform === 'win32') {
     try {
       var cp = require('child_process');
-      if (!cp.__smartxPatched) {
-        cp.__smartxPatched = true;
+      if (!cp.__clawxPatched) {
+        cp.__clawxPatched = true;
         ['spawn', 'exec', 'execFile', 'fork', 'spawnSync', 'execSync', 'execFileSync'].forEach(function(method) {
           var original = cp[method];
           if (typeof original !== 'function') return;
@@ -117,6 +119,25 @@ export async function launchGatewayProcess(options: {
   const lastSpawnSummary = `mode=${mode}, entry="${entryScript}", args="${options.sanitizeSpawnArgs(gatewayArgs).join(' ')}", cwd="${openclawDir}"`;
 
   const runtimeEnv = { ...forkEnv };
+
+  // Disable OpenClaw's mDNS/Bonjour gateway advertiser unconditionally.
+  //
+  // The OpenClaw gateway advertises `_openclaw-gw._tcp.local` on every
+  // active network interface using a hardcoded `openclaw.local` hostname,
+  // which causes:
+  //   - cross-machine name collisions when multiple OpenClaw/ClawX peers
+  //     share a LAN (each falls back to "<name> (OpenClaw) (2)")
+  //   - self-collisions on multi-homed hosts (Wi-Fi + Tailscale + utun ...)
+  //   - "ghost" record collisions after an unclean ClawX exit, because
+  //     SIGKILL prevents ciao from emitting the mDNS goodbye record.
+  //
+  // ClawX has no UI for LAN gateway discovery today, so the advertiser is
+  // pure log noise.  `OPENCLAW_DISABLE_BONJOUR=1` short-circuits
+  // `startGatewayBonjourAdvertiser()` (openclaw `src/infra/bonjour.ts`,
+  // `isDisabledByEnv()`).  Set after the `forkEnv` spread so any
+  // pre-existing value inherited from the user shell cannot re-enable it.
+  runtimeEnv.OPENCLAW_DISABLE_BONJOUR = '1';
+
   // Only apply the fetch/child_process preload in dev mode.
   // In packaged builds Electron's UtilityProcess rejects NODE_OPTIONS
   // with --require, logging "Most NODE_OPTIONs are not supported in
@@ -155,10 +176,11 @@ export async function launchGatewayProcess(options: {
       reject(error);
     };
 
-    child.on('error', (error) => {
+    child.on('error', (error: unknown) => {
+      const normalizedError = error instanceof Error ? error : new Error(String(error));
       logger.error('Gateway process spawn error:', error);
-      options.onError(error);
-      rejectOnce(error);
+      options.onError(normalizedError);
+      rejectOnce(normalizedError);
     });
 
     child.on('exit', (code: number) => {

@@ -26,11 +26,34 @@ const WECOM_PLUGIN_ID = 'wecom';
 const WECHAT_PLUGIN_ID = OPENCLAW_WECHAT_CHANNEL_TYPE;
 const FEISHU_PLUGIN_ID_CANDIDATES = ['openclaw-lark', 'feishu-openclaw-plugin'] as const;
 const DEFAULT_ACCOUNT_ID = 'default';
-// Channels whose plugin schema uses additionalProperties:false, meaning
-// credential keys MUST NOT appear at the top level of `channels.<type>`.
-// All other channels get the default account mirrored to the top level
-// so their runtime/plugin can discover the credentials.
-const CHANNELS_EXCLUDING_TOP_LEVEL_MIRROR = new Set(['dingtalk']);
+// Channels whose top-level schema (additionalProperties:false) does NOT
+// include `defaultAccount`.  We still use the multi-account `accounts`
+// map, but strip `defaultAccount` before persisting to avoid plugin
+// schema validation errors.  ClawX falls back to DEFAULT_ACCOUNT_ID
+// when `defaultAccount` is absent.
+const CHANNELS_OMIT_DEFAULT_ACCOUNT_KEY = new Set(['dingtalk']);
+
+// Channels whose schema accepts a top-level default account and account map,
+// but whose account payload contains nested strict-schema objects that ClawX
+// can accidentally make invalid by adding UI convenience fields.  Keep this
+// sanitization narrowly scoped to known nested maps so local config remains
+// OpenClaw-compatible after a save.
+const DISCORD_GUILD_CHANNEL_KEYS_TO_KEEP = new Set([
+    'autoArchiveDuration',
+    'autoThread',
+    'autoThreadName',
+    'enabled',
+    'ignoreOtherMentions',
+    'includeThreadStarter',
+    'requireMention',
+    'roles',
+    'skills',
+    'systemPrompt',
+    'tools',
+    'toolsBySender',
+    'users',
+]);
+const DISCORD_CHANNEL_ALLOW_FLAG_KEYS = new Set(['allow']);
 const CHANNEL_TOP_LEVEL_KEYS_TO_KEEP = new Set(['accounts', 'defaultAccount', 'enabled']);
 const WECHAT_STATE_DIR = join(OPENCLAW_DIR, WECHAT_PLUGIN_ID);
 const WECHAT_ACCOUNT_INDEX_FILE = join(WECHAT_STATE_DIR, 'accounts.json');
@@ -39,8 +62,8 @@ const LEGACY_WECHAT_CREDENTIALS_DIR = join(OPENCLAW_DIR, 'credentials', WECHAT_P
 const LEGACY_WECHAT_SYNC_DIR = join(OPENCLAW_DIR, 'agents', 'default', 'sessions', '.openclaw-weixin-sync');
 
 // Channels that are managed as plugins (config goes under plugins.entries, not channels)
-const PLUGIN_CHANNELS: string[] = [];
-const LEGACY_BUILTIN_CHANNEL_PLUGIN_IDS = new Set(['whatsapp']);
+const PLUGIN_CHANNELS: string[] = ['discord', 'qqbot', 'whatsapp'];
+const LEGACY_BUILTIN_CHANNEL_PLUGIN_IDS = new Set<string>();
 const BUILTIN_CHANNEL_IDS = new Set([
     'discord',
     'telegram',
@@ -76,6 +99,84 @@ const CHANNEL_UNIQUE_CREDENTIAL_KEY: Record<string, string> = {
 };
 
 // ── Helpers ──────────────────────────────────────────────────────
+
+function sanitizeDiscordGuildChannelConfig(channelConfig: unknown): void {
+    if (!channelConfig || typeof channelConfig !== 'object' || Array.isArray(channelConfig)) {
+        return;
+    }
+
+    const record = channelConfig as Record<string, unknown>;
+
+    // Backward compatibility for the older ClawX-generated shape:
+    //   channels: { "123": { allow: true, requireMention: true } }
+    // OpenClaw's current DiscordGuildChannelConfig does not include `allow`;
+    // represent deny/allow using `enabled` instead.
+    if (record.allow === false && record.enabled === undefined) {
+        record.enabled = false;
+    }
+
+    for (const key of Object.keys(record)) {
+        if (DISCORD_CHANNEL_ALLOW_FLAG_KEYS.has(key)) {
+            delete record[key];
+            continue;
+        }
+        if (!DISCORD_GUILD_CHANNEL_KEYS_TO_KEEP.has(key)) {
+            delete record[key];
+        }
+    }
+}
+
+function sanitizeDiscordGuilds(config: unknown): void {
+    if (!config || typeof config !== 'object' || Array.isArray(config)) {
+        return;
+    }
+
+    const record = config as Record<string, unknown>;
+    const guilds = record.guilds;
+    if (!guilds || typeof guilds !== 'object' || Array.isArray(guilds)) {
+        return;
+    }
+
+    for (const guildConfig of Object.values(guilds as Record<string, unknown>)) {
+        if (!guildConfig || typeof guildConfig !== 'object' || Array.isArray(guildConfig)) {
+            continue;
+        }
+        const channels = (guildConfig as Record<string, unknown>).channels;
+        if (!channels || typeof channels !== 'object' || Array.isArray(channels)) {
+            continue;
+        }
+        for (const channelConfig of Object.values(channels as Record<string, unknown>)) {
+            sanitizeDiscordGuildChannelConfig(channelConfig);
+        }
+    }
+}
+
+/**
+ * Strip `defaultAccount` from channel sections whose plugin schema
+ * declares additionalProperties:false without listing `defaultAccount`.
+ * Call right before every `writeOpenClawConfig` in channel-config
+ * mutation functions.
+ */
+function sanitizeChannelSectionsBeforeWrite(config: OpenClawConfig): void {
+    if (!config.channels) return;
+    for (const channelType of CHANNELS_OMIT_DEFAULT_ACCOUNT_KEY) {
+        const section = config.channels[channelType];
+        if (section) {
+            delete section.defaultAccount;
+        }
+    }
+
+    const discordSection = config.channels.discord;
+    if (discordSection) {
+        sanitizeDiscordGuilds(discordSection);
+        const accounts = getChannelAccountsMap(discordSection);
+        if (accounts) {
+            for (const accountConfig of Object.values(accounts)) {
+                sanitizeDiscordGuilds(accountConfig);
+            }
+        }
+    }
+}
 
 async function fileExists(p: string): Promise<boolean> {
     try { await access(p, constants.F_OK); return true; } catch { return false; }
@@ -404,6 +505,10 @@ async function ensurePluginAllowlist(currentConfig: OpenClawConfig, channelType:
         ensurePluginRegistration(currentConfig, channelType);
     }
 
+    if (channelType === 'discord' || channelType === 'qqbot' || channelType === 'whatsapp') {
+        ensurePluginRegistration(currentConfig, channelType);
+    }
+
     if (channelType === 'feishu') {
         const feishuPluginId = await resolveFeishuPluginId();
         if (!currentConfig.plugins) {
@@ -411,7 +516,7 @@ async function ensurePluginAllowlist(currentConfig: OpenClawConfig, channelType:
                 allow: [feishuPluginId],
                 enabled: true,
                 entries: {
-                    [feishuPluginId]: { enabled: true }
+                    [feishuPluginId]: { enabled: true },
                 }
             };
         } else {
@@ -432,7 +537,9 @@ async function ensurePluginAllowlist(currentConfig: OpenClawConfig, channelType:
             if (!currentConfig.plugins.entries) {
                 currentConfig.plugins.entries = {};
             }
-            // Remove conflicting feishu entries; keep only the resolved plugin id.
+            // Remove conflicting feishu plugin entries; keep only the resolved
+            // external plugin id. A disabled plugins.entries.feishu record
+            // blocks openclaw-lark in OpenClaw's gateway startup planner.
             delete currentConfig.plugins.entries['feishu'];
             for (const candidateId of FEISHU_PLUGIN_ID_CANDIDATES) {
                 if (candidateId !== feishuPluginId) {
@@ -552,11 +659,11 @@ function transformChannelConfig(
 
             if (channelId && typeof channelId === 'string' && channelId.trim()) {
                 guildConfig.channels = {
-                    [channelId.trim()]: { allow: true, requireMention: true }
+                    [channelId.trim()]: { requireMention: true }
                 };
             } else {
                 guildConfig.channels = {
-                    '*': { allow: true, requireMention: true }
+                    '*': { requireMention: true }
                 };
             }
 
@@ -597,6 +704,28 @@ function transformChannelConfig(
         transformedConfig.allowFrom = allowFrom;
     }
 
+    if (channelType === 'whatsapp') {
+        // The WhatsApp plugin stores QR/session state on disk and does not
+        // require static credentials, but the runtime still needs an enabled
+        // plugin config entry for the channel account to appear in status.
+        transformedConfig = {
+            ...transformedConfig,
+            enabled: transformedConfig.enabled ?? true,
+        };
+    }
+
+    if (channelType === 'dingtalk') {
+        // The per-account schema uses additionalProperties:false and does
+        // NOT include these legacy/obsolete fields.  Strip them before
+        // writing to accounts.<id> to avoid schema validation errors.
+        //   robotCode  – never existed in the plugin schema; clientId IS the robot code
+        //   corpId     – top-level only, legacy compat, runtime ignores it
+        //   agentId    – top-level only, legacy compat, runtime ignores it
+        delete transformedConfig.robotCode;
+        delete transformedConfig.corpId;
+        delete transformedConfig.agentId;
+    }
+
     return transformedConfig;
 }
 
@@ -625,7 +754,7 @@ function migrateLegacyChannelConfigToAccounts(
     const legacyPayload = getLegacyChannelPayload(channelSection);
     const legacyKeys = Object.keys(legacyPayload);
     const existingAccounts = getChannelAccountsMap(channelSection);
-    const hasAccounts = Boolean(existingAccounts) && Object.keys(existingAccounts).length > 0;
+    const hasAccounts = existingAccounts ? Object.keys(existingAccounts).length > 0 : false;
 
     if (legacyKeys.length === 0) {
         if (hasAccounts && typeof channelSection.defaultAccount !== 'string') {
@@ -712,22 +841,8 @@ export async function saveChannelConfig(
         await ensurePluginAllowlist(currentConfig, resolvedChannelType);
         syncBuiltinChannelsWithPluginAllowlist(currentConfig, [resolvedChannelType]);
 
-        // Plugin-based channels (e.g. WhatsApp) go under plugins.entries, not channels
-        if (PLUGIN_CHANNELS.includes(resolvedChannelType)) {
-            ensurePluginRegistration(currentConfig, resolvedChannelType);
-            currentConfig.plugins!.entries![resolvedChannelType] = {
-                ...currentConfig.plugins!.entries![resolvedChannelType],
-                enabled: config.enabled ?? true,
-            };
-            await writeOpenClawConfig(currentConfig);
-            logger.info('Plugin channel config saved', {
-                channelType: resolvedChannelType,
-                configFile: CONFIG_FILE,
-                path: `plugins.entries.${resolvedChannelType}`,
-            });
-            console.log(`Saved plugin channel config for ${resolvedChannelType}`);
-            return;
-        }
+        // Plugin-based channels are mirrored into plugins.entries.<id> below,
+        // but ClawX still keeps channels.<id> as the local account-list source.
 
         if (!currentConfig.channels) {
             currentConfig.channels = {};
@@ -758,52 +873,53 @@ export async function saveChannelConfig(
             }
         }
 
-        // ── Strict-schema channels (e.g. dingtalk) ──────────────────────
-        // These plugins declare additionalProperties:false and do NOT
-        // recognise `accounts` / `defaultAccount`.  Write credentials
-        // flat to the channel root and strip the multi-account keys.
-        if (CHANNELS_EXCLUDING_TOP_LEVEL_MIRROR.has(resolvedChannelType)) {
-            for (const [key, value] of Object.entries(transformedConfig)) {
-                channelSection[key] = value;
-            }
-            channelSection.enabled = transformedConfig.enabled ?? channelSection.enabled ?? true;
-            // Remove keys the strict schema rejects
-            delete channelSection.accounts;
-            delete channelSection.defaultAccount;
-        } else {
-            // ── Normal channels ──────────────────────────────────────────
-            // Write into accounts.<accountId> (multi-account support).
-            const accounts = ensureChannelAccountsMap(channelSection);
-            channelSection.defaultAccount =
-                typeof channelSection.defaultAccount === 'string' && channelSection.defaultAccount.trim()
-                    ? channelSection.defaultAccount
-                    : resolvedAccountId;
-            accounts[resolvedAccountId] = {
+        // ── Write into accounts.<accountId> (multi-account support) ───
+        const accounts = ensureChannelAccountsMap(channelSection);
+        channelSection.defaultAccount =
+            typeof channelSection.defaultAccount === 'string' && channelSection.defaultAccount.trim()
+                ? channelSection.defaultAccount
+                : resolvedAccountId;
+        accounts[resolvedAccountId] = {
+            ...accounts[resolvedAccountId],
+            ...transformedConfig,
+            enabled: transformedConfig.enabled ?? true,
+        };
+
+        // Keep channel-level enabled explicit so callers/tests that
+        // read channels.<type>.enabled still work.
+        channelSection.enabled = transformedConfig.enabled ?? channelSection.enabled ?? true;
+
+        // Plugin-backed channel packages read their activation/config from
+        // plugins.entries.<id>. Mirror the enabled flag and account map there
+        // while preserving channels.<id> for ClawX's account list UI.
+        if (PLUGIN_CHANNELS.includes(resolvedChannelType)) {
+            ensurePluginRegistration(currentConfig, resolvedChannelType);
+            const pluginEntry = currentConfig.plugins!.entries![resolvedChannelType];
+            const pluginAccounts = ensureChannelAccountsMap(pluginEntry);
+            pluginEntry.defaultAccount = channelSection.defaultAccount;
+            pluginEntry.enabled = channelSection.enabled;
+            pluginAccounts[resolvedAccountId] = {
+                ...pluginAccounts[resolvedAccountId],
                 ...accounts[resolvedAccountId],
-                ...transformedConfig,
-                enabled: transformedConfig.enabled ?? true,
             };
+        }
 
-            // Keep channel-level enabled explicit so callers/tests that
-            // read channels.<type>.enabled still work.
-            channelSection.enabled = transformedConfig.enabled ?? channelSection.enabled ?? true;
-
-            // Most OpenClaw channel plugins/built-ins also read the default
-            // account's credentials from the top level of `channels.<type>`
-            // (e.g. channels.feishu.appId).  Mirror them there so the
-            // runtime can discover them.
-            const mirroredAccountId =
-                typeof channelSection.defaultAccount === 'string' && channelSection.defaultAccount.trim()
-                    ? channelSection.defaultAccount
-                    : resolvedAccountId;
-            const defaultAccountData = accounts[mirroredAccountId] ?? accounts[resolvedAccountId] ?? accounts[DEFAULT_ACCOUNT_ID];
-            if (defaultAccountData) {
-                for (const [key, value] of Object.entries(defaultAccountData)) {
-                    channelSection[key] = value;
-                }
+        // Most OpenClaw channel plugins/built-ins also read the default
+        // account's credentials from the top level of `channels.<type>`
+        // (e.g. channels.feishu.appId).  Mirror them there so the
+        // runtime can discover them.
+        const mirroredAccountId =
+            typeof channelSection.defaultAccount === 'string' && channelSection.defaultAccount.trim()
+                ? channelSection.defaultAccount
+                : resolvedAccountId;
+        const defaultAccountData = accounts[mirroredAccountId] ?? accounts[resolvedAccountId] ?? accounts[DEFAULT_ACCOUNT_ID];
+        if (defaultAccountData) {
+            for (const [key, value] of Object.entries(defaultAccountData)) {
+                channelSection[key] = value;
             }
         }
 
+        sanitizeChannelSectionsBeforeWrite(currentConfig);
         await writeOpenClawConfig(currentConfig);
         logger.info('Channel config saved', {
             channelType: resolvedChannelType,
@@ -900,15 +1016,6 @@ export async function deleteChannelAccountConfig(channelType: string, accountId:
             return;
         }
 
-        // Strict-schema channels have no `accounts` structure — delete means
-        // removing the entire channel section.
-        if (CHANNELS_EXCLUDING_TOP_LEVEL_MIRROR.has(resolvedChannelType)) {
-            delete currentConfig.channels![resolvedChannelType];
-            syncBuiltinChannelsWithPluginAllowlist(currentConfig);
-            await writeOpenClawConfig(currentConfig);
-            logger.info('Deleted strict-schema channel config', { channelType: resolvedChannelType, accountId });
-            return;
-        }
 
         migrateLegacyChannelConfigToAccounts(channelSection, DEFAULT_ACCOUNT_ID);
         const accounts = getChannelAccountsMap(channelSection);
@@ -958,6 +1065,7 @@ export async function deleteChannelAccountConfig(channelType: string, accountId:
         }
 
         syncBuiltinChannelsWithPluginAllowlist(currentConfig);
+        sanitizeChannelSectionsBeforeWrite(currentConfig);
         await writeOpenClawConfig(currentConfig);
         if (isWechatChannelType(resolvedChannelType)) {
             await deleteWeChatAccountState(accountId);
@@ -977,6 +1085,22 @@ export async function deleteChannelConfig(channelType: string): Promise<void> {
             delete currentConfig.channels[resolvedChannelType];
             if (isWechatChannelType(resolvedChannelType)) {
                 removePluginRegistration(currentConfig, WECHAT_PLUGIN_ID);
+            }
+            // Clean up third-party plugin registrations when their channel is removed.
+            if (resolvedChannelType === 'feishu') {
+                for (const candidateId of FEISHU_PLUGIN_ID_CANDIDATES) {
+                    removePluginRegistration(currentConfig, candidateId);
+                }
+                // Also remove the built-in feishu disable entry since it's no longer needed
+                if (currentConfig.plugins?.entries?.feishu) {
+                    delete currentConfig.plugins.entries.feishu;
+                }
+            }
+            if (resolvedChannelType === 'dingtalk') {
+                removePluginRegistration(currentConfig, 'dingtalk');
+            }
+            if (resolvedChannelType === 'wecom') {
+                removePluginRegistration(currentConfig, WECOM_PLUGIN_ID);
             }
             syncBuiltinChannelsWithPluginAllowlist(currentConfig);
             await writeOpenClawConfig(currentConfig);
@@ -1150,6 +1274,7 @@ export async function setChannelDefaultAccount(channelType: string, accountId: s
             channelSection[key] = value;
         }
 
+        sanitizeChannelSectionsBeforeWrite(currentConfig);
         await writeOpenClawConfig(currentConfig);
         logger.info('Set channel default account', { channelType: resolvedChannelType, accountId: trimmedAccountId });
     });
@@ -1168,15 +1293,12 @@ export async function deleteAgentChannelAccounts(agentId: string, ownedChannelAc
             migrateLegacyChannelConfigToAccounts(section, DEFAULT_ACCOUNT_ID);
             const accounts = getChannelAccountsMap(section);
             if (!accounts?.[accountId] || (ownedChannelAccounts && !ownedChannelAccounts.has(`${channelType}:${accountId}`))) {
-                // Strict-schema channels have no accounts map; skip them.
-                // For normal channels, ensure top-level mirror is consistent.
-                if (!CHANNELS_EXCLUDING_TOP_LEVEL_MIRROR.has(channelType)) {
-                    const mirroredAccountId = typeof section.defaultAccount === 'string' && section.defaultAccount.trim() ? section.defaultAccount : DEFAULT_ACCOUNT_ID;
-                    const defaultAccountData = accounts?.[mirroredAccountId] ?? accounts?.[DEFAULT_ACCOUNT_ID];
-                    if (defaultAccountData) {
-                        for (const [key, value] of Object.entries(defaultAccountData)) {
-                            section[key] = value;
-                        }
+                // Ensure top-level mirror is consistent.
+                const mirroredAccountId = typeof section.defaultAccount === 'string' && section.defaultAccount.trim() ? section.defaultAccount : DEFAULT_ACCOUNT_ID;
+                const defaultAccountData = accounts?.[mirroredAccountId] ?? accounts?.[DEFAULT_ACCOUNT_ID];
+                if (defaultAccountData) {
+                    for (const [key, value] of Object.entries(defaultAccountData)) {
+                        section[key] = value;
                     }
                 }
                 continue;
@@ -1213,6 +1335,7 @@ export async function deleteAgentChannelAccounts(agentId: string, ownedChannelAc
         }
 
         if (modified) {
+            sanitizeChannelSectionsBeforeWrite(currentConfig);
             await writeOpenClawConfig(currentConfig);
             logger.info('Deleted all channel accounts for agent', { agentId, accountId });
         }
@@ -1237,11 +1360,14 @@ export async function setChannelEnabled(channelType: string, enabled: boolean): 
             if (enabled) {
                 ensurePluginRegistration(currentConfig, resolvedChannelType);
             } else {
-                if (!currentConfig.plugins) currentConfig.plugins = {};
-                if (!currentConfig.plugins.entries) currentConfig.plugins.entries = {};
-                if (!currentConfig.plugins.entries[resolvedChannelType]) currentConfig.plugins.entries[resolvedChannelType] = {};
+                const plugins = currentConfig.plugins ?? (currentConfig.plugins = {});
+                const entries = plugins.entries ?? (plugins.entries = {});
+                entries[resolvedChannelType] ??= {};
             }
-            currentConfig.plugins.entries[resolvedChannelType].enabled = enabled;
+            const entries = currentConfig.plugins?.entries;
+            const pluginEntry = entries?.[resolvedChannelType];
+            if (!pluginEntry) throw new Error(`Plugin entry not initialized: ${resolvedChannelType}`);
+            pluginEntry.enabled = enabled;
             syncBuiltinChannelsWithPluginAllowlist(currentConfig);
             await writeOpenClawConfig(currentConfig);
             console.log(`Set plugin channel ${resolvedChannelType} enabled: ${enabled}`);

@@ -1,4 +1,4 @@
-import { hostApiFetch } from '@/lib/host-api';
+import { hostApi } from '@/lib/host-api';
 import type {
   ProviderAccount,
   ProviderType,
@@ -19,19 +19,94 @@ export interface ProviderListItem {
   status?: ProviderWithKeyInfo;
 }
 
+export interface ProviderAccountKeyInfo {
+  accountId: string;
+  hasKey: boolean;
+  keyMasked: string | null;
+}
+
+/**
+ * Build the legacy `ProviderWithKeyInfo` shape (`ProviderConfig & { hasKey, keyMasked }`)
+ * from a `ProviderAccount` and its associated key metadata.
+ *
+ * The renderer keeps emitting this shape via `useProviderStore.statuses` for
+ * backward compatibility with consumers (e.g. `pages/Agents/index.tsx`,
+ * `buildProviderListItems`) that look up a status entry by accountId.
+ *
+ * Equivalent to the backend's `providerAccountToConfig` + `hasKey/keyMasked`
+ * augmentation, kept in lockstep so renderer-side derivation matches the
+ * legacy provider payload.
+ */
+export function accountToProviderWithKeyInfo(
+  account: ProviderAccount,
+  keyInfo: { hasKey: boolean; keyMasked: string | null } | undefined,
+): ProviderWithKeyInfo {
+  return {
+    id: account.id,
+    name: account.label,
+    type: account.vendorId,
+    baseUrl: account.baseUrl,
+    apiProtocol: account.apiProtocol,
+    headers: account.headers,
+    model: account.model,
+    fallbackModels: account.fallbackModels,
+    fallbackProviderIds: account.fallbackAccountIds,
+    enabled: account.enabled,
+    createdAt: account.createdAt,
+    updatedAt: account.updatedAt,
+    hasKey: keyInfo?.hasKey ?? false,
+    keyMasked: keyInfo?.keyMasked ?? null,
+  };
+}
+
+/**
+ * Backward-compat helper for older fixtures and any external callers still
+ * publishing `ProviderWithKeyInfo[]` payloads.
+ */
+function fallbackStatusToAccount(status: ProviderWithKeyInfo): ProviderAccount {
+  return {
+    id: status.id,
+    vendorId: status.type,
+    label: status.name,
+    authMode: status.type === 'ollama' ? 'local' : 'api_key',
+    baseUrl: status.baseUrl,
+    apiProtocol: status.apiProtocol,
+    headers: status.headers,
+    model: status.model,
+    fallbackModels: status.fallbackModels,
+    fallbackAccountIds: status.fallbackProviderIds,
+    enabled: status.enabled,
+    isDefault: false,
+    createdAt: status.createdAt,
+    updatedAt: status.updatedAt,
+  };
+}
+
 export async function fetchProviderSnapshot(): Promise<ProviderSnapshot> {
-  const [accounts, statuses, vendors, defaultInfo] = await Promise.all([
-    hostApiFetch<ProviderAccount[]>('/api/provider-accounts'),
-    hostApiFetch<ProviderWithKeyInfo[]>('/api/providers'),
-    hostApiFetch<ProviderVendorInfo[]>('/api/provider-vendors'),
-    hostApiFetch<{ accountId: string | null }>('/api/provider-accounts/default'),
+  const [accountsResult, keyInfoResult, vendors, defaultInfo] = await Promise.all([
+    hostApi.providers.accounts(),
+    hostApi.providers.accountKeyInfo(),
+    hostApi.providers.vendors(),
+    hostApi.providers.getDefaultAccount(),
   ]);
+
+  let accounts = accountsResult ?? [];
+  const keyInfoMap = new Map(
+    (keyInfoResult ?? []).map((entry) => [entry.accountId, entry] as const),
+  );
+  let statuses = accounts.map((account) => accountToProviderWithKeyInfo(account, keyInfoMap.get(account.id)));
+
+  if (accounts.length === 0) {
+    const legacyStatuses = await hostApi.providers.list();
+    statuses = legacyStatuses ?? [];
+    accounts = statuses.map(fallbackStatusToAccount);
+  }
 
   return {
     accounts,
     statuses,
     vendors,
-    defaultAccountId: defaultInfo.accountId,
+    defaultAccountId: defaultInfo?.accountId ?? null,
   };
 }
 
@@ -74,21 +149,21 @@ export function buildProviderAccountId(
   return vendor?.supportsMultipleAccounts ? `${vendorId}-${crypto.randomUUID()}` : vendorId;
 }
 
-export function legacyProviderToAccount(provider: ProviderWithKeyInfo): ProviderAccount {
+export function legacyProviderToAccount(status: ProviderWithKeyInfo): ProviderAccount {
   return {
-    id: provider.id,
-    vendorId: provider.type,
-    label: provider.name,
-    authMode: provider.type === 'ollama' ? 'local' : 'api_key',
-    baseUrl: provider.baseUrl,
-    headers: provider.headers,
-    model: provider.model,
-    fallbackModels: provider.fallbackModels,
-    fallbackAccountIds: provider.fallbackProviderIds,
-    enabled: provider.enabled,
+    id: status.id,
+    vendorId: status.type,
+    label: status.name,
+    authMode: status.type === 'ollama' ? 'local' : 'api_key',
+    baseUrl: status.baseUrl,
+    headers: status.headers,
+    model: status.model,
+    fallbackModels: status.fallbackModels,
+    fallbackAccountIds: status.fallbackProviderIds,
+    enabled: status.enabled,
     isDefault: false,
-    createdAt: provider.createdAt,
-    updatedAt: provider.updatedAt,
+    createdAt: status.createdAt,
+    updatedAt: status.updatedAt,
   };
 }
 

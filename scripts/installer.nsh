@@ -1,11 +1,15 @@
-; SmartX Custom NSIS Installer/Uninstaller Script
+; ClawX Custom NSIS Installer/Uninstaller Script
 ;
 ; Install: enables long paths, adds resources\cli to user PATH for openclaw CLI.
 ; Uninstall: removes the PATH entry and optionally deletes user data.
 
+!include "LogicLib.nsh"
+
 !ifndef nsProcess::FindProcess
   !include "nsProcess.nsh"
 !endif
+
+Var /GLOBAL clawxRollbackDir
 
 !macro customHeader
   ; Show install details by default so users can see what stage is running.
@@ -13,11 +17,69 @@
   ShowUninstDetails show
 !macroend
 
+!ifndef BUILD_UNINSTALLER
+Function ClawXMoveLegacyInstallDir
+  Exch $R6
+
+  ${if} $R6 == ""
+    Goto _clawx_legacy_move_done
+  ${endIf}
+  ${if} $R6 == $INSTDIR
+    Goto _clawx_legacy_move_done
+  ${endIf}
+
+  IfFileExists "$R6\" 0 _clawx_legacy_move_done
+    DetailPrint "Moving previous ClawX installation at $R6 out of the way..."
+    SetOutPath $TEMP
+    nsExec::ExecToStack `"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "Get-CimInstance -ClassName Win32_Process | Where-Object { $$_.ExecutablePath -and $$_.ExecutablePath.StartsWith('$R6', [System.StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { Stop-Process -Id $$_.ProcessId -Force -ErrorAction SilentlyContinue }"`
+    Pop $0
+    Pop $1
+    Sleep 1000
+    StrCpy $R8 0
+
+  _clawx_legacy_find_free_stale:
+    IfFileExists "$R6._stale_$R8\" 0 _clawx_legacy_found_free_stale
+    IntOp $R8 $R8 + 1
+    Goto _clawx_legacy_find_free_stale
+
+  _clawx_legacy_found_free_stale:
+    ClearErrors
+    Rename "$R6" "$R6._stale_$R8"
+    IfErrors 0 _clawx_legacy_stale_moved
+      DetailPrint "Waiting for file locks at $R6 to clear..."
+      nsExec::ExecToStack `"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "Get-CimInstance -ClassName Win32_Process | Where-Object { $$_.ExecutablePath -and $$_.ExecutablePath.StartsWith('$R6', [System.StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { Stop-Process -Id $$_.ProcessId -Force -ErrorAction SilentlyContinue }"`
+      Pop $0
+      Pop $1
+      Sleep 2000
+      ClearErrors
+      Rename "$R6" "$R6._stale_$R8"
+      IfErrors 0 _clawx_legacy_stale_moved
+      DetailPrint "Removing previous ClawX installation at $R6..."
+      nsExec::ExecToStack 'cmd.exe /c rd /s /q "$R6"'
+      Pop $0
+      Pop $1
+      Goto _clawx_legacy_move_done
+  _clawx_legacy_stale_moved:
+    ExecShell "" "cmd.exe" `/c ping -n 61 127.0.0.1 >nul & rd /s /q "$R6._stale_$R8"` SW_HIDE
+
+  _clawx_legacy_move_done:
+    ClearErrors
+    Pop $R6
+FunctionEnd
+
+!macro clawxMoveLegacyInstallDir ROOT_KEY
+  ReadRegStr $R6 ${ROOT_KEY} "${INSTALL_REGISTRY_KEY}" InstallLocation
+  Push $R6
+  Call ClawXMoveLegacyInstallDir
+!macroend
+!endif
+
+
 !macro customCheckAppRunning
   ; Make stage logs visible on assisted installers (defaults to hidden).
   SetDetailsPrint both
   DetailPrint "Preparing installation..."
-  DetailPrint "Extracting SmartX runtime files. This can take a few minutes on slower disks or while antivirus scanning is active."
+  DetailPrint "Extracting ClawX runtime files. This can take a few minutes on slower disks or while antivirus scanning is active."
 
   ${nsProcess::FindProcess} "${APP_EXECUTABLE_FILENAME}" $R0
 
@@ -40,17 +102,12 @@
       ${endIf}
       # App didn't exit in time; fall through to force-kill
     ${endIf}
-    ${if} ${isUpdated} ; skip the dialog for auto-updates
-    ${else}
-      MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION "$(appRunning)" /SD IDOK IDOK doStopProcess
-      Quit
-    ${endIf}
 
     doStopProcess:
     DetailPrint `Closing running "${PRODUCT_NAME}"...`
 
     # Kill ALL processes whose executable lives inside $INSTDIR.
-    # This covers SmartX.exe (multiple Electron processes), openclaw-gateway.exe,
+    # This covers ClawX.exe (multiple Electron processes), openclaw-gateway.exe,
     # python.exe (skills runtime), uv.exe (package manager), and any other
     # child process that might hold file locks in the installation directory.
     #
@@ -83,7 +140,7 @@
       ${nsProcess::Unload}
   ${endIf}
 
-  ; Even if SmartX.exe was not detected as running, orphan child processes
+  ; Even if ClawX.exe was not detected as running, orphan child processes
   ; (python.exe, openclaw-gateway.exe, uv.exe, etc.) from a previous crash
   ; or unclean shutdown may still hold file locks inside $INSTDIR.
   ; Unconditionally kill any process whose executable lives in the install dir.
@@ -92,7 +149,7 @@
   Pop $1
 
   ; Always kill known process names as a belt-and-suspenders approach.
-  ; PowerShell path-based kill may miss processes if the old SmartX was installed
+  ; PowerShell path-based kill may miss processes if the old ClawX was installed
   ; in a different directory than $INSTDIR (e.g., per-machine -> per-user migration).
   ; taskkill is name-based and catches processes regardless of their install location.
   nsExec::ExecToStack 'taskkill /F /T /IM "${APP_EXECUTABLE_FILENAME}"'
@@ -108,17 +165,60 @@
   ; Brief wait for handle release (main wait was already done above if app was running)
   Sleep 2000
 
-  ; Release NSIS's CWD on $INSTDIR BEFORE the rename check.
-  ; NSIS sets CWD to $INSTDIR in .onInit; Windows refuses to rename a directory
-  ; that any process (including NSIS itself) has as its CWD.
-  SetOutPath $TEMP
+  ; Do not continue while the old UI process is still alive. Continuing in that
+  ; state can leave the running old process/window in place, making the user see
+  ; the old version after an otherwise successful extract.  Use process-list
+  ; commands instead of nsProcess here: field diagnostics showed ClawX.exe can
+  ; remain alive while the old installer still reports success; this check must
+  ; fail closed even when taskkill or the nsProcess plugin misses/elevates poorly.
+  StrCpy $R7 0
+  _clawx_verify_closed:
+    nsExec::ExecToStack `"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "if (Get-CimInstance -ClassName Win32_Process | Where-Object { $$_.Name -ieq '${APP_EXECUTABLE_FILENAME}' }) { exit 0 } else { exit 1 }"`
+    Pop $R0
+    Pop $R1
+    ${if} $R0 != 0
+      nsExec::ExecToStack 'cmd.exe /c tasklist /FI "IMAGENAME eq ${APP_EXECUTABLE_FILENAME}" | find /I "${APP_EXECUTABLE_FILENAME}" >nul'
+      Pop $R0
+      Pop $R1
+    ${endIf}
+    ${if} $R0 == 0
+      IntOp $R7 $R7 + 1
+      DetailPrint `Waiting for "${PRODUCT_NAME}" to close (attempt $R7)...`
+      nsExec::ExecToStack 'taskkill /F /T /IM "${APP_EXECUTABLE_FILENAME}"'
+      Pop $0
+      Pop $1
+      nsExec::ExecToStack `cmd.exe /c wmic process where "name='${APP_EXECUTABLE_FILENAME}'" call terminate`
+      Pop $0
+      Pop $1
+      Sleep 2000
+      ${if} $R7 < 5
+        Goto _clawx_verify_closed
+      ${endIf}
+      MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "ClawX is still running and cannot be replaced safely. Please close ClawX and retry installation." /SD IDCANCEL IDRETRY _clawx_verify_closed
+      SetErrorLevel 2
+      Quit
+    ${endIf}
 
-  ; Pre-emptively clear the old installation directory so that the 7z
+  !ifndef BUILD_UNINSTALLER
+    StrCpy $clawxRollbackDir ""
+
+    ; Release NSIS's CWD on $INSTDIR BEFORE the rename check.
+    ; NSIS sets CWD to $INSTDIR in .onInit; Windows refuses to rename a directory
+    ; that any process (including NSIS itself) has as its CWD.
+    SetOutPath $TEMP
+
+    ; Move legacy installs discovered in both registry hives before handling the
+    ; current $INSTDIR.  This covers per-user <-> per-machine migrations and
+    ; custom install directories where the new $INSTDIR is not the old location.
+    !insertmacro clawxMoveLegacyInstallDir HKCU
+    !insertmacro clawxMoveLegacyInstallDir HKLM
+
+    ; Pre-emptively clear the old installation directory so that the 7z
   ; extraction `CopyFiles` step in extractAppPackage.nsh won't fail on
   ; locked files.  electron-builder's extractUsing7za macro extracts to a
   ; temp folder first, then uses `CopyFiles /SILENT` to copy into $INSTDIR.
   ; If ANY file in $INSTDIR is still locked, CopyFiles fails and triggers a
-  ; "Can't modify SmartX's files" retry loop -> "SmartX 无法关闭" dialog.
+  ; "Can't modify ClawX's files" retry loop -> "ClawX 无法关闭" dialog.
   ;
   ; Strategy: rename (move) the old $INSTDIR out of the way.  Rename works
   ; even when AV/indexer have files open for reading (they use
@@ -129,6 +229,7 @@
   ; (IfFileExists "$INSTDIR\*.*" only matches files containing a dot and
   ;  would fail for extensionless files or pure-subdirectory layouts.)
   IfFileExists "$INSTDIR\" 0 _instdir_clean
+    DetailPrint "Moving previous installation out of the way..."
     ; Find the first available stale directory name (e.g. $INSTDIR._stale_0)
     ; This ensures we NEVER have to synchronously delete old leftovers before
     ; renaming the current $INSTDIR. We just move it out of the way instantly.
@@ -142,44 +243,55 @@
     ClearErrors
     Rename "$INSTDIR" "$INSTDIR._stale_$R8"
     IfErrors 0 _stale_moved
-      ; Rename still failed — a process reopened a file or holds CWD in $INSTDIR.
-      ; We must delete forcibly and synchronously to make room for CopyFiles.
-      ; This can be slow (~1-3 minutes) if there are 10,000+ files and AV is active.
+      ; Rename still failed — retry process termination, then delete synchronously.
+      ; Large openclaw bundles (#1026+) can make rd /s /q take several minutes.
+      DetailPrint "Waiting for file locks to clear, then removing old files..."
+      nsExec::ExecToStack 'taskkill /F /T /IM "${APP_EXECUTABLE_FILENAME}"'
+      Pop $0
+      Pop $1
+      nsExec::ExecToStack 'taskkill /F /IM openclaw-gateway.exe'
+      Pop $0
+      Pop $1
+      Sleep 3000
       nsExec::ExecToStack 'cmd.exe /c rd /s /q "$INSTDIR"'
       Pop $0
       Pop $1
       Sleep 2000
+      RMDir "$INSTDIR"
+      IfFileExists "$INSTDIR\" 0 _recreate_clean_instdir
+        DetailPrint "Failed to remove previous installation directory; aborting to avoid leaving the old version installed."
+        MessageBox MB_OK|MB_ICONEXCLAMATION "Unable to replace the previous ClawX installation because files are still locked. Please close ClawX and retry installation." /SD IDOK
+        SetErrorLevel 2
+        Quit
+      _recreate_clean_instdir:
       CreateDirectory "$INSTDIR"
       Goto _instdir_clean
   _stale_moved:
+    StrCpy $clawxRollbackDir "$INSTDIR._stale_$R8"
     CreateDirectory "$INSTDIR"
   _instdir_clean:
 
-  ; Pre-emptively remove the old uninstall registry entry so that
-  ; electron-builder's uninstallOldVersion skips the old uninstaller entirely.
-  ;
-  ; Why: uninstallOldVersion has a hardcoded 5-retry loop that runs the old
-  ; uninstaller repeatedly.  The old uninstaller's atomicRMDir fails on locked
-  ; files (antivirus, indexing) causing a blocking "SmartX 无法关闭" dialog.
-  ; Deleting UninstallString makes uninstallOldVersion return immediately.
-  ; The new installer will overwrite / extract all files on top of the old dir.
-  ; registryAddInstallInfo will write the correct new entries afterwards.
-  ; Clean both SHELL_CONTEXT and HKCU to cover cross-hive upgrades
-  ; (e.g. old install was per-user, new install is per-machine or vice versa).
-  DeleteRegValue SHELL_CONTEXT "${UNINSTALL_REGISTRY_KEY}" UninstallString
-  DeleteRegValue SHELL_CONTEXT "${UNINSTALL_REGISTRY_KEY}" QuietUninstallString
-  DeleteRegValue HKCU "${UNINSTALL_REGISTRY_KEY}" UninstallString
-  DeleteRegValue HKCU "${UNINSTALL_REGISTRY_KEY}" QuietUninstallString
-  !ifdef UNINSTALL_REGISTRY_KEY_2
-    DeleteRegValue SHELL_CONTEXT "${UNINSTALL_REGISTRY_KEY_2}" UninstallString
-    DeleteRegValue SHELL_CONTEXT "${UNINSTALL_REGISTRY_KEY_2}" QuietUninstallString
-    DeleteRegValue HKCU "${UNINSTALL_REGISTRY_KEY_2}" UninstallString
-    DeleteRegValue HKCU "${UNINSTALL_REGISTRY_KEY_2}" QuietUninstallString
+  ; During overwrite installs, stale files can still survive if the old
+  ; installation directory was only partially removed after a locked-file
+  ; fallback. Explicitly remove the bundled skills subtree so old skills
+  ; (apple-notes, discord, etc.) do not remain under resources\openclaw\skills.
+  IfFileExists "$INSTDIR\resources\openclaw\skills\" 0 _openclaw_skills_clean
+    DetailPrint "Removing stale bundled OpenClaw skills from previous install..."
+    RMDir /r "$INSTDIR\resources\openclaw\skills"
+    IfFileExists "$INSTDIR\resources\openclaw\skills\" 0 _openclaw_skills_clean
+      nsExec::ExecToStack 'cmd.exe /c rd /s /q "$INSTDIR\resources\openclaw\skills"'
+      Pop $0
+      Pop $1
+  _openclaw_skills_clean:
+
+  ; Opposite-hive registry cleanup is intentionally done in customInstall after
+  ; successful extraction, so a failed update can still roll back to the old app
+  ; with its existing uninstall entries intact.
   !endif
 !macroend
 
 ; Override electron-builder's handleUninstallResult to prevent the
-; "SmartX 无法关闭" retry dialog when the old uninstaller fails.
+; "ClawX 无法关闭" retry dialog when the old uninstaller fails.
 ;
 ; During upgrades, electron-builder copies the old uninstaller to a temp dir
 ; and runs it silently.  The old uninstaller uses atomicRMDir to rename every
@@ -211,8 +323,27 @@
 !macroend
 
 !macro customInstall
+  ; Now that the new files and current-hive registry entries have been written,
+  ; remove stale entries from the opposite hive so Windows Apps & Features does
+  ; not continue showing the old version after cross-hive upgrades.
+  DetailPrint "Clearing stale ClawX registry entries from the opposite install scope..."
+  ${if} $installMode == "all"
+    DeleteRegKey HKCU "${UNINSTALL_REGISTRY_KEY}"
+    DeleteRegKey HKCU "${INSTALL_REGISTRY_KEY}"
+    !ifdef UNINSTALL_REGISTRY_KEY_2
+      DeleteRegKey HKCU "${UNINSTALL_REGISTRY_KEY_2}"
+    !endif
+  ${else}
+    DeleteRegKey HKLM "${UNINSTALL_REGISTRY_KEY}"
+    DeleteRegKey HKLM "${INSTALL_REGISTRY_KEY}"
+    !ifdef UNINSTALL_REGISTRY_KEY_2
+      DeleteRegKey HKLM "${UNINSTALL_REGISTRY_KEY_2}"
+    !endif
+  ${endIf}
+  ClearErrors
+
   ; Async cleanup of old dirs left by the rename loop in customCheckAppRunning.
-  ; Wait 60s before starting deletion to avoid I/O contention with SmartX's
+  ; Wait 60s before starting deletion to avoid I/O contention with ClawX's
   ; first launch (Windows Defender scan, ASAR mapping, etc.).
   ; ExecShell SW_HIDE is completely detached from NSIS and avoids pipe blocking.
   IfFileExists "$INSTDIR._stale_0\" 0 _ci_stale_cleaned
@@ -285,11 +416,11 @@
 
   ; Ask user if they want to remove AppData (preserves .openclaw)
   MessageBox MB_YESNO|MB_ICONQUESTION \
-    "Do you want to remove SmartX application data?$\r$\n$\r$\nThis will delete:$\r$\n  • AppData\Local\smartx (local app data)$\r$\n  • AppData\Roaming\smartx (roaming app data)$\r$\n$\r$\nYour .openclaw folder (configuration & skills) will be preserved.$\r$\nSelect 'No' to keep all data for future reinstallation." \
+    "Do you want to remove ClawX application data?$\r$\n$\r$\nThis will delete:$\r$\n  • AppData\Local\clawx (local app data)$\r$\n  • AppData\Roaming\clawx (roaming app data)$\r$\n$\r$\nYour .openclaw folder (configuration & skills) will be preserved.$\r$\nSelect 'No' to keep all data for future reinstallation." \
     /SD IDNO IDYES _cu_removeData IDNO _cu_skipRemove
 
   _cu_removeData:
-    ; Kill any lingering SmartX processes (and their child process trees) to
+    ; Kill any lingering ClawX processes (and their child process trees) to
     ; release file locks on electron-store JSON files, Gateway sockets, etc.
     ${nsProcess::FindProcess} "${APP_EXECUTABLE_FILENAME}" $R0
     ${if} $R0 == 0
@@ -304,37 +435,37 @@
 
     ; --- Always remove current user's AppData first ---
     ; NOTE: .openclaw directory is intentionally preserved (user configuration & skills)
-    RMDir /r "$LOCALAPPDATA\smartx"
-    RMDir /r "$APPDATA\smartx"
+    RMDir /r "$LOCALAPPDATA\clawx"
+    RMDir /r "$APPDATA\clawx"
 
     ; --- Retry: if directories still exist (locked files), wait and try again ---
 
-    ; Check AppData\Local\smartx
-    IfFileExists "$LOCALAPPDATA\smartx\*.*" 0 _cu_localDone
+    ; Check AppData\Local\clawx
+    IfFileExists "$LOCALAPPDATA\clawx\*.*" 0 _cu_localDone
       Sleep 3000
-      RMDir /r "$LOCALAPPDATA\smartx"
-      IfFileExists "$LOCALAPPDATA\smartx\*.*" 0 _cu_localDone
-        nsExec::ExecToStack 'cmd.exe /c rd /s /q "$LOCALAPPDATA\smartx"'
+      RMDir /r "$LOCALAPPDATA\clawx"
+      IfFileExists "$LOCALAPPDATA\clawx\*.*" 0 _cu_localDone
+        nsExec::ExecToStack 'cmd.exe /c rd /s /q "$LOCALAPPDATA\clawx"'
         Pop $0
         Pop $1
     _cu_localDone:
 
-    ; Check AppData\Roaming\smartx
-    IfFileExists "$APPDATA\smartx\*.*" 0 _cu_roamingDone
+    ; Check AppData\Roaming\clawx
+    IfFileExists "$APPDATA\clawx\*.*" 0 _cu_roamingDone
       Sleep 3000
-      RMDir /r "$APPDATA\smartx"
-      IfFileExists "$APPDATA\smartx\*.*" 0 _cu_roamingDone
-        nsExec::ExecToStack 'cmd.exe /c rd /s /q "$APPDATA\smartx"'
+      RMDir /r "$APPDATA\clawx"
+      IfFileExists "$APPDATA\clawx\*.*" 0 _cu_roamingDone
+        nsExec::ExecToStack 'cmd.exe /c rd /s /q "$APPDATA\clawx"'
         Pop $0
         Pop $1
     _cu_roamingDone:
 
     ; --- Final check: warn user if any directories could not be removed ---
     StrCpy $R3 ""
-    IfFileExists "$LOCALAPPDATA\smartx\*.*" 0 +2
-      StrCpy $R3 "$R3$\r$\n  • $LOCALAPPDATA\smartx"
-    IfFileExists "$APPDATA\smartx\*.*" 0 +2
-      StrCpy $R3 "$R3$\r$\n  • $APPDATA\smartx"
+    IfFileExists "$LOCALAPPDATA\clawx\*.*" 0 +2
+      StrCpy $R3 "$R3$\r$\n  • $LOCALAPPDATA\clawx"
+    IfFileExists "$APPDATA\clawx\*.*" 0 +2
+      StrCpy $R3 "$R3$\r$\n  • $APPDATA\clawx"
     StrCmp $R3 "" _cu_cleanupOk
       MessageBox MB_OK|MB_ICONEXCLAMATION \
         "Some data directories could not be removed (files may be in use):$\r$\n$R3$\r$\n$\r$\nPlease delete them manually after restarting your computer."
@@ -355,8 +486,8 @@
     StrCmp $R3 $PROFILE _cu_enumNext
 
     ; NOTE: .openclaw directory is intentionally preserved for all users
-    RMDir /r "$R3\AppData\Local\smartx"
-    RMDir /r "$R3\AppData\Roaming\smartx"
+    RMDir /r "$R3\AppData\Local\clawx"
+    RMDir /r "$R3\AppData\Roaming\clawx"
 
   _cu_enumNext:
     IntOp $R0 $R0 + 1

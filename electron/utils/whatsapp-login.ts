@@ -4,62 +4,46 @@ import { createRequire } from 'module';
 import { EventEmitter } from 'events';
 import { existsSync, mkdirSync, rmSync, readdirSync } from 'fs';
 import { deflateSync } from 'zlib';
-import { getOpenClawDir, getOpenClawResolvedDir } from './paths';
+import { resolveOpenClawRuntimeModulePath } from './runtime-package-resolution';
 
 const require = createRequire(import.meta.url);
 
-// Resolve dependencies from OpenClaw package context (pnpm-safe)
-const openclawPath = getOpenClawDir();
-const openclawResolvedPath = getOpenClawResolvedDir();
-// Primary: resolves from openclaw's real (dereferenced) path in pnpm store.
-// In packaged builds this is the flat `resources/openclaw/node_modules/`.
-const openclawRequire = createRequire(join(openclawResolvedPath, 'package.json'));
-// Fallback: resolves from the symlink path (`node_modules/openclaw`).
-// In dev mode, Node walks UP from here to `<project>/node_modules/`, which
-// contains SmartX's own devDependencies — packages that are NOT deps of openclaw
-// (e.g. @whiskeysockets/baileys) become resolvable through pnpm hoisting.
-const projectRequire = createRequire(join(openclawPath, 'package.json'));
+type BaileysExports = {
+    default: (opts: Record<string, unknown>) => BaileysSocket;
+    useMultiFileAuthState: (authDir: string) => Promise<{
+        state: unknown;
+        saveCreds: () => Promise<void>;
+    }>;
+    DisconnectReason: { loggedOut: number };
+    fetchLatestBaileysVersion: () => Promise<{ version: unknown }>;
+};
 
-function resolveOpenClawPackageJson(packageName: string): string {
-    const specifier = `${packageName}/package.json`;
-    // 1. Try openclaw's own deps (works in packaged mode + openclaw transitive deps)
-    try {
-        return openclawRequire.resolve(specifier);
-    } catch { /* fall through */ }
-    // 2. Fallback to project-level deps (works in dev mode for SmartX devDependencies)
-    try {
-        return projectRequire.resolve(specifier);
-    } catch (err) {
-        const reason = err instanceof Error ? err.message : String(err);
-        throw new Error(
-            `Failed to resolve "${packageName}" from OpenClaw context. ` +
-            `openclawPath=${openclawPath}, resolvedPath=${openclawResolvedPath}. ${reason}`,
-            { cause: err }
-        );
+let baileysExports: BaileysExports | null = null;
+let baileysPackageDir: string | null = null;
+
+/** Load Baileys on demand so a missing packaged dependency does not crash app startup. */
+function loadBaileys(): BaileysExports {
+    if (baileysExports) {
+        return baileysExports;
     }
+
+    const packageJsonPath = resolveOpenClawRuntimeModulePath('@whiskeysockets/baileys/package.json');
+    baileysPackageDir = dirname(packageJsonPath);
+    baileysExports = require(baileysPackageDir) as BaileysExports;
+    return baileysExports;
 }
 
-const baileysPath = dirname(resolveOpenClawPackageJson('@whiskeysockets/baileys'));
-const qrCodeModulePath = openclawRequire.resolve('qrcode-terminal/vendor/QRCode/index.js');
-const qrErrorCorrectLevelPath = openclawRequire.resolve('qrcode-terminal/vendor/QRCode/QRErrorCorrectLevel.js');
-
-// Load Baileys dependencies dynamically
-const {
-    default: makeWASocket,
-    useMultiFileAuthState: initAuth, // Rename to avoid React hook linter error
-    DisconnectReason,
-    fetchLatestBaileysVersion
-} = require(baileysPath);
-
-// Load QRCode dependencies dynamically
-const QRCodeModule = require(qrCodeModulePath);
-const QRErrorCorrectLevelModule = require(qrErrorCorrectLevelPath);
+function getBaileysPackageDir(): string {
+    if (!baileysPackageDir) {
+        loadBaileys();
+    }
+    return baileysPackageDir!;
+}
 
 // Types from Baileys (approximate since we don't have types for dynamic require)
 interface BaileysError extends Error {
     output?: { statusCode?: number };
 }
-type BaileysSocket = ReturnType<typeof makeWASocket>;
 type ConnectionState = {
     connection: 'close' | 'open' | 'connecting';
     lastDisconnect?: {
@@ -67,13 +51,53 @@ type ConnectionState = {
     };
     qr?: string;
 };
+type BaileysSocket = {
+    ev: {
+        on(event: 'creds.update', listener: () => void | Promise<void>): void;
+        on(event: 'connection.update', listener: (update: ConnectionState) => void | Promise<void>): void;
+        removeAllListeners(event: 'connection.update'): void;
+    };
+    ws?: { close(): void };
+    end: (error: undefined) => void;
+};
+
+type QrCodeMatrix = {
+    addData(input: string): void;
+    make(): void;
+    getModuleCount(): number;
+    isDark(row: number, col: number): boolean;
+};
+type QrCodeConstructor = new (typeNumber: number, errorCorrectionLevel: unknown) => QrCodeMatrix;
+type QrErrorCorrectLevelModule = {
+    L: unknown;
+};
+type QrRenderDeps = {
+    QRCode: QrCodeConstructor;
+    QRErrorCorrectLevel: QrErrorCorrectLevelModule;
+};
+
+let qrRenderDeps: QrRenderDeps | null = null;
+
+function getQrRenderDeps(): QrRenderDeps {
+    if (qrRenderDeps) {
+        return qrRenderDeps;
+    }
+
+    const qrCodeModulePath = resolveOpenClawRuntimeModulePath('qrcode-terminal/vendor/QRCode/index.js');
+    const qrErrorCorrectLevelPath = resolveOpenClawRuntimeModulePath(
+        'qrcode-terminal/vendor/QRCode/QRErrorCorrectLevel.js',
+    );
+    qrRenderDeps = {
+        QRCode: require(qrCodeModulePath),
+        QRErrorCorrectLevel: require(qrErrorCorrectLevelPath),
+    };
+    return qrRenderDeps;
+}
 
 // --- QR Generation Logic (Adapted from OpenClaw) ---
 
-const QRCode = QRCodeModule;
-const QRErrorCorrectLevel = QRErrorCorrectLevelModule;
-
 function createQrMatrix(input: string) {
+    const { QRCode, QRErrorCorrectLevel } = getQrRenderDeps();
     const qr = new QRCode(-1, QRErrorCorrectLevel.L);
     qr.addData(input);
     qr.make();
@@ -247,6 +271,13 @@ export class WhatsAppLoginManager extends EventEmitter {
         if (!this.active) return;
 
         try {
+            const {
+                default: makeWASocket,
+                useMultiFileAuthState: initAuth,
+                DisconnectReason,
+                fetchLatestBaileysVersion,
+            } = loadBaileys();
+
             // Path where OpenClaw expects WhatsApp credentials
             const authDir = join(homedir(), '.openclaw', 'credentials', 'whatsapp', accountId);
 
@@ -261,7 +292,7 @@ export class WhatsAppLoginManager extends EventEmitter {
             let pino: (...args: unknown[]) => Record<string, unknown>;
             try {
                 // Try to resolve pino from baileys context since it's a dependency of baileys
-                const baileysRequire = createRequire(join(baileysPath, 'package.json'));
+                const baileysRequire = createRequire(join(getBaileysPackageDir(), 'package.json'));
                 pino = baileysRequire('pino');
             } catch (e) {
                 console.warn('[WhatsAppLogin] Could not load pino from baileys, trying root', e);
@@ -297,7 +328,7 @@ export class WhatsAppLoginManager extends EventEmitter {
                 logger: pino({ level: 'silent' }), // Silent logger
                 connectTimeoutMs: 60000,
                 // mobile: false,
-                // browser: ['SmartX', 'Chrome', '1.0.0'],
+                // browser: ['ClawX', 'Chrome', '1.0.0'],
             });
 
             let connectionOpened = false;

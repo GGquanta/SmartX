@@ -17,10 +17,13 @@
  */
 
 import 'zx/globals';
+import { ELECTRON_MAIN_RUNTIME_PACKAGES, EXTRA_BUNDLED_PACKAGES } from './openclaw-bundle-config.mjs';
+import { patchExtensionOpenClawSelfImports } from './openclaw-self-import-patch.mjs';
 
 const ROOT = path.resolve(__dirname, '..');
 const OUTPUT = path.join(ROOT, 'build', 'openclaw');
 const NODE_MODULES = path.join(ROOT, 'node_modules');
+const BUNDLED_OPENCLAW_SKILL_ALLOWLIST = new Set(['skill-creator']);
 
 // On Windows, pnpm virtual store paths can exceed MAX_PATH (260 chars).
 function normWin(p) {
@@ -41,15 +44,81 @@ if (!fs.existsSync(openclawLink)) {
 const openclawReal = fs.realpathSync(openclawLink);
 echo`   openclaw resolved: ${openclawReal}`;
 
-// 2. Clean and create output directory
-if (fs.existsSync(OUTPUT)) {
-  fs.rmSync(OUTPUT, { recursive: true });
+function shouldCopyOpenClawPackageEntry(src) {
+  const rel = path.relative(openclawReal, src);
+  if (!rel || rel.startsWith('..')) return true;
+  const parts = rel.split(path.sep);
+
+  for (let i = 0; i < parts.length - 1; i += 1) {
+    if (parts[i] === 'node_modules' && parts[i + 1] === '.bin') {
+      return false;
+    }
+  }
+
+  return true;
 }
+
+function trimBundledOpenClawSkills(skillsRoot) {
+  if (!fs.existsSync(skillsRoot)) return { removed: 0, kept: [...BUNDLED_OPENCLAW_SKILL_ALLOWLIST] };
+
+  let removed = 0;
+  for (const entry of fs.readdirSync(skillsRoot, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    if (BUNDLED_OPENCLAW_SKILL_ALLOWLIST.has(entry.name)) continue;
+
+    const skillDir = path.join(skillsRoot, entry.name);
+    if (!fs.existsSync(path.join(skillDir, 'SKILL.md'))) continue;
+    fs.rmSync(skillDir, { recursive: true, force: true });
+    removed += 1;
+  }
+
+  return { removed, kept: [...BUNDLED_OPENCLAW_SKILL_ALLOWLIST] };
+}
+
+function removeDirRobust(targetDir) {
+  if (!fs.existsSync(targetDir)) return;
+
+  try {
+    fs.rmSync(targetDir, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 100,
+    });
+  } catch (error) {
+    const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined;
+    if (fs.existsSync(targetDir) && (code === 'EACCES' || code === 'ENOTEMPTY' || code === 'EPERM')) {
+      try {
+        fs.removeSync(targetDir);
+      } catch {
+        // fall through to final existence check below
+      }
+    } else {
+      throw error;
+    }
+  }
+
+  if (fs.existsSync(targetDir)) {
+    throw new Error(`Failed to remove directory: ${targetDir}`);
+  }
+}
+
+// 2. Clean and create output directory
+removeDirRobust(OUTPUT);
 fs.mkdirSync(OUTPUT, { recursive: true });
 
 // 3. Copy openclaw package itself to OUTPUT root
 echo`   Copying openclaw package...`;
-fs.cpSync(openclawReal, OUTPUT, { recursive: true, dereference: true });
+fs.cpSync(openclawReal, OUTPUT, {
+  recursive: true,
+  dereference: true,
+  filter: shouldCopyOpenClawPackageEntry,
+});
+
+const bundledSkillsTrim = trimBundledOpenClawSkills(path.join(OUTPUT, 'skills'));
+if (bundledSkillsTrim.removed > 0) {
+  echo`   Trimmed bundled OpenClaw skills: removed ${bundledSkillsTrim.removed}, kept ${bundledSkillsTrim.kept.join(', ')}`;
+}
 
 // 3b. Drop copied node_modules/ — we rebuild a flat, self-contained tree in
 // step 5 from the pnpm virtual store. The npm-published openclaw package can
@@ -142,6 +211,10 @@ echo`   Virtual store root: ${openclawVirtualNM}`;
 queue.push({ nodeModulesDir: openclawVirtualNM, skipPkg: 'openclaw' });
 
 const SKIP_PACKAGES = new Set([
+  // Extra bundled extensions can declare openclaw as a peer/optional dependency.
+  // The bundle already copies openclaw to OUTPUT root,
+  // so do not also copy a duplicate into OUTPUT/node_modules/openclaw.
+  'openclaw',
   'typescript',
   '@playwright/test',
   // @discordjs/opus is a native .node addon compiled for the system Node.js
@@ -197,10 +270,6 @@ echo`   Skipped ${skippedDevCount} dev-only package references`;
 //
 //     For each package we resolve it from the workspace's own node_modules,
 //     then BFS its transitive deps exactly like we did for openclaw above.
-const EXTRA_BUNDLED_PACKAGES = [
-  '@whiskeysockets/baileys',   // WhatsApp channel (was a dep of old clawdbot, not openclaw)
-];
-
 let extraCount = 0;
 for (const pkgName of EXTRA_BUNDLED_PACKAGES) {
   const pkgLink = path.join(NODE_MODULES, ...pkgName.split('/'));
@@ -259,7 +328,31 @@ const copiedNames = new Set(); // Track package names already copied
 let copiedCount = 0;
 let skippedDupes = 0;
 
-for (const [realPath, pkgName] of collected) {
+const preferredBundledPackages = new Set(EXTRA_BUNDLED_PACKAGES);
+const preferredBundledPackageRealPaths = new Set();
+for (const pkgName of EXTRA_BUNDLED_PACKAGES) {
+  const pkgLink = path.join(NODE_MODULES, ...pkgName.split('/'));
+  if (!fs.existsSync(pkgLink)) continue;
+  try {
+    preferredBundledPackageRealPaths.add(fs.realpathSync(pkgLink));
+  } catch {
+    // ignore
+  }
+}
+
+const collectedEntries = [...collected].sort(([leftRealPath, leftName], [rightRealPath, rightName]) => {
+  const leftPreferredRealPath = preferredBundledPackageRealPaths.has(leftRealPath);
+  const rightPreferredRealPath = preferredBundledPackageRealPaths.has(rightRealPath);
+  if (leftPreferredRealPath !== rightPreferredRealPath) return leftPreferredRealPath ? -1 : 1;
+
+  const leftPreferred = preferredBundledPackages.has(leftName);
+  const rightPreferred = preferredBundledPackages.has(rightName);
+  if (leftPreferred !== rightPreferred) return leftPreferred ? -1 : 1;
+
+  return 0;
+});
+
+for (const [realPath, pkgName] of collectedEntries) {
   if (copiedNames.has(pkgName)) {
     skippedDupes++;
     continue; // Keep the first version (closer to openclaw in dep tree)
@@ -291,43 +384,73 @@ for (const [realPath, pkgName] of collected) {
 // resolvable from shared chunks.  Skip-if-exists preserves version priority
 // (openclaw's own deps take precedence over extension deps).
 const extensionsDir = path.join(OUTPUT, 'dist', 'extensions');
+function readJsonSafe(filePath) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function listPackageDeps(pkgJson) {
+  return Object.keys({
+    ...(pkgJson?.dependencies && typeof pkgJson.dependencies === 'object' ? pkgJson.dependencies : {}),
+    ...(pkgJson?.optionalDependencies && typeof pkgJson.optionalDependencies === 'object' ? pkgJson.optionalDependencies : {}),
+  }).sort((a, b) => a.localeCompare(b));
+}
+
 let mergedExtCount = 0;
+let mirroredExtRuntimeDeps = 0;
 if (fs.existsSync(extensionsDir)) {
   for (const extEntry of fs.readdirSync(extensionsDir, { withFileTypes: true })) {
     if (!extEntry.isDirectory()) continue;
-    const extNM = path.join(extensionsDir, extEntry.name, 'node_modules');
-    if (!fs.existsSync(extNM)) continue;
+    const extRoot = path.join(extensionsDir, extEntry.name);
+    const extNM = path.join(extRoot, 'node_modules');
 
-    for (const pkgEntry of fs.readdirSync(extNM, { withFileTypes: true })) {
-      if (!pkgEntry.isDirectory() || pkgEntry.name === '.bin') continue;
-      const srcPkg = path.join(extNM, pkgEntry.name);
+    if (fs.existsSync(extNM)) {
+      for (const pkgEntry of fs.readdirSync(extNM, { withFileTypes: true })) {
+        if (!pkgEntry.isDirectory() || pkgEntry.name === '.bin') continue;
+        const srcPkg = path.join(extNM, pkgEntry.name);
 
-      if (pkgEntry.name.startsWith('@')) {
-        // Scoped package — iterate sub-entries
-        let scopeEntries;
-        try { scopeEntries = fs.readdirSync(srcPkg, { withFileTypes: true }); } catch { continue; }
-        for (const scopeEntry of scopeEntries) {
-          if (!scopeEntry.isDirectory()) continue;
-          const scopedName = `${pkgEntry.name}/${scopeEntry.name}`;
-          if (copiedNames.has(scopedName)) continue;
-          const srcScoped = path.join(srcPkg, scopeEntry.name);
-          const destScoped = path.join(outputNodeModules, pkgEntry.name, scopeEntry.name);
+        if (pkgEntry.name.startsWith('@')) {
+          // Scoped package — iterate sub-entries
+          let scopeEntries;
+          try { scopeEntries = fs.readdirSync(srcPkg, { withFileTypes: true }); } catch { continue; }
+          for (const scopeEntry of scopeEntries) {
+            if (!scopeEntry.isDirectory()) continue;
+            const scopedName = `${pkgEntry.name}/${scopeEntry.name}`;
+            if (copiedNames.has(scopedName)) continue;
+            const srcScoped = path.join(srcPkg, scopeEntry.name);
+            const destScoped = path.join(outputNodeModules, pkgEntry.name, scopeEntry.name);
+            try {
+              fs.mkdirSync(normWin(path.dirname(destScoped)), { recursive: true });
+              fs.cpSync(normWin(srcScoped), normWin(destScoped), { recursive: true, dereference: true });
+              copiedNames.add(scopedName);
+              mergedExtCount++;
+            } catch { /* skip on copy error */ }
+          }
+        } else {
+          if (copiedNames.has(pkgEntry.name)) continue;
+          const destPkg = path.join(outputNodeModules, pkgEntry.name);
           try {
-            fs.mkdirSync(normWin(path.dirname(destScoped)), { recursive: true });
-            fs.cpSync(normWin(srcScoped), normWin(destScoped), { recursive: true, dereference: true });
-            copiedNames.add(scopedName);
+            fs.cpSync(normWin(srcPkg), normWin(destPkg), { recursive: true, dereference: true });
+            copiedNames.add(pkgEntry.name);
             mergedExtCount++;
           } catch { /* skip on copy error */ }
         }
-      } else {
-        if (copiedNames.has(pkgEntry.name)) continue;
-        const destPkg = path.join(outputNodeModules, pkgEntry.name);
-        try {
-          fs.cpSync(normWin(srcPkg), normWin(destPkg), { recursive: true, dereference: true });
-          copiedNames.add(pkgEntry.name);
-          mergedExtCount++;
-        } catch { /* skip on copy error */ }
       }
+    }
+
+    const extPkg = readJsonSafe(path.join(extRoot, 'package.json'));
+    for (const depName of listPackageDeps(extPkg)) {
+      const srcPkg = path.join(outputNodeModules, ...depName.split('/'));
+      const destPkg = path.join(extNM, ...depName.split('/'));
+      if (!fs.existsSync(srcPkg) || fs.existsSync(destPkg)) continue;
+      try {
+        fs.mkdirSync(normWin(path.dirname(destPkg)), { recursive: true });
+        fs.cpSync(normWin(srcPkg), normWin(destPkg), { recursive: true, dereference: true });
+        mirroredExtRuntimeDeps++;
+      } catch { /* skip on copy error */ }
     }
   }
 }
@@ -335,6 +458,32 @@ if (fs.existsSync(extensionsDir)) {
 if (mergedExtCount > 0) {
   echo`   Merged ${mergedExtCount} extension packages into top-level node_modules`;
 }
+if (mirroredExtRuntimeDeps > 0) {
+  echo`   Mirrored ${mirroredExtRuntimeDeps} extension runtime deps into dist/extensions/*/node_modules`;
+}
+
+function patchBundledExtensionPackageJsons(extensionsRoot) {
+  let patchedCount = 0;
+
+  const discordPkgPath = path.join(extensionsRoot, 'discord', 'package.json');
+  if (fs.existsSync(discordPkgPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(discordPkgPath, 'utf8'));
+      if (pkg?.dependencies?.opusscript === '^0.0.8') {
+        pkg.dependencies.opusscript = '^0.1.1';
+        fs.writeFileSync(discordPkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
+        patchedCount++;
+        echo`   🩹 Patched discord bundled runtime dep range: opusscript ^0.0.8 -> ^0.1.1`;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return patchedCount;
+}
+
+patchBundledExtensionPackageJsons(extensionsDir);
 
 // 6. Clean up the bundle to reduce package size
 //
@@ -371,10 +520,57 @@ function rmSafe(target) {
   } catch { return false; }
 }
 
+function cleanupNodeModulesRuntimeJunk(nodeModulesDir) {
+  let removedCount = 0;
+
+  const nodeWavDir = path.join(nodeModulesDir, 'node-wav');
+  for (const name of ['x.json', 'x.js', 'x.js~', 'file.wav']) {
+    if (rmSafe(path.join(nodeWavDir, name))) removedCount++;
+  }
+
+  // tree-sitter-bash ships C sources for rebuilding its native addon. Packaged
+  // builds use the prebuilt addon/wasm; keep node-types.json because the CJS
+  // entry exposes it as optional runtime metadata.
+  const treeSitterSrc = path.join(nodeModulesDir, 'tree-sitter-bash', 'src');
+  for (const name of ['parser.c', 'scanner.c', 'grammar.json', 'tree_sitter']) {
+    if (rmSafe(path.join(treeSitterSrc, name))) removedCount++;
+  }
+
+  return removedCount;
+}
+
+function cleanupKnownRuntimeJunk(rootDir) {
+  let removedCount = 0;
+  const stack = [rootDir];
+
+  while (stack.length > 0) {
+    const dir = stack.pop();
+    let entries;
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { continue; }
+
+    if (path.basename(dir) === 'node_modules') {
+      removedCount += cleanupNodeModulesRuntimeJunk(dir);
+    }
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      stack.push(path.join(dir, entry.name));
+    }
+  }
+
+  return removedCount;
+}
+
 function cleanupBundle(outputDir) {
   let removedCount = 0;
   const nm = path.join(outputDir, 'node_modules');
-  const ext = path.join(outputDir, 'extensions');
+  // OpenClaw 3.x ships built-in extensions under dist/extensions/<ext>/, not
+  // extensions/. The previous `path.join(outputDir, 'extensions')` silently
+  // resolved to a non-existent directory so the entire walkExt() pass below
+  // (which is what cleans .d.ts / .d.mts / source maps inside per-extension
+  // node_modules) was a no-op. That left ~28k .d.mts files in the bundle and
+  // contributed to the macOS codesign EMFILE blow-up.
+  const ext = path.join(outputDir, 'dist', 'extensions');
 
   // --- openclaw root junk ---
   for (const name of ['CHANGELOG.md', 'README.md']) {
@@ -391,7 +587,17 @@ function cleanupBundle(outputDir) {
     const NM_REMOVE_DIRS = new Set([
       'test', 'tests', '__tests__', '.github', 'docs', 'examples', 'example',
     ]);
-    const NM_REMOVE_FILE_EXTS = ['.d.ts', '.d.ts.map', '.js.map', '.mjs.map', '.ts.map', '.markdown'];
+    // .d.mts / .d.cts are TypeScript declaration files for ESM/CJS dual-package
+    // builds. They are useless at runtime but show up in huge volumes from
+    // typed packages (e.g. typebox), and inflate the per-process file count
+    // that codesign opens during macOS signing → EMFILE.
+    const NM_REMOVE_FILE_EXTS = [
+      '.d.ts', '.d.ts.map',
+      '.d.mts', '.d.mts.map',
+      '.d.cts', '.d.cts.map',
+      '.js.map', '.mjs.map', '.cjs.map', '.ts.map',
+      '.markdown',
+    ];
     const NM_REMOVE_FILE_NAMES = new Set([
       '.DS_Store', 'README.md', 'CHANGELOG.md', 'LICENSE.md', 'CONTRIBUTING.md',
       'tsconfig.json', '.npmignore', '.eslintrc', '.prettierrc', '.editorconfig',
@@ -445,7 +651,13 @@ function cleanupBundle(outputDir) {
     const REMOVE_DIRS = new Set([
       'test', 'tests', '__tests__', '.github', 'docs', 'examples', 'example',
     ]);
-    const REMOVE_FILE_EXTS = ['.d.ts', '.d.ts.map', '.js.map', '.mjs.map', '.ts.map', '.markdown'];
+    const REMOVE_FILE_EXTS = [
+      '.d.ts', '.d.ts.map',
+      '.d.mts', '.d.mts.map',
+      '.d.cts', '.d.cts.map',
+      '.js.map', '.mjs.map', '.cjs.map', '.ts.map',
+      '.markdown',
+    ];
     const REMOVE_FILE_NAMES = new Set([
       '.DS_Store', 'README.md', 'CHANGELOG.md', 'LICENSE.md', 'CONTRIBUTING.md',
       'tsconfig.json', '.npmignore', '.eslintrc', '.prettierrc', '.editorconfig',
@@ -481,11 +693,13 @@ function cleanupBundle(outputDir) {
     'node_modules/koffi/src',
     'node_modules/koffi/vendor',
     'node_modules/koffi/doc',
-    'extensions/feishu', // Removed in favor of official @larksuite/openclaw-lark plugin
+    'dist/extensions/feishu', // Removed in favor of official @larksuite/openclaw-lark plugin
   ];
   for (const rel of LARGE_REMOVALS) {
     if (rmSafe(path.join(outputDir, rel))) removedCount++;
   }
+
+  removedCount += cleanupKnownRuntimeJunk(outputDir);
 
   return removedCount;
 }
@@ -800,10 +1014,52 @@ function patchBundledRuntime(outputDir) {
   if (ptyCount > 0) {
     echo`   🩹 Patched ${ptyCount} bundled PTY site(s)`;
   }
+
+  // --- Browser tool hint patch ---
+  // OpenClaw's BROWSER_TOOL_MODEL_HINT tells the model "Do NOT retry the
+  // browser tool — it will keep failing" after ANY error, causing the model
+  // to permanently refuse browser usage even on transient failures.
+  // Replace with a gentler hint that allows retries on transient errors.
+  const ORIGINAL_HINT =
+    'Do NOT retry the browser tool \u2014 it will keep failing. Use an alternative approach or inform the user that the browser is currently unavailable.';
+  const PATCHED_HINT =
+    'If this was a transient error (timeout, network), you may retry once. If the same error persists after retry, try an alternative approach and let the user know.';
+  const ORIGINAL_SHORT = 'Do NOT retry the browser tool.';
+  const PATCHED_SHORT = 'You may retry once if this was a transient error.';
+
+  const distDir = path.join(outputDir, 'dist');
+  let hintCount = 0;
+  if (fs.existsSync(distDir)) {
+    for (const file of fs.readdirSync(distDir)) {
+      if (!file.endsWith('.js')) continue;
+      const filePath = path.join(distDir, file);
+      try {
+        const content = fs.readFileSync(filePath, 'utf8');
+        if (!content.includes(ORIGINAL_HINT) && !content.includes(ORIGINAL_SHORT)) continue;
+        const patched = content
+          .replaceAll(ORIGINAL_HINT, PATCHED_HINT)
+          .replaceAll(ORIGINAL_SHORT, PATCHED_SHORT);
+        if (patched !== content) {
+          fs.writeFileSync(filePath, patched, 'utf8');
+          hintCount++;
+        }
+      } catch { /* skip on error */ }
+    }
+  }
+
+  if (hintCount > 0) {
+    echo`   🩹 Patched ${hintCount} browser tool hint(s) to allow transient error retry`;
+  }
+
 }
 
 patchBrokenModules(outputNodeModules);
 patchBundledRuntime(OUTPUT);
+
+const openclawSelfImportPatch = patchExtensionOpenClawSelfImports(OUTPUT);
+if (openclawSelfImportPatch.specifiersPatched > 0) {
+  echo`   🩹 Rewrote ${openclawSelfImportPatch.specifiersPatched} OpenClaw plugin-sdk self-import(s) in ${openclawSelfImportPatch.filesPatched} extension file(s)`;
+}
 
 // 8. Verify the bundle
 const entryExists = fs.existsSync(path.join(OUTPUT, 'openclaw.mjs'));
@@ -820,5 +1076,18 @@ echo`   dist/entry.js: ${distExists ? '✓' : '✗'}`;
 
 if (!entryExists || !distExists) {
   echo`❌ Bundle verification failed!`;
+  process.exit(1);
+}
+
+const missingRuntimePackages = ELECTRON_MAIN_RUNTIME_PACKAGES.filter((pkgName) => {
+  const pkgJson = path.join(outputNodeModules, ...pkgName.split('/'), 'package.json');
+  return !fs.existsSync(pkgJson);
+});
+
+if (missingRuntimePackages.length > 0) {
+  echo`❌ Bundle verification failed: missing Electron main runtime packages:`;
+  for (const pkgName of missingRuntimePackages) {
+    echo`   - ${pkgName}`;
+  }
   process.exit(1);
 }
