@@ -406,38 +406,6 @@ async function initialize(): Promise<void> {
     });
   }
 
-  // Pre-deploy built-in skills (feishu-doc, feishu-drive, feishu-perm, feishu-wiki)
-  // to ~/.openclaw/skills/ so they are immediately available without manual install.
-  if (!isE2EMode) {
-    void ensureBuiltinSkillsInstalled().catch((error) => {
-      logger.warn('Failed to install built-in skills:', error);
-    });
-  }
-
-  // Keep community builds aligned with SmartX-biz by physically trimming
-  // bundled OpenClaw consumer skills on startup (dev + packaged), keeping only
-  // `skill-creator`. This also prunes stale openclaw.json entries for trimmed
-  // bundled skills so we do not keep `enabled: false` config for skills that no
-  // longer exist.
-  if (!isE2EMode) {
-    void trimBundledOpenClawSkillsAndConfigs().then(({ removed, removedConfigs, kept }) => {
-      if (removed > 0 || removedConfigs > 0) {
-        logger.info(
-          `Trimmed bundled OpenClaw skills: removed ${removed}, pruned configs ${removedConfigs}, kept ${kept.join(', ')}`,
-        );
-      }
-    });
-  }
-
-  // Pre-deploy bundled third-party skills from resources/preinstalled-skills.
-  // This installs full skill directories (not only SKILL.md) in an idempotent,
-  // non-destructive way and never blocks startup.
-  if (!isE2EMode) {
-    void ensurePreinstalledSkillsInstalled().catch((error) => {
-      logger.warn('Failed to install preinstalled skills:', error);
-    });
-  }
-
   // Plugin installation is now configuration-driven:
   // - When a channel is added via UI: ensureXxxPluginInstalled() in IPC handlers
   // - When Gateway starts: ensureConfiguredPluginsUpgraded() in config-sync.ts
@@ -521,6 +489,33 @@ async function initialize(): Promise<void> {
   whatsAppLoginManager.on('error', (error) => {
     sendMainWindowEvent('channel:whatsapp-error', error);
   });
+
+  // Deploy bundled skills before Gateway auto-start so the managed skills root
+  // is ready when OpenClaw scans ~/.openclaw/skills on first launch.
+  if (!isE2EMode) {
+    try {
+      await ensureBuiltinSkillsInstalled();
+    } catch (error) {
+      logger.warn('Failed to install built-in skills:', error);
+    }
+
+    try {
+      const trimResult = await trimBundledOpenClawSkillsAndConfigs();
+      if (trimResult.removed > 0 || trimResult.removedConfigs > 0) {
+        logger.info(
+          `Trimmed bundled OpenClaw skills: removed ${trimResult.removed}, pruned configs ${trimResult.removedConfigs}, kept ${trimResult.kept.join(', ')}`,
+        );
+      }
+    } catch (error) {
+      logger.warn('Failed to trim bundled OpenClaw skills:', error);
+    }
+
+    try {
+      await ensurePreinstalledSkillsInstalled();
+    } catch (error) {
+      logger.warn('Failed to install preinstalled skills:', error);
+    }
+  }
 
   // Start Gateway automatically (this seeds missing bootstrap files with full templates)
   const gatewayAutoStart = await getSetting('gatewayAutoStart');

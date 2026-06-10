@@ -6,11 +6,11 @@
  * All file I/O uses async fs/promises to avoid blocking the main thread.
  */
 import { readFile, writeFile, access, mkdir, readdir, rm } from 'fs/promises';
-import { existsSync } from 'fs';
+import { existsSync, readdirSync } from 'fs';
 import { constants } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
-import { getOpenClawDir, getOpenClawResolvedDir, getResourcesDir } from './paths';
+import { getAppRootPath, getOpenClawDir, getOpenClawResolvedDir, getOpenClawSkillsDir, getResourcesDir } from './paths';
 import { logger } from './logger';
 import { cpAsyncSafe } from './plugin-install';
 import { withConfigLock } from './config-mutex';
@@ -477,39 +477,109 @@ const PREINSTALLED_MANIFEST_NAME = 'preinstalled-manifest.json';
 const PREINSTALLED_MARKER_NAME = '.smartx-preinstalled.json';
 const LEGACY_PREINSTALLED_MARKER_NAME = '.clawx-preinstalled.json';
 
-async function readPreinstalledManifest(): Promise<PreinstalledSkillSpec[]> {
-    const candidates = [
-        join(getResourcesDir(), 'skills', PREINSTALLED_MANIFEST_NAME),
-        join(process.cwd(), 'resources', 'skills', PREINSTALLED_MANIFEST_NAME),
-    ];
-
-    const manifestPath = candidates.find((p) => existsSync(p));
-    if (!manifestPath) {
+function parsePreinstalledManifest(raw: string): PreinstalledSkillSpec[] {
+    const parsed = JSON.parse(raw) as PreinstalledManifest;
+    if (!Array.isArray(parsed.skills)) {
         return [];
     }
+    return parsed.skills.filter((s): s is PreinstalledSkillSpec => Boolean(s?.slug));
+}
 
+function sourceRootHasBundledSkills(root: string): boolean {
+    if (existsSync(join(root, '.preinstalled-lock.json')) || existsSync(join(root, PREINSTALLED_MANIFEST_NAME))) {
+        return true;
+    }
     try {
-        const raw = await readFile(manifestPath, 'utf-8');
-        const parsed = JSON.parse(raw) as PreinstalledManifest;
-        if (!Array.isArray(parsed.skills)) {
-            return [];
-        }
-        return parsed.skills.filter((s): s is PreinstalledSkillSpec => Boolean(s?.slug));
-    } catch (error) {
-        logger.warn('Failed to read preinstalled-skills manifest:', error);
-        return [];
+        return readdirSync(root, { withFileTypes: true })
+            .some((entry) => entry.isDirectory() && existsSync(join(root, entry.name, 'SKILL.md')));
+    } catch {
+        return false;
     }
 }
 
 function resolvePreinstalledSkillsSourceRoot(): string | null {
+    const appRoot = getAppRootPath();
     const candidates = [
         join(getResourcesDir(), 'preinstalled-skills'),
+        typeof process.resourcesPath === 'string' ? join(process.resourcesPath, 'preinstalled-skills') : '',
+        join(appRoot, 'resources', 'preinstalled-skills'),
+        join(appRoot, 'build', 'preinstalled-skills'),
         join(process.cwd(), 'build', 'preinstalled-skills'),
-        join(__dirname, '../../build/preinstalled-skills'),
-    ];
+        join(process.cwd(), 'openclaw', 'skills'),
+        join(appRoot, 'openclaw', 'skills'),
+    ].filter(Boolean);
 
-    const root = candidates.find((dir) => existsSync(dir));
-    return root || null;
+    for (const dir of candidates) {
+        if (!existsSync(dir) || !sourceRootHasBundledSkills(dir)) {
+            continue;
+        }
+        return dir;
+    }
+    return null;
+}
+
+async function scanPreinstalledSkillsFromSourceRoot(sourceRoot: string): Promise<PreinstalledSkillSpec[]> {
+    try {
+        const entries = await readdir(sourceRoot, { withFileTypes: true });
+        return entries
+            .filter((entry) => entry.isDirectory() && existsSync(join(sourceRoot, entry.name, 'SKILL.md')))
+            .map((entry) => ({ slug: entry.name }));
+    } catch (error) {
+        logger.warn('Failed to scan preinstalled skills source root:', error);
+        return [];
+    }
+}
+
+async function readPreinstalledManifestFromLock(sourceRoot: string): Promise<PreinstalledSkillSpec[]> {
+    const lockPath = join(sourceRoot, '.preinstalled-lock.json');
+    if (!existsSync(lockPath)) {
+        return [];
+    }
+    try {
+        const raw = await readFile(lockPath, 'utf-8');
+        const parsed = JSON.parse(raw) as PreinstalledLockFile;
+        return (parsed.skills || [])
+            .map((entry) => entry.slug?.trim())
+            .filter((slug): slug is string => Boolean(slug))
+            .map((slug) => ({ slug }));
+    } catch (error) {
+        logger.warn('Failed to derive preinstalled-skills manifest from lock file:', error);
+        return [];
+    }
+}
+
+async function readPreinstalledManifest(sourceRoot?: string | null): Promise<PreinstalledSkillSpec[]> {
+    const manifestCandidates = [
+        sourceRoot ? join(sourceRoot, PREINSTALLED_MANIFEST_NAME) : '',
+        join(getResourcesDir(), 'skills', PREINSTALLED_MANIFEST_NAME),
+        join(process.cwd(), 'resources', 'skills', PREINSTALLED_MANIFEST_NAME),
+        join(getAppRootPath(), 'resources', 'skills', PREINSTALLED_MANIFEST_NAME),
+    ].filter(Boolean);
+
+    for (const manifestPath of manifestCandidates) {
+        if (!existsSync(manifestPath)) {
+            continue;
+        }
+        try {
+            const raw = await readFile(manifestPath, 'utf-8');
+            const skills = parsePreinstalledManifest(raw);
+            if (skills.length > 0) {
+                return skills;
+            }
+        } catch (error) {
+            logger.warn(`Failed to read preinstalled-skills manifest at ${manifestPath}:`, error);
+        }
+    }
+
+    if (sourceRoot) {
+        const fromLock = await readPreinstalledManifestFromLock(sourceRoot);
+        if (fromLock.length > 0) {
+            return fromLock;
+        }
+        return scanPreinstalledSkillsFromSourceRoot(sourceRoot);
+    }
+
+    return [];
 }
 
 async function readPreinstalledLockVersions(sourceRoot: string): Promise<Map<string, string>> {
@@ -559,22 +629,24 @@ async function tryReadMarker(markerPath: string): Promise<PreinstalledMarker | n
  * - If skill is missing locally, install it.
  * - If local skill exists without our marker, treat as user-managed and never overwrite.
  * - If marker exists with same version, skip.
- * - If marker exists with a different version, skip by default to avoid overwriting edits.
+ * - If marker exists with a different version, upgrade the SmartX-managed copy.
  */
 export async function ensurePreinstalledSkillsInstalled(): Promise<void> {
-    const skills = await readPreinstalledManifest();
-    if (skills.length === 0) {
-        return;
-    }
-
     const sourceRoot = resolvePreinstalledSkillsSourceRoot();
     if (!sourceRoot) {
         logger.warn('Preinstalled skills source root not found; skipping preinstall.');
         return;
     }
+
+    const skills = await readPreinstalledManifest(sourceRoot);
+    if (skills.length === 0) {
+        logger.warn(`No preinstalled skills manifest entries found for source root: ${sourceRoot}`);
+        return;
+    }
+
     const lockVersions = await readPreinstalledLockVersions(sourceRoot);
 
-    const targetRoot = join(homedir(), '.openclaw', 'skills');
+    const targetRoot = getOpenClawSkillsDir();
     await mkdir(targetRoot, { recursive: true });
     const toEnable: string[] = [];
 
@@ -601,10 +673,26 @@ export async function ensurePreinstalledSkillsInstalled(): Promise<void> {
                 continue;
             }
             if (marker.version === desiredVersion) {
+                if (spec.autoEnable) {
+                    toEnable.push(spec.slug);
+                }
                 continue;
             }
-            logger.info(`Skipping preinstalled skill update for ${spec.slug} (local marker version=${marker.version}, desired=${desiredVersion})`);
-            continue;
+            try {
+                await rm(targetDir, { recursive: true, force: true });
+                logger.info(`Upgrading preinstalled skill ${spec.slug} (${marker.version} -> ${desiredVersion})`);
+            } catch (error) {
+                logger.warn(`Failed to remove outdated preinstalled skill ${spec.slug}:`, error);
+                continue;
+            }
+        } else if (existsSync(targetDir)) {
+            try {
+                await rm(targetDir, { recursive: true, force: true });
+                logger.info(`Removing incomplete preinstalled skill directory: ${spec.slug}`);
+            } catch (error) {
+                logger.warn(`Failed to remove incomplete preinstalled skill ${spec.slug}:`, error);
+                continue;
+            }
         }
 
         try {

@@ -1,7 +1,7 @@
 #!/usr/bin/env zx
 
 import 'zx/globals';
-import { readFileSync, existsSync, mkdirSync, rmSync, cpSync, writeFileSync } from 'node:fs';
+import { readFileSync, existsSync, mkdirSync, rmSync, cpSync, writeFileSync, readdirSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -10,6 +10,9 @@ const ROOT = join(__dirname, '..');
 const MANIFEST_PATH = join(ROOT, 'resources', 'skills', 'preinstalled-manifest.json');
 const OUTPUT_ROOT = join(ROOT, 'build', 'preinstalled-skills');
 const TMP_ROOT = join(ROOT, 'build', '.tmp-preinstalled-skills');
+const LOCAL_SKILLS_ROOT = join(ROOT, 'openclaw', 'skills');
+const LOCAL_LOCK_PATH = join(ROOT, 'openclaw', '.clawhub', 'lock.json');
+const OUTPUT_MANIFEST_PATH = join(OUTPUT_ROOT, 'preinstalled-manifest.json');
 
 function loadManifest() {
   if (!existsSync(MANIFEST_PATH)) {
@@ -58,6 +61,52 @@ function shouldCopySkillFile(srcPath) {
   if (base === '.git') return false;
   if (base === '.subset.tar') return false;
   return true;
+}
+
+function readLocalClawHubLock() {
+  if (!existsSync(LOCAL_LOCK_PATH)) {
+    return null;
+  }
+  try {
+    return JSON.parse(readFileSync(LOCAL_LOCK_PATH, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function copyLocalBundledSkills({ lock, manifestSkills, installedSlugs }) {
+  if (!existsSync(LOCAL_SKILLS_ROOT)) {
+    return;
+  }
+
+  const localLock = readLocalClawHubLock();
+  for (const entry of readdirSync(LOCAL_SKILLS_ROOT, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+
+    const slug = entry.name;
+    const sourceDir = join(LOCAL_SKILLS_ROOT, slug);
+    if (!existsSync(join(sourceDir, 'SKILL.md'))) {
+      continue;
+    }
+
+    const targetDir = join(OUTPUT_ROOT, slug);
+    rmSync(targetDir, { recursive: true, force: true });
+    cpSync(sourceDir, targetDir, { recursive: true, dereference: true, filter: shouldCopySkillFile });
+
+    const version = localLock?.skills?.[slug]?.version?.trim() || 'bundled';
+    lock.skills.push({
+      slug,
+      version,
+      source: 'openclaw/skills',
+    });
+    manifestSkills.push({
+      slug,
+      version,
+      autoEnable: false,
+    });
+    installedSlugs.add(slug);
+    echo`   OK ${slug} (local openclaw/skills)`;
+  }
 }
 
 async function extractArchive(archiveFileName, cwd) {
@@ -119,8 +168,13 @@ const lock = {
   generatedAt: new Date().toISOString(),
   skills: [],
 };
+const bundledManifestSkills = [];
+const installedSlugs = new Set();
 
-const groups = groupByRepoRef(manifestSkills);
+echo`Copying bundled skills from openclaw/skills...`;
+copyLocalBundledSkills({ lock, manifestSkills: bundledManifestSkills, installedSlugs });
+
+const groups = groupByRepoRef(manifestSkills.filter((entry) => !installedSlugs.has(entry.slug)));
 for (const group of groups) {
   const repoDir = join(TMP_ROOT, createRepoDirName(group.repo, group.ref));
   const sparsePaths = [...new Set(group.entries.map((entry) => entry.repoPath))];
@@ -157,11 +211,18 @@ for (const group of groups) {
       ref: group.ref,
       commit,
     });
+    bundledManifestSkills.push({
+      slug: entry.slug,
+      version: resolvedVersion,
+      autoEnable: entry.autoEnable === true,
+    });
+    installedSlugs.add(entry.slug);
 
     echo`   OK ${entry.slug}`;
   }
 }
 
+writeFileSync(OUTPUT_MANIFEST_PATH, `${JSON.stringify({ skills: bundledManifestSkills }, null, 2)}\n`, 'utf8');
 writeFileSync(join(OUTPUT_ROOT, '.preinstalled-lock.json'), `${JSON.stringify(lock, null, 2)}\n`, 'utf8');
 rmSync(TMP_ROOT, { recursive: true, force: true });
-echo`Preinstalled skills ready: ${OUTPUT_ROOT}`;
+echo`Preinstalled skills ready: ${OUTPUT_ROOT} (${installedSlugs.size} skills)`;

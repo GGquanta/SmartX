@@ -93,6 +93,13 @@ export function ensureDir(dir: string): void {
 }
 
 /**
+ * Application root path (repository root in dev, app bundle root when packaged).
+ */
+export function getAppRootPath(): string {
+  return getElectronApp().getAppPath();
+}
+
+/**
  * Get resources directory (for bundled assets)
  */
 export function getResourcesDir(): string {
