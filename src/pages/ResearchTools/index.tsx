@@ -2,7 +2,7 @@
  * Research tools page — literature, experiments, analysis helpers (placeholder).
  */
 import { useTranslation } from 'react-i18next';
-import { invokeIpc } from '@/lib/api-client';
+import { hostApi } from '@/lib/host-api';
 import { cn } from '@/lib/utils';
 
 const QUA_FU_SQC_HOME = 'https://quafu-sqc.baqis.ac.cn/home';
@@ -11,7 +11,7 @@ export function ResearchTools() {
   const { t } = useTranslation('common');
 
   const handleOpenQuafu = () => {
-    void invokeIpc('shell:openExternal', QUA_FU_SQC_HOME);
+    void hostApi.shell.openExternal(QUA_FU_SQC_HOME);
   };
 
   return (

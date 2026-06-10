@@ -53,7 +53,7 @@ try {
   try {
     // Guest has contextIsolation disabled — contextBridge is unavailable.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (window as any).smartXBindKnowledgeBase = bindHandler;
+    (globalThis as typeof globalThis & { smartXBindKnowledgeBase?: typeof bindHandler }).smartXBindKnowledgeBase = bindHandler;
   } catch (secondErr) {
     console.error(
       '[company-knowledge-webview] Failed to expose smartXBindKnowledgeBase',

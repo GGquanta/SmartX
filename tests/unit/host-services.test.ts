@@ -186,7 +186,7 @@ vi.mock('@electron/utils/plugin-install', () => ({
 }));
 
 vi.mock('@electron/utils/openclaw-workspace', () => ({
-  ensureClawXContext: vi.fn(),
+  ensureSmartXContext: vi.fn(),
 }));
 
 vi.mock('@electron/services/providers/provider-runtime-sync', () => ({

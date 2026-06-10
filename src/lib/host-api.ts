@@ -79,6 +79,10 @@ export const hostApi = {
       ...(await invokeHost('app', 'openClawDoctor', { mode })),
       mode,
     }),
+    version: () => window.electron.ipcRenderer.invoke('app:version') as Promise<string>,
+    getCompanyKnowledgeWebviewPreloadPath: () => (
+      window.electron.ipcRenderer.invoke('app:getCompanyKnowledgeWebviewPreloadPath') as Promise<string>
+    ),
   },
   openclaw: {
     status: () => invokeHost('openclaw', 'status'),

@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
-import { invokeIpc } from '@/lib/api-client';
+import { hostApi } from '@/lib/host-api';
 
 const DEFAULT_COMPANY_KNOWLEDGE_URL = 'http://localhost:5001/';
 
@@ -52,8 +52,8 @@ export function CompanyKnowledge() {
     void (async () => {
       try {
         const [version, preloadPath] = await Promise.all([
-          invokeIpc<string>('app:version'),
-          invokeIpc<string>('app:getCompanyKnowledgeWebviewPreloadPath'),
+          hostApi.app.version(),
+          hostApi.app.getCompanyKnowledgeWebviewPreloadPath(),
         ]);
         if (!cancelled) {
           setWebviewPrep({
@@ -64,7 +64,7 @@ export function CompanyKnowledge() {
       } catch {
         if (cancelled) return;
         try {
-          const preloadPath = await invokeIpc<string>('app:getCompanyKnowledgeWebviewPreloadPath');
+          const preloadPath = await hostApi.app.getCompanyKnowledgeWebviewPreloadPath();
           if (!cancelled) {
             setWebviewPrep({
               userAgent: buildCompanyKnowledgeWebviewUserAgent('0.0.0'),
