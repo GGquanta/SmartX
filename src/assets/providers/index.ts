@@ -10,6 +10,7 @@ import qwenPortal from './qwen.svg';
 import ollama from './ollama.svg';
 import custom from './custom.svg';
 import deepseek from './deepseek.svg';
+import bailian from './bailian.svg';
 
 export const providerIcons: Record<string, string> = {
     anthropic,
@@ -26,4 +27,5 @@ export const providerIcons: Record<string, string> = {
     ollama,
     custom,
     deepseek,
+    bailian,
 };

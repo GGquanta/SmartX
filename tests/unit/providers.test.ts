@@ -16,6 +16,32 @@ import {
 } from '@electron/utils/provider-registry';
 
 describe('provider metadata', () => {
+  it('includes bailian in the frontend and backend provider registries', () => {
+    expect(PROVIDER_TYPES).toContain('bailian');
+    expect(BUILTIN_PROVIDER_TYPES).toContain('bailian');
+    expect(getProviderEnvVar('bailian')).toBe('DASHSCOPE_API_KEY');
+    expect(getProviderConfig('bailian')).toEqual({
+      baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+      api: 'openai-completions',
+      apiKeyEnv: 'DASHSCOPE_API_KEY',
+    });
+    expect(PROVIDER_TYPE_INFO).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'bailian',
+          name: '阿里云百炼',
+          requiresApiKey: true,
+          defaultBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+          showBaseUrl: true,
+          showModelId: true,
+          defaultModelId: 'qwen3.7-max',
+          modelIdPlaceholder: 'qwen3.7-max',
+          apiKeyUrl: 'https://bailian.console.aliyun.com/',
+        }),
+      ]),
+    );
+  });
+
   it('includes ark in the frontend provider registry', () => {
     expect(PROVIDER_TYPES).toContain('ark');
 
@@ -59,7 +85,7 @@ describe('provider metadata', () => {
 
   it('keeps builtin provider sources in sync', () => {
     expect(BUILTIN_PROVIDER_TYPES).toEqual(
-      expect.arrayContaining(['anthropic', 'openai', 'google', 'openrouter', 'ark', 'moonshot', 'siliconflow', 'minimax-portal', 'minimax-portal-cn', 'modelstudio', 'ollama'])
+      expect.arrayContaining(['anthropic', 'openai', 'google', 'openrouter', 'ark', 'moonshot', 'siliconflow', 'minimax-portal', 'minimax-portal-cn', 'bailian', 'modelstudio', 'ollama'])
     );
   });
 

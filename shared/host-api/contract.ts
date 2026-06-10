@@ -256,6 +256,7 @@ export type ProviderType =
   | 'moonshot-global'
   | 'siliconflow'
   | 'deepseek'
+  | 'bailian'
   | 'minimax-portal'
   | 'minimax-portal-cn'
   | 'modelstudio'
