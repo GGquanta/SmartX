@@ -68,13 +68,9 @@ module.exports = {
        *             and finally the four Apple/Segoe/Noto color emoji
        *             fonts so emoji never fall back to a serif.
        *
-       *   - serif : Georgia-first display stack used by all page H1/H2.
-       *             Previously written as inline `style={{ fontFamily }}`
-       *             in 17 places — that's been collapsed to this token,
-       *             so `font-serif` alone now reproduces the original
-       *             rendering exactly. (NOTE: deliberately omits
-       *             `ui-serif` — on macOS that resolves to "New York"
-       *             which we explicitly do not want.)
+       *   - serif : system sans display stack for page H1/H2 and hero
+       *             headings. Matches `--font-display` in globals.css so
+       *             branded screens use the same UI font as body text.
        *
        *   - mono  : standard developer-font stack. Used for IDs, paths,
        *             tokens, timestamps, code blocks, CLI output etc.
@@ -97,11 +93,13 @@ module.exports = {
           '"Noto Color Emoji"',
         ],
         serif: [
-          'Georgia',
-          'Cambria',
-          '"Times New Roman"',
-          'Times',
-          'serif',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          '"Segoe UI"',
+          'Roboto',
+          '"Helvetica Neue"',
+          'Arial',
+          'sans-serif',
         ],
         mono: [
           'ui-monospace',

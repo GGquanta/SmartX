@@ -4,7 +4,7 @@
  * entry point.  Rendered in the Header when on the Chat page.
  */
 import { useMemo } from 'react';
-import { RefreshCw, Bot, FolderTree, ListTree } from 'lucide-react';
+import { RefreshCw, Bot, Brain, FolderTree, GitBranch, ListTree } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useChatStore } from '@/stores/chat';
@@ -27,6 +27,10 @@ export function ChatToolbar({
 }: ChatToolbarProps = {}) {
   const refresh = useChatStore((s) => s.refresh);
   const loading = useChatStore((s) => s.loading);
+  const showThinking = useChatStore((s) => s.showThinking);
+  const toggleThinking = useChatStore((s) => s.toggleThinking);
+  const showExecutionInfo = useChatStore((s) => s.showExecutionInfo);
+  const toggleExecutionInfo = useChatStore((s) => s.toggleExecutionInfo);
   const currentAgentId = useChatStore((s) => s.currentAgentId);
   const agents = useAgentsStore((s) => s.agents);
   const openBrowser = useArtifactPanel((s) => s.openBrowser);
@@ -92,6 +96,48 @@ export function ChatToolbar({
           <p>{t('questionDirectory.title')}</p>
         </TooltipContent>
       </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            data-testid="chat-toggle-thinking"
+            variant="ghost"
+            size="icon"
+            className={cn(
+              'h-8 w-8 hover:bg-black/5 hover:text-foreground dark:hover:bg-white/10',
+              showThinking && 'bg-primary/10 text-primary',
+            )}
+            onClick={toggleThinking}
+            aria-label={showThinking ? t('toolbar.hideThinking') : t('toolbar.showThinking')}
+          >
+            <Brain className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{showThinking ? t('toolbar.hideThinking') : t('toolbar.showThinking')}</p>
+        </TooltipContent>
+      </Tooltip>
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            data-testid="chat-toggle-execution-info"
+            variant="ghost"
+            size="icon"
+            className={cn(
+              'h-8 w-8 hover:bg-black/5 hover:text-foreground dark:hover:bg-white/10',
+              showExecutionInfo && 'bg-primary/10 text-primary',
+            )}
+            onClick={toggleExecutionInfo}
+            aria-label={showExecutionInfo ? t('toolbar.hideExecutionInfo') : t('toolbar.showExecutionInfo')}
+          >
+            <GitBranch className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{showExecutionInfo ? t('toolbar.hideExecutionInfo') : t('toolbar.showExecutionInfo')}</p>
+        </TooltipContent>
+      </Tooltip>
+
       {/* Refresh */}
       <Tooltip>
         <TooltipTrigger asChild>

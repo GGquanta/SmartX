@@ -3,7 +3,8 @@
     "gatewayRequired": "Для использования чата требуется запущенный шлюз OpenClaw. Он запустится автоматически, или вы можете запустить его в Настройках.",
     "welcome": {
         "title": "Чат ClawX",
-        "subtitle": "Чем могу помочь?",
+        "brandAlt": "Сяогуан",
+        "subtitle": "Здравствуйте! Я Сяогуан — ваш интеллектуальный офисный ассистент. Чем могу помочь?",
         "askQuestions": "Задачи",
         "askQuestionsDesc": "Работа над задачами",
         "creativeTasks": "Непрерывное выполнение",
@@ -16,6 +17,10 @@
     "loadingMoreHistory": "Загрузка…",
     "toolbar": {
         "refresh": "Обновить чат",
+        "showThinking": "Показать ход мыслей",
+        "hideThinking": "Скрыть ход мыслей",
+        "showExecutionInfo": "Показать выполнение",
+        "hideExecutionInfo": "Скрыть выполнение",
         "currentAgent": "Общение с {{agent}}",
         "workspace": "Рабочая область"
     },

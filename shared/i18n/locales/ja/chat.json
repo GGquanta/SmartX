@@ -3,7 +3,8 @@
     "gatewayRequired": "チャットを利用するには OpenClaw ゲートウェイが実行されている必要があります。自動的に起動するか、設定から起動できます。",
     "welcome": {
         "title": "ClawX チャット",
-        "subtitle": "お手伝いできることはありますか？",
+        "brandAlt": "小光",
+        "subtitle": "こんにちは。国光量子のスマートオフィスアシスタント「小光」です。何をお手伝いしましょうか？",
         "askQuestions": "タスク対応",
         "askQuestionsDesc": "タスク指向の依頼に対応します",
         "creativeTasks": "連続実行",
@@ -16,6 +17,10 @@
     "loadingMoreHistory": "読み込み中…",
     "toolbar": {
         "refresh": "チャットを更新",
+        "showThinking": "思考過程を表示",
+        "hideThinking": "思考過程を非表示",
+        "showExecutionInfo": "実行情報を表示",
+        "hideExecutionInfo": "実行情報を非表示",
         "currentAgent": "現在の会話相手: {{agent}}",
         "workspace": "ワークスペース"
     },

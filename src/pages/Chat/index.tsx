@@ -42,6 +42,7 @@ import type { FilePreviewTarget } from '@/components/file-preview/types';
 import { buildPreviewTarget } from '@/components/file-preview/build-preview-target';
 import type { AttachedFileMeta } from '@/stores/chat/types';
 import { toast } from 'sonner';
+import brandImage from '@/assets/brand.png';
 
 const ArtifactPanelLazy = lazy(() =>
   import('@/components/file-preview/ArtifactPanel').then((m) => ({ default: m.ArtifactPanel })),
@@ -97,9 +98,9 @@ function getPrimaryMessageStepTexts(steps: TaskStep[]): string[] {
     .map((step) => step.detail!);
 }
 
-function sanitizeGraphSteps(steps: TaskStep[]): TaskStep[] {
+function sanitizeGraphSteps(steps: TaskStep[], showThinking = true): TaskStep[] {
   return steps.filter((step) => {
-    if (step.kind === 'thinking') return false;
+    if (!showThinking && step.kind === 'thinking') return false;
     if (step.kind === 'message' && step.detail && isInternalProcessNarration(step.detail)) return false;
     return true;
   });
@@ -185,6 +186,8 @@ export function Chat() {
   const sendMessage = useChatStore((s) => s.sendMessage);
   const abortRun = useChatStore((s) => s.abortRun);
   const clearError = useChatStore((s) => s.clearError);
+  const showThinking = useChatStore((s) => s.showThinking);
+  const showExecutionInfo = useChatStore((s) => s.showExecutionInfo);
   const fetchAgents = useAgentsStore((s) => s.fetchAgents);
   const agents = useAgentsStore((s) => s.agents);
 
@@ -333,7 +336,7 @@ export function Chat() {
   // `shouldRenderStreaming`: a thinking-only stream chunk should not produce
   // a chat bubble (thinking is rendered exclusively inside the ExecutionGraph).
   const streamThinking = streamMsg ? extractThinking(streamMsg) : null;
-  const hasStreamThinking = !!streamThinking && streamThinking.trim().length > 0;
+  const hasStreamThinking = showThinking && !!streamThinking && streamThinking.trim().length > 0;
   const streamTools = streamMsg ? extractToolUse(streamMsg) : [];
   const hasStreamTools = streamTools.length > 0;
   const streamImages = streamMsg ? extractImages(streamMsg) : [];
@@ -572,8 +575,8 @@ export function Chat() {
       && !runtimeHasRunningTool;
 
     let steps = activeRuntimeRun && runtimeHasToolActivity
-      ? sanitizeGraphSteps(deriveRuntimeTaskSteps(activeRuntimeRun))
-      : sanitizeGraphSteps(buildSteps(rawStreamingReplyCandidate));
+      ? sanitizeGraphSteps(deriveRuntimeTaskSteps(activeRuntimeRun), showThinking)
+      : sanitizeGraphSteps(buildSteps(rawStreamingReplyCandidate), showThinking);
     let streamingReplyText: string | null = null;
     if (rawStreamingReplyCandidate) {
       const trimmedReplyText = stripProcessMessagePrefix(streamText, getPrimaryMessageStepTexts(steps));
@@ -583,8 +586,8 @@ export function Chat() {
         streamingReplyText = hasReplyText ? trimmedReplyText : '';
       } else {
         steps = activeRuntimeRun && runtimeHasToolActivity
-          ? sanitizeGraphSteps(deriveRuntimeTaskSteps(activeRuntimeRun))
-          : sanitizeGraphSteps(buildSteps(false));
+          ? sanitizeGraphSteps(deriveRuntimeTaskSteps(activeRuntimeRun), showThinking)
+          : sanitizeGraphSteps(buildSteps(false), showThinking);
       }
     }
 
@@ -630,7 +633,7 @@ export function Chat() {
       // will be properly recomputed on the next render with fresh data.
       const cleanedSteps = sanitizeGraphSteps(cached.steps.filter(
         (s) => !(s.kind === 'message' && s.id.startsWith('stream-message')),
-      ));
+      ), showThinking);
       return [{
         triggerIndex: idx,
         replyIndex: cached.replyIndex,
@@ -706,8 +709,8 @@ export function Chat() {
       streamingReplyText,
       suppressThinking,
     }];
-  }, [messages, subagentCompletionInfos, currentSessionKey, streamingMessage, streamingTools, pendingFinal, sending, hasAnyStreamContent, hasStreamText, hasStreamThinking, hasStreamImages, hasImageGenerateStreamToolStatus, streamText, streamTools.length, hasRunningStreamToolStatus, hasHistoryCompletionBlockingStream, childTranscripts, currentAgentId, agents, sessionLabels, graphStepCache, runError, isRunTrigger, activeRunId, runtimeRuns]);
-  const hasActiveExecutionGraph = userRunCards.some((card) => card.active);
+  }, [messages, subagentCompletionInfos, currentSessionKey, streamingMessage, streamingTools, pendingFinal, sending, hasAnyStreamContent, hasStreamText, hasStreamThinking, hasStreamImages, hasImageGenerateStreamToolStatus, streamText, streamTools.length, hasRunningStreamToolStatus, hasHistoryCompletionBlockingStream, childTranscripts, currentAgentId, agents, sessionLabels, graphStepCache, runError, isRunTrigger, activeRunId, runtimeRuns, showThinking]);
+  const hasActiveExecutionGraph = showExecutionInfo && userRunCards.some((card) => card.active);
   let latestRunSegmentCompletion = { hasFinalReply: false, hasToolActivity: false };
   let pendingImageGeneration = false;
   let imageGenerationSettledInHistory = false;
@@ -957,7 +960,7 @@ export function Chat() {
                     if (isInternalMessage(msg) && !hasUserFacingImageAttachments(msg)) return null;
                     const isFoldedNarration = foldedNarrationIndices.has(idx);
                     if (isFoldedNarration && !hasUserFacingImageAttachments(msg)) return null;
-                    const suppressToolCards = runSegmentMessageIndices.has(idx);
+                    const suppressToolCards = !showExecutionInfo || runSegmentMessageIndices.has(idx);
                     const isToolOnlyAssistant = normalizeMessageRole(msg.role) === 'assistant'
                       && extractToolUse(msg).length > 0
                       && extractText(msg).trim().length === 0
@@ -980,7 +983,7 @@ export function Chat() {
                         suppressProcessAttachments={suppressToolCards}
                         onOpenFile={handleOpenAttachedFile}
                       />
-                      {userRunCards
+                      {showExecutionInfo && userRunCards
                         .filter((card) => card.triggerIndex === idx)
                         .map((card) => {
                           const triggerMsg = messages[card.triggerIndex];
@@ -1005,7 +1008,7 @@ export function Chat() {
                                 agentLabel={card.agentLabel}
                                 steps={card.steps}
                                 active={card.active}
-                                suppressThinking={card.suppressThinking}
+                                suppressThinking={!showThinking || card.suppressThinking}
                                 expanded={expanded}
                                 onExpandedChange={(next) =>
                                   setGraphExpandedOverrides((prev) => ({ ...prev, [runKey]: next }))
@@ -1039,7 +1042,7 @@ export function Chat() {
                     || (hasStreamText && streamTools.length === 0 && !hasRunningStreamToolStatus && !hasRunningRuntimeToolStatus)
                   ) && (
                     <ChatMessage
-                      suppressToolCards={hasActiveExecutionGraph || runSegmentMessageIndices.size > 0}
+                      suppressToolCards={!showExecutionInfo || hasActiveExecutionGraph || runSegmentMessageIndices.size > 0}
                       message={(() => {
                         const base = streamMsg
                           ? {
@@ -1069,7 +1072,11 @@ export function Chat() {
                       })()}
                       textOverride={streamingReplyText ?? undefined}
                       isStreaming
-                      streamingTools={streamingReplyText != null || hasActiveExecutionGraph ? [] : streamingTools}
+                      streamingTools={
+                        !showExecutionInfo || streamingReplyText != null || hasActiveExecutionGraph
+                          ? []
+                          : streamingTools
+                      }
                       onOpenFile={handleOpenAttachedFile}
                     />
                   )}
@@ -1275,7 +1282,20 @@ function WelcomeScreen() {
 
   return (
     <div className="flex flex-col items-center justify-center text-center h-[60vh]">
-      <h1 className="text-4xl md:text-5xl font-serif text-foreground/80 mb-8 font-normal tracking-tight">
+      <div
+        className="mb-6 w-full max-w-[min(100%,500px)] aspect-[2/1] overflow-hidden"
+        data-testid="chat-welcome-brand"
+      >
+        <img
+          src={brandImage}
+          alt={t('welcome.brandAlt')}
+          className="h-full w-full object-cover object-center"
+        />
+      </div>
+      <h1
+        className="text-2xl md:text-3xl font-serif text-foreground/80 mb-8 font-normal tracking-tight"
+        style={{ fontFamily: 'var(--font-display)' }}
+      >
         {t('welcome.subtitle')}
       </h1>
 

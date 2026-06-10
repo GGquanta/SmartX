@@ -3,7 +3,8 @@
     "gatewayRequired": "The OpenClaw Gateway needs to be running to use chat. It will start automatically, or you can start it from Settings.",
     "welcome": {
         "title": "ClawX Chat",
-        "subtitle": "What can I do for you?",
+        "brandAlt": "Xiaoguang",
+        "subtitle": "Hello, I'm Xiaoguang — your intelligent office assistant. What can I do for you?",
         "askQuestions": "Handle Tasks",
         "askQuestionsDesc": "Work on task-oriented requests",
         "creativeTasks": "Continuous Execution",
@@ -16,6 +17,10 @@
     "loadingMoreHistory": "Loading more…",
     "toolbar": {
         "refresh": "Refresh chat",
+        "showThinking": "Show thinking",
+        "hideThinking": "Hide thinking",
+        "showExecutionInfo": "Show execution details",
+        "hideExecutionInfo": "Hide execution details",
         "currentAgent": "Talking to {{agent}}",
         "workspace": "Workspace"
     },

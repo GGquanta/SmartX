@@ -117,9 +117,8 @@
 @layer base {
   :root {
     /* ── shadcn semantic tokens (light) ─────────────────────────── */
-    /* Lightened ClawX cream page background; gentler than pure white
-     *           for long sessions in front of the editor. */
-    --background: 45 30% 96.6%;
+    /* Light blue page background — coordinated with primary blue accents. */
+    --background: 214 28% 97.5%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
@@ -139,6 +138,7 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.5rem;
+    --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
     /* ── ClawX cream surfaces (light) ────────────────────────────
      *
@@ -156,9 +156,9 @@
      *                                      so fields feel inset
      *   --surface-sidebar = sidebar cream  left navigation rail (often /60)
      * ─────────────────────────────────────────────────────────── */
-    --surface-modal: 45 30% 97.6%;
-    --surface-input: 45 22% 94%;
-    --surface-sidebar: 45 16% 94%;
+    --surface-modal: 214 28% 98.5%;
+    --surface-input: 214 22% 95%;
+    --surface-sidebar: 214 33% 93.5%;
 
     /* ── ClawX usage accents (light) ─────────────────────────────
      *

@@ -289,6 +289,14 @@ test.describe('SmartX chat execution graph', () => {
       }
       await expect(page.getByTestId('main-layout')).toBeVisible();
       await expect(page.getByTestId('chat-execution-graph')).toBeVisible({ timeout: 30_000 });
+      await expect(page.getByTestId('chat-toggle-execution-info')).toBeVisible();
+      await expect(page.getByTestId('chat-toggle-thinking')).toBeVisible();
+
+      await page.getByTestId('chat-toggle-execution-info').click();
+      await expect(page.getByTestId('chat-execution-graph')).toHaveCount(0);
+
+      await page.getByTestId('chat-toggle-execution-info').click();
+      await expect(page.getByTestId('chat-execution-graph')).toBeVisible({ timeout: 30_000 });
       // Completed runs auto-collapse into a single-line summary button. Expand
       // it first so the underlying step details are rendered.
       const graph = page.getByTestId('chat-execution-graph');

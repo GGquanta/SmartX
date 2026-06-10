@@ -23,6 +23,8 @@ export const initialChatState: Pick<
   | 'sessionLabels'
   | 'sessionLastActivity'
   | 'thinkingLevel'
+  | 'showThinking'
+  | 'showExecutionInfo'
 > = {
   messages: [],
   loading: false,
@@ -45,6 +47,8 @@ export const initialChatState: Pick<
   sessionLastActivity: {},
 
   thinkingLevel: null,
+  showThinking: true,
+  showExecutionInfo: true,
 };
 
 export function createChatActions(
@@ -62,6 +66,8 @@ export function createChatActions(
   | 'sendMessage'
   | 'abortRun'
   | 'handleChatEvent'
+  | 'toggleThinking'
+  | 'toggleExecutionInfo'
   | 'refresh'
   | 'clearError'
 > {

@@ -2581,6 +2581,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
   sessionLastActivity: {},
 
   thinkingLevel: null,
+  showThinking: true,
+  showExecutionInfo: true,
+
+  toggleThinking: () => set((s) => ({ showThinking: !s.showThinking })),
+  toggleExecutionInfo: () => set((s) => ({ showExecutionInfo: !s.showExecutionInfo })),
 
   // ── Load sessions via sessions.list ──
 
