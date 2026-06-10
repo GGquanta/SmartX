@@ -69,11 +69,13 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
+      # Windows release jobs exhaust disk after Electron packaging; skip pnpm cache
+      # save in Post Setup Node.js (tar+zstd) to avoid post-job cleanup failures.
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '24'
-          cache: 'pnpm'
+          cache: ${{ matrix.platform != 'win' && 'pnpm' || '' }}
 
       - name: Prefer HTTPS for public GitHub git dependencies
         run: |
