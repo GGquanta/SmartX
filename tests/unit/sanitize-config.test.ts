@@ -32,7 +32,12 @@ async function readConfig(): Promise<Record<string, unknown>> {
  */
 async function sanitizeConfig(
   filePath: string,
-  bundledPlugins?: { all: string[]; enabledByDefault: string[] },
+  bundledPlugins?: {
+    all: string[];
+    enabledByDefault: string[];
+    providersByPluginId?: Record<string, string[]>;
+    preserveIds?: string[];
+  },
 ): Promise<boolean> {
   let raw: string;
   try {
@@ -55,7 +60,11 @@ async function sanitizeConfig(
     'msteams',
     'googlechat',
     'mattermost',
+    'qqbot',
   ]);
+  const BUNDLED_ALLOWLIST_PRESERVE_IDS = new Set(
+    bundledPlugins?.preserveIds ?? ['browser', 'acpx', 'memory-core'],
+  );
 
   /** Non-throwing async existence check. */
   async function fileExists(p: string): Promise<boolean> {
@@ -128,6 +137,56 @@ async function sanitizeConfig(
         : {}
     ) as Record<string, unknown>;
 
+    const acpxEntry = (entries.acpx && typeof entries.acpx === 'object' && !Array.isArray(entries.acpx))
+      ? { ...(entries.acpx as Record<string, unknown>) }
+      : null;
+    const acpxConfig = (acpxEntry?.config && typeof acpxEntry.config === 'object' && !Array.isArray(acpxEntry.config))
+      ? { ...(acpxEntry.config as Record<string, unknown>) }
+      : null;
+    if (acpxConfig) {
+      for (const legacyKey of ['command', 'expectedVersion'] as const) {
+        if (legacyKey in acpxConfig) {
+          delete acpxConfig[legacyKey];
+          modified = true;
+        }
+      }
+      acpxEntry!.config = acpxConfig;
+      entries.acpx = acpxEntry!;
+      pluginsObj.entries = entries;
+    }
+
+    const installs = (
+      pluginsObj.installs && typeof pluginsObj.installs === 'object' && !Array.isArray(pluginsObj.installs)
+        ? { ...(pluginsObj.installs as Record<string, unknown>) }
+        : {}
+    ) as Record<string, unknown>;
+    const acpxInstall = (installs.acpx && typeof installs.acpx === 'object' && !Array.isArray(installs.acpx))
+      ? installs.acpx as Record<string, unknown>
+      : null;
+    if (acpxInstall) {
+      const currentBundledAcpxDir = join(tempDir, 'node_modules', 'openclaw', 'dist', 'extensions', 'acpx').replace(/\\/g, '/');
+      const sourcePath = typeof acpxInstall.sourcePath === 'string' ? acpxInstall.sourcePath : '';
+      const installPath = typeof acpxInstall.installPath === 'string' ? acpxInstall.installPath : '';
+      const normalizedSourcePath = sourcePath.replace(/\\/g, '/');
+      const normalizedInstallPath = installPath.replace(/\\/g, '/');
+      const pointsAtDifferentBundledTree = [normalizedSourcePath, normalizedInstallPath].some(
+        (candidate) => candidate.includes('/node_modules/.pnpm/openclaw@') && candidate !== currentBundledAcpxDir,
+      );
+      const pointsAtMissingPath = (sourcePath && !(await fileExists(sourcePath)))
+        || (installPath && !(await fileExists(installPath)));
+
+      if (pointsAtDifferentBundledTree || pointsAtMissingPath) {
+        delete installs.acpx;
+        modified = true;
+      }
+
+      if (Object.keys(installs).length > 0) {
+        pluginsObj.installs = installs;
+      } else {
+        delete pluginsObj.installs;
+      }
+    }
+
     if ('whatsapp' in entries) {
       delete entries.whatsapp;
       pluginsObj.entries = entries;
@@ -146,26 +205,74 @@ async function sanitizeConfig(
       }
     }
 
-    // Mirror production logic: exclude both built-in channels AND bundled
-    // extension IDs from the "external" set, then re-add enabledByDefault ones.
+    const activeProviders = new Set<string>();
+    const models = config.models as Record<string, unknown> | undefined;
+    const providers = models?.providers as Record<string, unknown> | undefined;
+    if (providers && typeof providers === 'object') {
+      for (const key of Object.keys(providers)) {
+        activeProviders.add(key);
+      }
+    }
+
+    const auth = config.auth as Record<string, unknown> | undefined;
+    const profiles = auth?.profiles as Record<string, unknown> | undefined;
+    if (profiles && typeof profiles === 'object') {
+      for (const entry of Object.values(profiles)) {
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
+        const provider = typeof (entry as Record<string, unknown>).provider === 'string'
+          ? (entry as Record<string, unknown>).provider as string
+          : undefined;
+        if (provider) activeProviders.add(provider);
+      }
+    }
+
+    const pluginsEntries = pluginsObj.entries && typeof pluginsObj.entries === 'object' && !Array.isArray(pluginsObj.entries)
+      ? pluginsObj.entries as Record<string, unknown>
+      : {};
+    for (const [pluginId, meta] of Object.entries(pluginsEntries)) {
+      if (pluginId.endsWith('-auth') && (meta as Record<string, unknown>).enabled) {
+        activeProviders.add(pluginId.replace(/-auth$/, ''));
+      }
+    }
+
+    const agents = config.agents as Record<string, unknown> | undefined;
+    const defaults = agents?.defaults as Record<string, unknown> | undefined;
+    const modelConfig = defaults?.model as Record<string, unknown> | undefined;
+    const primaryModel = typeof modelConfig?.primary === 'string' ? modelConfig.primary : undefined;
+    if (primaryModel?.includes('/')) {
+      activeProviders.add(primaryModel.split('/')[0]);
+    }
+
+    // Mirror production logic: bundled provider plugins are only preserved when
+    // the provider is actually active, while ClawX-critical bundled plugins are
+    // preserved via a small explicit list.
     const bundledAll = new Set(bundledPlugins?.all ?? []);
-    const bundledEnabledByDefault = bundledPlugins?.enabledByDefault ?? [];
+    const providersByPluginId = bundledPlugins?.providersByPluginId ?? {};
+    const explicitlyEnabledBundledPluginIds = Object.entries(pluginsEntries)
+      .filter(([pluginId, meta]) => bundledAll.has(pluginId) && (meta as Record<string, unknown>).enabled === true)
+      .map(([pluginId]) => pluginId);
+    const activeBundledProviderPluginIds = Object.keys(providersByPluginId).filter((pluginId) => {
+      if (activeProviders.has(pluginId)) return true;
+      return (providersByPluginId[pluginId] ?? []).some((providerId) => activeProviders.has(providerId));
+    });
+    const requiredBundledPluginIds = [...new Set([
+      ...BUNDLED_ALLOWLIST_PRESERVE_IDS,
+      ...activeBundledProviderPluginIds,
+      ...explicitlyEnabledBundledPluginIds,
+    ])].filter((pluginId) => bundledAll.has(pluginId));
 
     const externalPluginIds = allow.filter(
       (id) => !BUILTIN_CHANNEL_IDS.has(id) && !bundledAll.has(id),
     );
-    const nextAllow = [...externalPluginIds];
-    if (externalPluginIds.length > 0) {
+    const retainedBundledPluginIds = allow.filter((id) => requiredBundledPluginIds.includes(id));
+    const nextAllow = [...new Set([...externalPluginIds, ...retainedBundledPluginIds])];
+    if (nextAllow.length > 0) {
       for (const channelId of configuredBuiltIns) {
         if (!nextAllow.includes(channelId)) {
           nextAllow.push(channelId);
         }
       }
-    }
-
-    // Re-add enabledByDefault plugins when allowlist is non-empty
-    if (nextAllow.length > 0) {
-      for (const pluginId of bundledEnabledByDefault) {
+      for (const pluginId of requiredBundledPluginIds) {
         if (!nextAllow.includes(pluginId)) {
           nextAllow.push(pluginId);
         }
@@ -625,6 +732,49 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
     expect(load.paths).toEqual(['relative/plugin-path', './another-relative']);
   });
 
+  it('removes legacy acpx overrides and stale bundled install metadata', async () => {
+    await writeConfig({
+      plugins: {
+        entries: {
+          acpx: {
+            enabled: true,
+            config: {
+              permissionMode: 'approve-all',
+              nonInteractivePermissions: 'fail',
+              command: '/Users/example/project/node_modules/.pnpm/openclaw@2026.4.1/node_modules/openclaw/dist/extensions/acpx/node_modules/acpx/dist/cli.js',
+              expectedVersion: 'any',
+              pluginToolsMcpBridge: true,
+            },
+          },
+        },
+        installs: {
+          acpx: {
+            source: 'path',
+            spec: 'acpx',
+            sourcePath: '/Users/example/project/node_modules/.pnpm/openclaw@2026.4.1/node_modules/openclaw/dist/extensions/acpx',
+            installPath: '/Users/example/project/node_modules/.pnpm/openclaw@2026.4.1/node_modules/openclaw/dist/extensions/acpx',
+          },
+        },
+      },
+    });
+
+    const modified = await sanitizeConfig(configPath);
+    expect(modified).toBe(true);
+
+    const result = await readConfig();
+    const plugins = result.plugins as Record<string, unknown>;
+    const entries = plugins.entries as Record<string, unknown>;
+    const acpx = entries.acpx as Record<string, unknown>;
+    const acpxConfig = acpx.config as Record<string, unknown>;
+
+    expect(acpxConfig).toEqual({
+      permissionMode: 'approve-all',
+      nonInteractivePermissions: 'fail',
+      pluginToolsMcpBridge: true,
+    });
+    expect(plugins).not.toHaveProperty('installs');
+  });
+
   it('does nothing when plugins.load.paths contains only valid paths', async () => {
     const original = {
       plugins: {
@@ -691,9 +841,9 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
     expect(modified).toBe(false);
   });
 
-  // ── enabledByDefault bundled plugin allowlist tests ──────────────
+  // ── bundled plugin allowlist reconciliation tests ──────────────
 
-  it('adds enabledByDefault bundled plugins to plugins.allow when allowlist is non-empty', async () => {
+  it('adds only required bundled plugins to plugins.allow when allowlist is non-empty', async () => {
     await writeConfig({
       plugins: {
         allow: ['customPlugin'],
@@ -702,8 +852,12 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
     });
 
     const bundled = {
-      all: ['browser', 'openai', 'diffs'],
-      enabledByDefault: ['browser', 'openai'],
+      all: ['browser', 'acpx', 'memory-core', 'openai', 'anthropic', 'diffs'],
+      enabledByDefault: ['browser', 'acpx', 'openai', 'anthropic'],
+      providersByPluginId: {
+        openai: ['openai'],
+        anthropic: ['anthropic'],
+      },
     };
 
     const modified = await sanitizeConfig(configPath, bundled);
@@ -712,53 +866,30 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
     const result = await readConfig();
     const plugins = result.plugins as Record<string, unknown>;
     const allow = plugins.allow as string[];
-    expect(allow).toContain('customPlugin');
-    expect(allow).toContain('browser');
-    expect(allow).toContain('openai');
-    // 'diffs' is bundled but NOT enabledByDefault — should not be added
+    expect(allow).toEqual(expect.arrayContaining(['customPlugin', 'browser', 'acpx', 'memory-core']));
+    expect(allow).not.toContain('openai');
+    expect(allow).not.toContain('anthropic');
     expect(allow).not.toContain('diffs');
   });
 
-  it('removes stale bundled plugin IDs from allowlist on upgrade', async () => {
-    // Simulate: previous version had 'old-bundled' as enabledByDefault,
-    // new version still has it bundled but no longer enabledByDefault.
-    // Also 'unknown-plugin' is not in bundled.all — it could be a
-    // user-installed third-party plugin, so it must be preserved.
+  it('keeps active bundled provider plugins but removes stale bundled ones from allowlist', async () => {
     await writeConfig({
+      models: {
+        providers: {
+          openai: {},
+        },
+      },
       plugins: {
         allow: ['customPlugin', 'unknown-plugin', 'old-bundled', 'browser'],
       },
     });
 
     const bundled = {
-      all: ['browser', 'openai', 'old-bundled'],  // old-bundled still bundled
-      enabledByDefault: ['browser', 'openai'],      // but no longer enabledByDefault
-    };
-
-    const modified = await sanitizeConfig(configPath, bundled);
-    expect(modified).toBe(true);
-
-    const result = await readConfig();
-    const plugins = result.plugins as Record<string, unknown>;
-    const allow = plugins.allow as string[];
-    expect(allow).toContain('customPlugin');      // external — preserved
-    expect(allow).toContain('unknown-plugin');    // not bundled — treated as external, preserved
-    expect(allow).toContain('browser');           // still enabledByDefault
-    expect(allow).toContain('openai');            // newly added enabledByDefault
-    expect(allow).not.toContain('old-bundled');   // bundled but demoted — removed
-  });
-
-  it('removes demoted bundled plugin from allowlist when no longer enabledByDefault', async () => {
-    // Simulate: 'diffs' was enabledByDefault in v1, demoted to opt-in in v2
-    await writeConfig({
-      plugins: {
-        allow: ['customPlugin', 'diffs', 'browser'],
+      all: ['browser', 'openai', 'old-bundled'],
+      enabledByDefault: ['browser', 'openai'],
+      providersByPluginId: {
+        openai: ['openai', 'openai-codex'],
       },
-    });
-
-    const bundled = {
-      all: ['browser', 'diffs', 'openai'],
-      enabledByDefault: ['browser', 'openai'],  // diffs no longer enabledByDefault
     };
 
     const modified = await sanitizeConfig(configPath, bundled);
@@ -768,12 +899,37 @@ describe('sanitizeOpenClawConfig (blocklist approach)', () => {
     const plugins = result.plugins as Record<string, unknown>;
     const allow = plugins.allow as string[];
     expect(allow).toContain('customPlugin');
+    expect(allow).toContain('unknown-plugin');
     expect(allow).toContain('browser');
     expect(allow).toContain('openai');
-    expect(allow).not.toContain('diffs');  // demoted — removed
+    expect(allow).not.toContain('old-bundled');
   });
 
-  it('does not add enabledByDefault plugins when allowlist is empty (no external plugins)', async () => {
+  it('preserves explicitly enabled bundled plugins even when they are not enabledByDefault', async () => {
+    await writeConfig({
+      plugins: {
+        allow: ['customPlugin', 'diffs'],
+        entries: {
+          diffs: { enabled: true },
+        },
+      },
+    });
+
+    const bundled = {
+      all: ['browser', 'acpx', 'memory-core', 'diffs'],
+      enabledByDefault: ['browser', 'acpx'],
+    };
+
+    const modified = await sanitizeConfig(configPath, bundled);
+    expect(modified).toBe(true);
+
+    const result = await readConfig();
+    const plugins = result.plugins as Record<string, unknown>;
+    const allow = plugins.allow as string[];
+    expect(allow).toEqual(expect.arrayContaining(['customPlugin', 'diffs', 'browser', 'acpx', 'memory-core']));
+  });
+
+  it('does not add bundled plugins when allowlist is empty (no external plugins)', async () => {
     // When no external plugins exist, allowlist should be dropped entirely
     await writeConfig({
       plugins: {

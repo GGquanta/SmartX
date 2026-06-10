@@ -31,11 +31,19 @@ jobs:
           node-version: "24"
           cache: "pnpm"
 
+      - name: Prefer HTTPS for public GitHub git dependencies
+        run: |
+          git config --global "url.https://github.com/.insteadOf" "git@github.com:"
+          git config --global --add "url.https://github.com/.insteadOf" "ssh://git@github.com/"
+
       - name: Install dependencies
         run: pnpm install
 
       - name: Download uv binaries for Windows
         run: pnpm run uv:download:win
+
+      - name: Download agent-browser binaries for Windows
+        run: pnpm run agent-browser:download:win
 
       - name: Build Windows
         run: pnpm run package:win

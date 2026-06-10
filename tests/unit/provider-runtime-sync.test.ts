@@ -84,7 +84,7 @@ function createProvider(overrides: Partial<ProviderConfig> = {}): ProviderConfig
     id: 'moonshot',
     name: 'Moonshot',
     type: 'moonshot',
-    model: 'kimi-k2.5',
+    model: 'kimi-k2.6',
     enabled: true,
     createdAt: '2026-03-14T00:00:00.000Z',
     updatedAt: '2026-03-14T00:00:00.000Z',
@@ -109,7 +109,7 @@ describe('provider-runtime-sync refresh strategy', () => {
     mocks.getApiKey.mockResolvedValue('sk-test');
     mocks.getDefaultProvider.mockResolvedValue('moonshot');
     mocks.getProvider.mockResolvedValue(createProvider());
-    mocks.getProviderDefaultModel.mockReturnValue('kimi-k2.5');
+    mocks.getProviderDefaultModel.mockReturnValue('kimi-k2.6');
     mocks.getProviderConfig.mockReturnValue({
       api: 'openai-completions',
       baseUrl: 'https://api.moonshot.cn/v1',
@@ -186,7 +186,7 @@ describe('provider-runtime-sync refresh strategy', () => {
     expect(gateway.debouncedRestart).not.toHaveBeenCalled();
   });
 
-  it('uses gpt-5.4 as the browser OAuth default model for OpenAI', async () => {
+  it('uses gpt-5.5 as the browser OAuth default model for OpenAI', async () => {
     mocks.getProvider.mockResolvedValue(
       createProvider({
         id: 'openai-personal',
@@ -209,7 +209,7 @@ describe('provider-runtime-sync refresh strategy', () => {
 
     expect(mocks.setOpenClawDefaultModel).toHaveBeenCalledWith(
       'openai-codex',
-      'openai-codex/gpt-5.4',
+      'openai-codex/gpt-5.5',
       expect.any(Array),
     );
   });
@@ -253,7 +253,7 @@ describe('provider-runtime-sync refresh strategy', () => {
       expect.objectContaining({
         baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
         api: 'openai-completions',
-        models: [{ id: 'ark-code-latest', name: 'ark-code-latest' }],
+        models: [{ id: 'ark-code-latest', name: 'ark-code-latest', cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } }],
       }),
     );
   });

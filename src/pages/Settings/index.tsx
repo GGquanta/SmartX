@@ -23,12 +23,7 @@ import { useSettingsStore } from '@/stores/settings';
 import { useGatewayStore } from '@/stores/gateway';
 import { useUpdateStore } from '@/stores/update';
 import { UpdateSettings } from '@/components/settings/UpdateSettings';
-import {
-  getGatewayWsDiagnosticEnabled,
-  invokeIpc,
-  setGatewayWsDiagnosticEnabled,
-  toUserMessage,
-} from '@/lib/api-client';
+import { toUserMessage } from '@/lib/error-message';
 import {
   clearUiTelemetry,
   getUiTelemetrySnapshot,
@@ -38,7 +33,8 @@ import {
 } from '@/lib/telemetry';
 import { useTranslation } from 'react-i18next';
 import { SUPPORTED_LANGUAGES } from '@/i18n';
-import { hostApiFetch } from '@/lib/host-api';
+import { hostApi, type OpenClawDoctorResult } from '@/lib/host-api';
+import { hostEvents } from '@/lib/host-events';
 import { cn } from '@/lib/utils';
 type ControlUiInfo = {
   url: string;
@@ -47,7 +43,7 @@ type ControlUiInfo = {
 };
 
 export function Settings() {
-  const { t } = useTranslation('settings');
+  const { t, i18n } = useTranslation('settings');
   const {
     theme,
     setTheme,
@@ -71,8 +67,6 @@ export function Settings() {
     setProxyBypassRules,
     autoCheckUpdate,
     setAutoCheckUpdate,
-    autoDownloadUpdate,
-    setAutoDownloadUpdate,
     devModeUnlocked,
     setDevModeUnlocked,
     telemetryEnabled,
@@ -81,7 +75,6 @@ export function Settings() {
 
   const { status: gatewayStatus, restart: restartGateway } = useGatewayStore();
   const currentVersion = useUpdateStore((state) => state.currentVersion);
-  const updateSetAutoDownload = useUpdateStore((state) => state.setAutoDownload);
   const [controlUiInfo, setControlUiInfo] = useState<ControlUiInfo | null>(null);
   const [openclawCliCommand, setOpenclawCliCommand] = useState('');
   const [openclawCliError, setOpenclawCliError] = useState<string | null>(null);
@@ -92,7 +85,6 @@ export function Settings() {
   const [proxyBypassRulesDraft, setProxyBypassRulesDraft] = useState('');
   const [proxyEnabledDraft, setProxyEnabledDraft] = useState(false);
   const [savingProxy, setSavingProxy] = useState(false);
-  const [wsDiagnosticEnabled, setWsDiagnosticEnabled] = useState(false);
   const [showTelemetryViewer, setShowTelemetryViewer] = useState(false);
   const [telemetryEntries, setTelemetryEntries] = useState<UiTelemetryEntry[]>([]);
 
@@ -101,22 +93,11 @@ export function Settings() {
   const [showLogs, setShowLogs] = useState(false);
   const [logContent, setLogContent] = useState('');
   const [doctorRunningMode, setDoctorRunningMode] = useState<'diagnose' | 'fix' | null>(null);
-  const [doctorResult, setDoctorResult] = useState<{
-    mode: 'diagnose' | 'fix';
-    success: boolean;
-    exitCode: number | null;
-    stdout: string;
-    stderr: string;
-    command: string;
-    cwd: string;
-    durationMs: number;
-    timedOut?: boolean;
-    error?: string;
-  } | null>(null);
+  const [doctorResult, setDoctorResult] = useState<OpenClawDoctorResult | null>(null);
 
   const handleShowLogs = async () => {
     try {
-      const logs = await hostApiFetch<{ content: string }>('/api/logs?tailLines=100');
+      const logs = await hostApi.logs.recent(100);
       setLogContent(logs.content);
       setShowLogs(true);
     } catch {
@@ -127,9 +108,9 @@ export function Settings() {
 
   const handleOpenLogDir = async () => {
     try {
-      const { dir: logDir } = await hostApiFetch<{ dir: string | null }>('/api/logs/dir');
+      const { dir: logDir } = await hostApi.logs.dir();
       if (logDir) {
-        await invokeIpc('shell:showItemInFolder', logDir);
+        await hostApi.shell.showItemInFolder(logDir);
       }
     } catch {
       // ignore
@@ -139,21 +120,7 @@ export function Settings() {
   const handleRunOpenClawDoctor = async (mode: 'diagnose' | 'fix') => {
     setDoctorRunningMode(mode);
     try {
-      const result = await hostApiFetch<{
-        mode: 'diagnose' | 'fix';
-        success: boolean;
-        exitCode: number | null;
-        stdout: string;
-        stderr: string;
-        command: string;
-        cwd: string;
-        durationMs: number;
-        timedOut?: boolean;
-        error?: string;
-      }>('/api/app/openclaw-doctor', {
-        method: 'POST',
-        body: JSON.stringify({ mode }),
-      });
+      const result = await hostApi.app.openClawDoctor(mode);
       setDoctorResult(result);
       if (result.success) {
         toast.success(mode === 'fix' ? t('developer.doctorFixSucceeded') : t('developer.doctorSucceeded'));
@@ -206,12 +173,7 @@ export function Settings() {
 
   const refreshControlUiInfo = async () => {
     try {
-      const result = await hostApiFetch<{
-        success: boolean;
-        url?: string;
-        token?: string;
-        port?: number;
-      }>('/api/gateway/control-ui');
+      const result = await hostApi.gateway.controlUi();
       if (result.success && result.url && result.token && typeof result.port === 'number') {
         setControlUiInfo({ url: result.url, token: result.token, port: result.port });
       }
@@ -236,11 +198,7 @@ export function Settings() {
 
     (async () => {
       try {
-        const result = await invokeIpc<{
-          success: boolean;
-          command?: string;
-          error?: string;
-        }>('openclaw:getCliCommand');
+        const result = await hostApi.openclaw.getCliCommand();
         if (cancelled) return;
         if (result.success && result.command) {
           setOpenclawCliCommand(result.command);
@@ -270,18 +228,10 @@ export function Settings() {
   };
 
   useEffect(() => {
-    const unsubscribe = window.electron.ipcRenderer.on(
-      'openclaw:cli-installed',
-      (...args: unknown[]) => {
-        const installedPath = typeof args[0] === 'string' ? args[0] : '';
-        toast.success(`openclaw CLI installed at ${installedPath}`);
-      },
-    );
+    const unsubscribe = hostEvents.onOpenClawCliInstalled((installedPath) => {
+      toast.success(`openclaw CLI installed at ${installedPath}`);
+    });
     return () => { unsubscribe?.(); };
-  }, []);
-
-  useEffect(() => {
-    setWsDiagnosticEnabled(getGatewayWsDiagnosticEnabled());
   }, []);
 
   useEffect(() => {
@@ -355,7 +305,7 @@ export function Settings() {
       const normalizedHttpsServer = proxyHttpsServerDraft.trim();
       const normalizedAllServer = proxyAllServerDraft.trim();
       const normalizedBypassRules = proxyBypassRulesDraft.trim();
-      await invokeIpc('settings:setMany', {
+      await hostApi.settings.setMany({
         proxyEnabled: proxyEnabledDraft,
         proxyServer: normalizedProxyServer,
         proxyHttpServer: normalizedHttpServer,
@@ -461,14 +411,11 @@ export function Settings() {
     toast.success(t('developer.telemetryCleared'));
   };
 
-  const handleWsDiagnosticToggle = (enabled: boolean) => {
-    setGatewayWsDiagnosticEnabled(enabled);
-    setWsDiagnosticEnabled(enabled);
-    toast.success(
-      enabled
-        ? t('developer.wsDiagnosticEnabled')
-        : t('developer.wsDiagnosticDisabled'),
-    );
+  const handleLanguageChange = (nextLanguage: string) => {
+    if (nextLanguage === language) return;
+    const translateNext = i18n.getFixedT(nextLanguage, 'settings');
+    setLanguage(nextLanguage);
+    toast.success(translateNext('appearance.menuLanguageUpdated'));
   };
 
   return (
@@ -478,10 +425,10 @@ export function Settings() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-start justify-between mb-12 shrink-0 gap-4">
           <div>
-            <h1 className="text-5xl md:text-6xl font-serif text-foreground mb-3 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h1 className="text-5xl md:text-6xl font-serif text-foreground mb-3 font-normal tracking-tight">
               {t('title')}
             </h1>
-            <p className="text-[17px] text-foreground/70 font-medium">
+            <p className="text-subtitle text-foreground/70 font-medium">
               {t('subtitle')}
             </p>
           </div>
@@ -492,12 +439,12 @@ export function Settings() {
 
           {/* Appearance */}
           <div>
-            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight">
               {t('appearance.title')}
             </h2>
             <div className="space-y-6">
               <div className="space-y-3">
-                <Label className="text-[15px] font-medium text-foreground/80">{t('appearance.theme')}</Label>
+                <Label className="text-sm font-medium text-foreground/80">{t('appearance.theme')}</Label>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     variant={theme === 'light' ? 'secondary' : 'outline'}
@@ -526,14 +473,14 @@ export function Settings() {
                 </div>
               </div>
               <div className="space-y-3">
-                <Label className="text-[15px] font-medium text-foreground/80">{t('appearance.language')}</Label>
+                <Label className="text-sm font-medium text-foreground/80">{t('appearance.language')}</Label>
                 <div className="flex flex-wrap gap-2">
                   {SUPPORTED_LANGUAGES.map((lang) => (
                     <Button
                       key={lang.code}
                       variant={language === lang.code ? 'secondary' : 'outline'}
                       className={cn("rounded-full px-5 h-10 border-black/10 dark:border-white/10", language === lang.code ? "bg-black/5 dark:bg-white/10 text-foreground" : "bg-transparent text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5")}
-                      onClick={() => setLanguage(lang.code)}
+                      onClick={() => handleLanguageChange(lang.code)}
                     >
                       {lang.label}
                     </Button>
@@ -542,8 +489,8 @@ export function Settings() {
               </div>
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-[15px] font-medium text-foreground/80">{t('appearance.launchAtStartup')}</Label>
-                  <p className="text-[13px] text-muted-foreground mt-1">
+                  <Label className="text-sm font-medium text-foreground/80">{t('appearance.launchAtStartup')}</Label>
+                  <p className="text-meta text-muted-foreground mt-1">
                     {t('appearance.launchAtStartupDesc')}
                   </p>
                 </div>
@@ -559,29 +506,31 @@ export function Settings() {
 
           {/* Gateway */}
           <div>
-            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight">
               {t('gateway.title')}
             </h2>
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <Label className="text-[15px] font-medium text-foreground">{t('gateway.status')}</Label>
-                  <p className="text-[13px] text-muted-foreground mt-1">
+                  <Label className="text-sm font-medium text-foreground">{t('gateway.status')}</Label>
+                  <p className="text-meta text-muted-foreground mt-1">
                     {t('gateway.port')}: {gatewayStatus.port}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <div className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-medium border",
-                    gatewayStatus.state === 'running' ? "bg-green-500/10 text-green-600 dark:text-green-500 border-green-500/20" :
-                      gatewayStatus.state === 'error' ? "bg-red-500/10 text-red-600 dark:text-red-500 border-red-500/20" :
-                        "bg-black/5 dark:bg-white/5 text-muted-foreground border-transparent"
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-meta font-medium border",
+                    gatewayStatus.state === 'running' && gatewayStatus.gatewayReady !== false ? "bg-green-500/10 text-green-600 dark:text-green-500 border-green-500/20" :
+                      gatewayStatus.state === 'running' ? "bg-red-500/10 text-red-600 dark:text-red-500 border-red-500/20" :
+                        gatewayStatus.state === 'error' ? "bg-red-500/10 text-red-600 dark:text-red-500 border-red-500/20" :
+                          "bg-black/5 dark:bg-white/5 text-muted-foreground border-transparent"
                   )}>
                     <div className={cn("w-1.5 h-1.5 rounded-full",
-                      gatewayStatus.state === 'running' ? "bg-green-500" :
-                        gatewayStatus.state === 'error' ? "bg-red-500" : "bg-muted-foreground"
+                      gatewayStatus.state === 'running' && gatewayStatus.gatewayReady !== false ? "bg-green-500" :
+                        gatewayStatus.state === 'running' ? "bg-red-500" :
+                          gatewayStatus.state === 'error' ? "bg-red-500" : "bg-muted-foreground"
                     )} />
-                    {gatewayStatus.state}
+                    {gatewayStatus.state === 'running' && gatewayStatus.gatewayReady === false ? 'starting' : gatewayStatus.state}
                   </div>
                   <Button variant="outline" size="sm" onClick={restartGateway} className="rounded-full h-8 px-4 border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5">
                     <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
@@ -597,18 +546,18 @@ export function Settings() {
               {showLogs && (
                 <div className="p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5">
                   <div className="flex items-center justify-between mb-3">
-                    <p className="font-medium text-[14px]">{t('gateway.appLogs')}</p>
+                    <p className="font-medium text-sm">{t('gateway.appLogs')}</p>
                     <div className="flex gap-2">
-                      <Button variant="ghost" size="sm" className="h-7 text-[12px] rounded-full hover:bg-black/5 dark:hover:bg-white/10" onClick={handleOpenLogDir}>
+                      <Button variant="ghost" size="sm" className="h-7 text-xs rounded-full hover:bg-black/5 dark:hover:bg-white/10" onClick={handleOpenLogDir}>
                         <ExternalLink className="h-3 w-3 mr-1.5" />
                         {t('gateway.openFolder')}
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-7 text-[12px] rounded-full hover:bg-black/5 dark:hover:bg-white/10" onClick={() => setShowLogs(false)}>
+                      <Button variant="ghost" size="sm" className="h-7 text-xs rounded-full hover:bg-black/5 dark:hover:bg-white/10" onClick={() => setShowLogs(false)}>
                         {t('common:actions.close')}
                       </Button>
                     </div>
                   </div>
-                  <pre className="text-[12px] text-muted-foreground bg-white dark:bg-card p-4 rounded-xl max-h-60 overflow-auto whitespace-pre-wrap font-mono border border-black/5 dark:border-white/5 shadow-inner">
+                  <pre className="text-xs text-muted-foreground bg-surface-input p-4 rounded-xl max-h-60 overflow-auto whitespace-pre-wrap font-mono border border-black/5 dark:border-white/5 shadow-inner">
                     {logContent || t('chat:noLogs')}
                   </pre>
                 </div>
@@ -616,8 +565,8 @@ export function Settings() {
 
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-[15px] font-medium text-foreground">{t('gateway.autoStart')}</Label>
-                  <p className="text-[13px] text-muted-foreground mt-1">
+                  <Label className="text-sm font-medium text-foreground">{t('gateway.autoStart')}</Label>
+                  <p className="text-meta text-muted-foreground mt-1">
                     {t('gateway.autoStartDesc')}
                   </p>
                 </div>
@@ -630,8 +579,8 @@ export function Settings() {
 
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-[15px] font-medium text-foreground">{t('advanced.devMode')}</Label>
-                  <p className="text-[13px] text-muted-foreground mt-1">
+                  <Label className="text-sm font-medium text-foreground">{t('advanced.devMode')}</Label>
+                  <p className="text-meta text-muted-foreground mt-1">
                     {t('advanced.devModeDesc')}
                   </p>
                 </div>
@@ -644,8 +593,8 @@ export function Settings() {
 
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-[15px] font-medium text-foreground">{t('advanced.telemetry')}</Label>
-                  <p className="text-[13px] text-muted-foreground mt-1">
+                  <Label className="text-sm font-medium text-foreground">{t('advanced.telemetry')}</Label>
+                  <p className="text-meta text-muted-foreground mt-1">
                     {t('advanced.telemetryDesc')}
                   </p>
                 </div>
@@ -664,7 +613,7 @@ export function Settings() {
             <>
               <Separator className="bg-black/5 dark:bg-white/5" />
               <div data-testid="settings-developer-section">
-                <h2 data-testid="settings-developer-title" className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+                <h2 data-testid="settings-developer-title" className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight">
                   {t('developer.title')}
                 </h2>
                 <div className="space-y-8">
@@ -672,8 +621,8 @@ export function Settings() {
                   <div className="space-y-4" data-testid="settings-proxy-section">
                     <div className="flex items-center justify-between">
                       <div>
-                        <Label className="text-[14px] font-medium text-foreground/80">Gateway Proxy</Label>
-                        <p className="text-[13px] text-muted-foreground">
+                        <Label className="text-sm font-medium text-foreground/80">Gateway Proxy</Label>
+                        <p className="text-meta text-muted-foreground">
                           {t('gateway.proxyDesc')}
                         </p>
                       </div>
@@ -695,7 +644,7 @@ export function Settings() {
                         <RefreshCw className={`h-4 w-4 mr-2${savingProxy ? ' animate-spin' : ''}`} />
                         {savingProxy ? t('common:status.saving') : t('common:actions.save')}
                       </Button>
-                      <p className="text-[12px] text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         {t('gateway.proxyRestartNote')}
                       </p>
                     </div>
@@ -704,72 +653,72 @@ export function Settings() {
                       <div className="space-y-4 pt-2">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <Label htmlFor="proxy-server" className="text-[13px] text-foreground/80">{t('gateway.proxyServer')}</Label>
+                            <Label htmlFor="proxy-server" className="text-meta text-foreground/80">{t('gateway.proxyServer')}</Label>
                             <Input
                               id="proxy-server"
                               value={proxyServerDraft}
                               onChange={(event) => setProxyServerDraft(event.target.value)}
                               placeholder="http://127.0.0.1:7890"
-                              className="h-10 rounded-xl bg-black/5 dark:bg-white/5 border-transparent font-mono text-[13px]"
+                              className="h-10 rounded-xl bg-black/5 dark:bg-white/5 border-transparent font-mono text-meta"
                             />
-                            <p className="text-[11px] text-muted-foreground">
+                            <p className="text-tiny text-muted-foreground">
                               {t('gateway.proxyServerHelp')}
                             </p>
                           </div>
 
                           <div className="space-y-2">
-                            <Label htmlFor="proxy-http-server" className="text-[13px] text-foreground/80">{t('gateway.proxyHttpServer')}</Label>
+                            <Label htmlFor="proxy-http-server" className="text-meta text-foreground/80">{t('gateway.proxyHttpServer')}</Label>
                             <Input
                               id="proxy-http-server"
                               value={proxyHttpServerDraft}
                               onChange={(event) => setProxyHttpServerDraft(event.target.value)}
                               placeholder={proxyServerDraft || 'http://127.0.0.1:7890'}
-                              className="h-10 rounded-xl bg-black/5 dark:bg-white/5 border-transparent font-mono text-[13px]"
+                              className="h-10 rounded-xl bg-black/5 dark:bg-white/5 border-transparent font-mono text-meta"
                             />
-                            <p className="text-[11px] text-muted-foreground">
+                            <p className="text-tiny text-muted-foreground">
                               {t('gateway.proxyHttpServerHelp')}
                             </p>
                           </div>
 
                           <div className="space-y-2">
-                            <Label htmlFor="proxy-https-server" className="text-[13px] text-foreground/80">{t('gateway.proxyHttpsServer')}</Label>
+                            <Label htmlFor="proxy-https-server" className="text-meta text-foreground/80">{t('gateway.proxyHttpsServer')}</Label>
                             <Input
                               id="proxy-https-server"
                               value={proxyHttpsServerDraft}
                               onChange={(event) => setProxyHttpsServerDraft(event.target.value)}
                               placeholder={proxyServerDraft || 'http://127.0.0.1:7890'}
-                              className="h-10 rounded-xl bg-black/5 dark:bg-white/5 border-transparent font-mono text-[13px]"
+                              className="h-10 rounded-xl bg-black/5 dark:bg-white/5 border-transparent font-mono text-meta"
                             />
-                            <p className="text-[11px] text-muted-foreground">
+                            <p className="text-tiny text-muted-foreground">
                               {t('gateway.proxyHttpsServerHelp')}
                             </p>
                           </div>
 
                           <div className="space-y-2">
-                            <Label htmlFor="proxy-all-server" className="text-[13px] text-foreground/80">{t('gateway.proxyAllServer')}</Label>
+                            <Label htmlFor="proxy-all-server" className="text-meta text-foreground/80">{t('gateway.proxyAllServer')}</Label>
                             <Input
                               id="proxy-all-server"
                               value={proxyAllServerDraft}
                               onChange={(event) => setProxyAllServerDraft(event.target.value)}
                               placeholder={proxyServerDraft || 'socks5://127.0.0.1:7891'}
-                              className="h-10 rounded-xl bg-black/5 dark:bg-white/5 border-transparent font-mono text-[13px]"
+                              className="h-10 rounded-xl bg-black/5 dark:bg-white/5 border-transparent font-mono text-meta"
                             />
-                            <p className="text-[11px] text-muted-foreground">
+                            <p className="text-tiny text-muted-foreground">
                               {t('gateway.proxyAllServerHelp')}
                             </p>
                           </div>
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="proxy-bypass" className="text-[13px] text-foreground/80">{t('gateway.proxyBypass')}</Label>
+                          <Label htmlFor="proxy-bypass" className="text-meta text-foreground/80">{t('gateway.proxyBypass')}</Label>
                           <Input
                             id="proxy-bypass"
                             value={proxyBypassRulesDraft}
                             onChange={(event) => setProxyBypassRulesDraft(event.target.value)}
                             placeholder="<local>;localhost;127.0.0.1;::1"
-                            className="h-10 rounded-xl bg-black/5 dark:bg-white/5 border-transparent font-mono text-[13px]"
+                            className="h-10 rounded-xl bg-black/5 dark:bg-white/5 border-transparent font-mono text-meta"
                           />
-                          <p className="text-[11px] text-muted-foreground">
+                          <p className="text-tiny text-muted-foreground">
                             {t('gateway.proxyBypassHelp')}
                           </p>
                         </div>
@@ -778,8 +727,8 @@ export function Settings() {
                     )}
                   </div>
                   <div className="space-y-4 pt-4">
-                    <Label className="text-[14px] font-medium text-foreground/80">{t('developer.gatewayToken')}</Label>
-                    <p className="text-[13px] text-muted-foreground">
+                    <Label className="text-sm font-medium text-foreground/80">{t('developer.gatewayToken')}</Label>
+                    <p className="text-meta text-muted-foreground">
                       {t('developer.gatewayTokenDesc')}
                     </p>
                     <div className="flex flex-wrap gap-2">
@@ -788,7 +737,7 @@ export function Settings() {
                         readOnly
                         value={controlUiInfo?.token || ''}
                         placeholder={t('developer.tokenUnavailable')}
-                        className="font-mono text-[13px] h-10 rounded-xl bg-black/5 dark:bg-white/5 border-transparent flex-1 min-w-[200px]"
+                        className="font-mono text-meta h-10 rounded-xl bg-black/5 dark:bg-white/5 border-transparent flex-1 min-w-[200px]"
                       />
                       <Button
                         type="button"
@@ -815,12 +764,12 @@ export function Settings() {
 
                   {showCliTools && (
                     <div className="space-y-3">
-                      <Label className="text-[15px] font-medium text-foreground">{t('developer.cli')}</Label>
-                      <p className="text-[13px] text-muted-foreground">
+                      <Label className="text-sm font-medium text-foreground">{t('developer.cli')}</Label>
+                      <p className="text-meta text-muted-foreground">
                         {t('developer.cliDesc')}
                       </p>
                       {isWindows && (
-                        <p className="text-[12px] text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           {t('developer.cliPowershell')}
                         </p>
                       )}
@@ -829,7 +778,7 @@ export function Settings() {
                           readOnly
                           value={openclawCliCommand}
                           placeholder={openclawCliError || t('developer.cmdUnavailable')}
-                          className="font-mono text-[13px] h-10 rounded-xl bg-black/5 dark:bg-white/5 border-transparent flex-1 min-w-[200px]"
+                          className="font-mono text-meta h-10 rounded-xl bg-black/5 dark:bg-white/5 border-transparent flex-1 min-w-[200px]"
                         />
                         <Button
                           type="button"
@@ -848,8 +797,8 @@ export function Settings() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <Label className="text-[14px] font-medium text-foreground">{t('developer.doctor')}</Label>
-                        <p className="text-[13px] text-muted-foreground mt-1">
+                        <Label className="text-sm font-medium text-foreground">{t('developer.doctor')}</Label>
+                        <p className="text-meta text-muted-foreground mt-1">
                           {t('developer.doctorDesc')}
                         </p>
                       </div>
@@ -889,7 +838,7 @@ export function Settings() {
 
                     {doctorResult && (
                       <div className="space-y-3 rounded-2xl border border-black/10 dark:border-white/10 p-5 bg-black/5 dark:bg-white/5">
-                        <div className="flex flex-wrap gap-2 text-[12px]">
+                        <div className="flex flex-wrap gap-2 text-xs">
                           <Badge variant={doctorResult.success ? 'secondary' : 'destructive'} className="rounded-full px-3 py-1">
                             {doctorResult.mode === 'fix'
                               ? (doctorResult.success ? t('developer.doctorFixOk') : t('developer.doctorFixIssue'))
@@ -902,21 +851,21 @@ export function Settings() {
                             {t('developer.doctorDuration')}: {Math.round(doctorResult.durationMs)}ms
                           </Badge>
                         </div>
-                        <div className="space-y-1 text-[12px] text-muted-foreground font-mono break-all">
+                        <div className="space-y-1 text-xs text-muted-foreground font-mono break-all">
                           <p>{t('developer.doctorCommand')}: {doctorResult.command}</p>
                           <p>{t('developer.doctorWorkingDir')}: {doctorResult.cwd || '-'}</p>
                           {doctorResult.error && <p>{t('developer.doctorError')}: {doctorResult.error}</p>}
                         </div>
                         <div className="grid gap-3 md:grid-cols-2">
                           <div className="space-y-2">
-                            <p className="text-[12px] font-semibold text-foreground/80">{t('developer.doctorStdout')}</p>
-                            <pre className="max-h-72 overflow-auto rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-card p-3 text-[11px] font-mono whitespace-pre-wrap break-words">
+                            <p className="text-xs font-semibold text-foreground/80">{t('developer.doctorStdout')}</p>
+                            <pre className="max-h-72 overflow-auto rounded-xl border border-black/10 dark:border-white/10 bg-surface-input p-3 text-tiny font-mono whitespace-pre-wrap break-words">
                               {doctorResult.stdout.trim() || t('developer.doctorOutputEmpty')}
                             </pre>
                           </div>
                           <div className="space-y-2">
-                            <p className="text-[12px] font-semibold text-foreground/80">{t('developer.doctorStderr')}</p>
-                            <pre className="max-h-72 overflow-auto rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-card p-3 text-[11px] font-mono whitespace-pre-wrap break-words">
+                            <p className="text-xs font-semibold text-foreground/80">{t('developer.doctorStderr')}</p>
+                            <pre className="max-h-72 overflow-auto rounded-xl border border-black/10 dark:border-white/10 bg-surface-input p-3 text-tiny font-mono whitespace-pre-wrap break-words">
                               {doctorResult.stderr.trim() || t('developer.doctorOutputEmpty')}
                             </pre>
                           </div>
@@ -926,23 +875,10 @@ export function Settings() {
                   </div>
 
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between rounded-2xl border border-black/10 dark:border-white/10 p-5 bg-transparent">
-                      <div>
-                        <Label className="text-[14px] font-medium text-foreground">{t('developer.wsDiagnostic')}</Label>
-                        <p className="text-[13px] text-muted-foreground mt-1">
-                          {t('developer.wsDiagnosticDesc')}
-                        </p>
-                      </div>
-                      <Switch
-                        checked={wsDiagnosticEnabled}
-                        onCheckedChange={handleWsDiagnosticToggle}
-                      />
-                    </div>
-
                     <div className="flex items-center justify-between">
                       <div>
-                        <Label className="text-[14px] font-medium text-foreground">{t('developer.telemetryViewer')}</Label>
-                        <p className="text-[13px] text-muted-foreground mt-1">
+                        <Label className="text-sm font-medium text-foreground">{t('developer.telemetryViewer')}</Label>
+                        <p className="text-meta text-muted-foreground mt-1">
                           {t('developer.telemetryViewerDesc')}
                         </p>
                       </div>
@@ -962,35 +898,35 @@ export function Settings() {
                     {showTelemetryViewer && (
                       <div className="space-y-4 rounded-2xl border border-black/10 dark:border-white/10 p-5 bg-black/5 dark:bg-white/5">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="secondary" className="rounded-full px-3 py-1 bg-white dark:bg-card border border-black/5 dark:border-white/5">{t('developer.telemetryTotal')}: {telemetryStats.total}</Badge>
-                          <Badge variant={telemetryStats.errorCount > 0 ? 'destructive' : 'secondary'} className={cn("rounded-full px-3 py-1", telemetryStats.errorCount === 0 && "bg-white dark:bg-card border border-black/5 dark:border-white/5")}>
+                          <Badge variant="secondary" className="rounded-full px-3 py-1 bg-surface-modal border border-black/5 dark:border-white/5">{t('developer.telemetryTotal')}: {telemetryStats.total}</Badge>
+                          <Badge variant={telemetryStats.errorCount > 0 ? 'destructive' : 'secondary'} className={cn("rounded-full px-3 py-1", telemetryStats.errorCount === 0 && "bg-surface-modal border border-black/5 dark:border-white/5")}>
                             {t('developer.telemetryErrors')}: {telemetryStats.errorCount}
                           </Badge>
-                          <Badge variant={telemetryStats.slowCount > 0 ? 'secondary' : 'outline'} className={cn("rounded-full px-3 py-1", telemetryStats.slowCount === 0 && "bg-white dark:bg-card border border-black/5 dark:border-white/5")}>
+                          <Badge variant={telemetryStats.slowCount > 0 ? 'secondary' : 'outline'} className={cn("rounded-full px-3 py-1", telemetryStats.slowCount === 0 && "bg-surface-modal border border-black/5 dark:border-white/5")}>
                             {t('developer.telemetrySlow')}: {telemetryStats.slowCount}
                           </Badge>
                           <div className="ml-auto flex gap-2">
-                            <Button type="button" variant="outline" size="sm" onClick={handleCopyTelemetry} className="rounded-full h-8 px-4 bg-white dark:bg-card border-black/5 dark:border-white/5 hover:bg-black/5 dark:hover:bg-white/10">
+                            <Button type="button" variant="outline" size="sm" onClick={handleCopyTelemetry} className="rounded-full h-8 px-4 bg-surface-modal border-black/5 dark:border-white/5 hover:bg-black/5 dark:hover:bg-white/10">
                               <Copy className="h-3.5 w-3.5 mr-1.5" />
                               {t('common:actions.copy')}
                             </Button>
-                            <Button type="button" variant="outline" size="sm" onClick={handleClearTelemetry} className="rounded-full h-8 px-4 bg-white dark:bg-card border-black/5 dark:border-white/5 hover:bg-black/5 dark:hover:bg-white/10">
+                            <Button type="button" variant="outline" size="sm" onClick={handleClearTelemetry} className="rounded-full h-8 px-4 bg-surface-modal border-black/5 dark:border-white/5 hover:bg-black/5 dark:hover:bg-white/10">
                               {t('common:actions.clear')}
                             </Button>
                           </div>
                         </div>
 
-                        <div className="max-h-80 overflow-auto rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-card shadow-inner">
+                        <div className="max-h-80 overflow-auto rounded-xl border border-black/10 dark:border-white/10 bg-surface-modal shadow-inner">
                           {telemetryByEvent.length > 0 && (
                             <div className="border-b border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5 p-3">
-                              <p className="mb-3 text-[12px] font-semibold text-muted-foreground">
+                              <p className="mb-3 text-xs font-semibold text-muted-foreground">
                                 {t('developer.telemetryAggregated')}
                               </p>
-                              <div className="space-y-1.5 text-[12px]">
+                              <div className="space-y-1.5 text-xs">
                                 {telemetryByEvent.map((item) => (
                                   <div
                                     key={item.event}
-                                    className="grid grid-cols-[minmax(0,1.6fr)_0.7fr_0.9fr_0.8fr_1fr] gap-2 rounded-lg border border-black/5 dark:border-white/5 bg-white dark:bg-card px-3 py-2"
+                                    className="grid grid-cols-[minmax(0,1.6fr)_0.7fr_0.9fr_0.8fr_1fr] gap-2 rounded-lg border border-black/5 dark:border-white/5 bg-surface-modal px-3 py-2"
                                   >
                                     <span className="truncate font-medium" title={item.event}>{item.event}</span>
                                     <span className="text-muted-foreground">n={item.count}</span>
@@ -1004,7 +940,7 @@ export function Settings() {
                               </div>
                             </div>
                           )}
-                          <div className="space-y-2 p-3 font-mono text-[12px]">
+                          <div className="space-y-2 p-3 font-mono text-xs">
                             {telemetryEntries.length === 0 ? (
                               <div className="text-muted-foreground text-center py-4">{t('developer.telemetryEmpty')}</div>
                             ) : (
@@ -1015,9 +951,9 @@ export function Settings() {
                                   <div key={entry.id} className="rounded-lg border border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5 p-3">
                                     <div className="flex items-center justify-between gap-3 mb-2">
                                       <span className="font-semibold text-foreground">{entry.event}</span>
-                                      <span className="text-muted-foreground text-[11px]">{entry.ts}</span>
+                                      <span className="text-muted-foreground text-tiny">{entry.ts}</span>
                                     </div>
-                                    <pre className="whitespace-pre-wrap text-[11px] text-muted-foreground overflow-x-auto">
+                                    <pre className="whitespace-pre-wrap text-tiny text-muted-foreground overflow-x-auto">
                                       {JSON.stringify({ count: entry.count, ...entry.payload }, null, 2)}
                                     </pre>
                                   </div>
@@ -1037,7 +973,7 @@ export function Settings() {
 
           {/* Updates */}
           <div>
-            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight">
               {t('updates.title')}
             </h2>
             <div className="space-y-6">
@@ -1045,30 +981,14 @@ export function Settings() {
 
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-[15px] font-medium text-foreground">{t('updates.autoCheck')}</Label>
-                  <p className="text-[13px] text-muted-foreground mt-1">
+                  <Label className="text-sm font-medium text-foreground">{t('updates.autoCheck')}</Label>
+                  <p className="text-meta text-muted-foreground mt-1">
                     {t('updates.autoCheckDesc')}
                   </p>
                 </div>
                 <Switch
                   checked={autoCheckUpdate}
                   onCheckedChange={setAutoCheckUpdate}
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-[15px] font-medium text-foreground">{t('updates.autoDownload')}</Label>
-                  <p className="text-[13px] text-muted-foreground mt-1">
-                    {t('updates.autoDownloadDesc')}
-                  </p>
-                </div>
-                <Switch
-                  checked={autoDownloadUpdate}
-                  onCheckedChange={(value) => {
-                    setAutoDownloadUpdate(value);
-                    updateSetAutoDownload(value);
-                  }}
                 />
               </div>
             </div>
@@ -1078,10 +998,10 @@ export function Settings() {
 
           {/* About */}
           <div>
-            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight" style={{ fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif' }}>
+            <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight">
               {t('about.title')}
             </h2>
-            <div className="space-y-3 text-[14px] text-muted-foreground">
+            <div className="space-y-3 text-sm text-muted-foreground">
               <p>
                 <strong className="text-foreground font-semibold">{t('about.appName')}</strong> - {t('about.tagline')}
               </p>
@@ -1090,21 +1010,21 @@ export function Settings() {
               <div className="flex gap-4 pt-3">
                 <Button
                   variant="link"
-                  className="h-auto p-0 text-[14px] text-blue-500 hover:text-blue-600 font-medium"
+                  className="h-auto p-0 text-sm text-blue-500 hover:text-blue-600 font-medium"
                   onClick={() => window.electron.openExternal('https://claw-x.com')}
                 >
                   {t('about.docs')}
                 </Button>
                 <Button
                   variant="link"
-                  className="h-auto p-0 text-[14px] text-blue-500 hover:text-blue-600 font-medium"
+                  className="h-auto p-0 text-sm text-blue-500 hover:text-blue-600 font-medium"
                   onClick={() => window.electron.openExternal('https://github.com/ValueCell-ai/ClawX')}
                 >
                   {t('about.github')}
                 </Button>
                 <Button
                   variant="link"
-                  className="h-auto p-0 text-[14px] text-blue-500 hover:text-blue-600 font-medium"
+                  className="h-auto p-0 text-sm text-blue-500 hover:text-blue-600 font-medium"
                   onClick={() => window.electron.openExternal('https://icnnp7d0dymg.feishu.cn/wiki/UyfOwQ2cAiJIP6kqUW8cte5Bnlc')}
                 >
                   {t('about.faq')}

@@ -7,6 +7,11 @@ import {
   signDevicePayload,
 } from '../utils/device-identity';
 import { logger } from '../utils/logger';
+import {
+  isGatewayWsTraceEnabled,
+  redactGatewayFrameForTrace,
+  summarizeGatewayFrameForTrace,
+} from './ws-trace';
 
 export const GATEWAY_CHALLENGE_TIMEOUT_MS = 10_000;
 export const GATEWAY_CONNECT_HANDSHAKE_TIMEOUT_MS = 20_000;
@@ -102,6 +107,8 @@ export async function waitForGatewayReady(options: {
   throw new Error(`Gateway failed to start after ${retries} retries (port ${options.port})`);
 }
 
+const GATEWAY_PROTOCOL_VERSION = 4;
+
 export function buildGatewayConnectFrame(options: {
   challengeNonce: string;
   token: string;
@@ -145,8 +152,8 @@ export function buildGatewayConnectFrame(options: {
       id: connectId,
       method: 'connect',
       params: {
-        minProtocol: 3,
-        maxProtocol: 3,
+        minProtocol: GATEWAY_PROTOCOL_VERSION,
+        maxProtocol: GATEWAY_PROTOCOL_VERSION,
         client: {
           id: clientId,
           displayName: 'ClawX',
@@ -157,7 +164,7 @@ export function buildGatewayConnectFrame(options: {
         auth: {
           token: options.token,
         },
-        caps: [],
+        caps: ['tool-events'],
         role,
         scopes,
         device,
@@ -221,6 +228,13 @@ export async function connectGatewaySocket(options: {
       if (settled) return;
       settled = true;
       cleanupHandshakeRequest();
+      if (!handshakeComplete) {
+        try {
+          ws.terminate();
+        } catch {
+          // ignore cleanup errors during failed startup handshakes
+        }
+      }
       reject(error instanceof Error ? error : new Error(String(error)));
     };
 
@@ -236,6 +250,12 @@ export async function connectGatewaySocket(options: {
       });
       connectId = connectPayload.connectId;
 
+      if (isGatewayWsTraceEnabled()) {
+        logger.debug('[gateway-ws-trace] send', {
+          summary: summarizeGatewayFrameForTrace(connectPayload.frame),
+          frame: redactGatewayFrameForTrace(connectPayload.frame),
+        });
+      }
       ws.send(JSON.stringify(connectPayload.frame));
 
       const requestTimeout = setTimeout(() => {
@@ -277,6 +297,12 @@ export async function connectGatewaySocket(options: {
     ws.on('message', (data) => {
       try {
         const message = JSON.parse(data.toString());
+        if (isGatewayWsTraceEnabled()) {
+          logger.debug('[gateway-ws-trace] recv', {
+            summary: summarizeGatewayFrameForTrace(message),
+            frame: redactGatewayFrameForTrace(message),
+          });
+        }
         if (
           !challengeReceived &&
           typeof message === 'object' && message !== null &&

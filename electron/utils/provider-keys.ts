@@ -2,13 +2,20 @@ const MULTI_INSTANCE_PROVIDER_TYPES = new Set(['custom', 'ollama']);
 
 export const OPENCLAW_PROVIDER_KEY_MINIMAX = 'minimax-portal';
 export const OPENCLAW_PROVIDER_KEY_MOONSHOT = 'moonshot';
+export const OPENCLAW_PROVIDER_KEY_MOONSHOT_GLOBAL = 'moonshot-global';
+export const OPENAI_CODEX_RUNTIME_PROVIDER_KEY = 'openai-codex';
+export const CLAWX_OPENAI_IMAGE_PROVIDER_KEY = 'clawx-openai-image';
 export const OAUTH_PROVIDER_TYPES = ['minimax-portal', 'minimax-portal-cn'] as const;
 export const OPENCLAW_OAUTH_PLUGIN_PROVIDER_KEYS = [
   OPENCLAW_PROVIDER_KEY_MINIMAX,
+  OPENAI_CODEX_RUNTIME_PROVIDER_KEY,
 ] as const;
 
 const OAUTH_PROVIDER_TYPE_SET = new Set<string>(OAUTH_PROVIDER_TYPES);
 const OPENCLAW_OAUTH_PLUGIN_PROVIDER_KEY_SET = new Set<string>(OPENCLAW_OAUTH_PLUGIN_PROVIDER_KEYS);
+const HIDDEN_PROVIDER_KEYS_FOR_UI = new Set<string>([
+  CLAWX_OPENAI_IMAGE_PROVIDER_KEY,
+]);
 
 const PROVIDER_KEY_ALIASES: Record<string, string> = {
   'minimax-portal-cn': OPENCLAW_PROVIDER_KEY_MINIMAX,
@@ -33,6 +40,21 @@ export function getOpenClawProviderKeyForType(type: string, providerId: string):
 }
 
 /**
+ * Resolve the OpenClaw runtime provider key for a saved account.
+ * Browser OAuth for OpenAI is stored under vendorId `openai` but runs as `openai-codex`.
+ */
+export function resolveOpenClawProviderKey(account: {
+  vendorId: string;
+  id: string;
+  authMode?: string;
+}): string {
+  if (account.authMode === 'oauth_browser' && account.vendorId === 'openai') {
+    return OPENAI_CODEX_RUNTIME_PROVIDER_KEY;
+  }
+  return getOpenClawProviderKeyForType(account.vendorId, account.id);
+}
+
+/**
  * Get all vendorId values that map to the given openclaw.json key via alias.
  * e.g. getAliasSourceTypes('minimax-portal') → ['minimax-portal-cn']
  */
@@ -40,6 +62,26 @@ export function getAliasSourceTypes(openClawKey: string): string[] {
   return Object.entries(PROVIDER_KEY_ALIASES)
     .filter(([, target]) => target === openClawKey)
     .map(([source]) => source);
+}
+
+/**
+ * OpenAI Codex OAuth uses runtime key `openai-codex` while API keys use `openai`.
+ * When only OAuth is configured, hide the redundant bare `openai` active slot so the
+ * UI does not show a second "OpenAI • API key (missing)" row.
+ */
+export function filterActiveProviderKeysForUi(
+  activeKeys: Iterable<string>,
+  options?: { hasConfiguredOpenAiApiKey?: boolean },
+): string[] {
+  const keys = Array.from(activeKeys).filter((key) => !HIDDEN_PROVIDER_KEYS_FOR_UI.has(key));
+  const active = new Set(keys);
+  if (!active.has('openai') || !active.has(OPENAI_CODEX_RUNTIME_PROVIDER_KEY)) {
+    return keys;
+  }
+  if (options?.hasConfiguredOpenAiApiKey) {
+    return keys;
+  }
+  return keys.filter((key) => key !== 'openai');
 }
 
 export function isOAuthProviderType(type: string): boolean {

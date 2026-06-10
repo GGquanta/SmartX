@@ -3,11 +3,43 @@ import react from '@vitejs/plugin-react';
 import electron from 'vite-plugin-electron';
 import renderer from 'vite-plugin-electron-renderer';
 import { resolve } from 'path';
+import { existsSync, readFileSync } from 'fs';
+
+function getExtensionPackages(): Set<string> {
+  try {
+    const manifestPath = resolve(__dirname, 'clawx-extensions.json');
+    if (!existsSync(manifestPath)) return new Set();
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'));
+    const allIds: string[] = [
+      ...(manifest.extensions?.main ?? []),
+      ...(manifest.extensions?.renderer ?? []),
+    ];
+    const pkgs = new Set<string>();
+    for (const id of allIds) {
+      if (id.startsWith('builtin/')) continue;
+      const parts = id.split('/');
+      pkgs.add(parts[0].startsWith('@') ? parts.slice(0, 2).join('/') : parts[0]);
+    }
+    return pkgs;
+  } catch {
+    return new Set();
+  }
+}
+
+const extensionPackages = getExtensionPackages();
+const alias = {
+  '@': resolve(__dirname, 'src'),
+  '@electron': resolve(__dirname, 'electron'),
+  '@shared': resolve(__dirname, 'shared'),
+};
 
 function isMainProcessExternal(id: string): boolean {
   if (!id || id.startsWith('\0')) return false;
   if (id.startsWith('.') || id.startsWith('/') || /^[A-Za-z]:[\\/]/.test(id)) return false;
-  if (id.startsWith('@/') || id.startsWith('@electron/')) return false;
+  if (id.startsWith('@/') || id.startsWith('@electron/') || id.startsWith('@shared/')) return false;
+  for (const pkg of extensionPackages) {
+    if (id === pkg || id.startsWith(pkg + '/')) return false;
+  }
   return true;
 }
 
@@ -28,6 +60,7 @@ export default defineConfig({
           options.startup();
         },
         vite: {
+          resolve: { alias },
           build: {
             outDir: 'dist-electron/main',
             rollupOptions: {
@@ -43,6 +76,7 @@ export default defineConfig({
           options.reload();
         },
         vite: {
+          resolve: { alias },
           build: {
             outDir: 'dist-electron/preload',
             rollupOptions: {
@@ -55,10 +89,8 @@ export default defineConfig({
     renderer(),
   ],
   resolve: {
-    alias: {
-      '@': resolve(__dirname, 'src'),
-      '@electron': resolve(__dirname, 'electron'),
-    },
+    alias,
+    dedupe: ['react', 'react-dom', 'react-i18next', 'zustand', 'sonner', 'lucide-react'],
   },
   server: {
     port: 5173,

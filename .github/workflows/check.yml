@@ -25,8 +25,16 @@ jobs:
           node-version: '24'
           cache: 'pnpm'
 
+      - name: Prefer HTTPS for public GitHub git dependencies
+        run: |
+          git config --global "url.https://github.com/.insteadOf" "git@github.com:"
+          git config --global --add "url.https://github.com/.insteadOf" "ssh://git@github.com/"
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate extension bridge
+        run: pnpm run ext:bridge
 
       - name: Run linter
         run: pnpm run lint
@@ -36,6 +44,18 @@ jobs:
 
       - name: Run tests
         run: pnpm run test
+
+      - name: Run harness checks
+        run: pnpm run harness:ci
+
+      - name: Upload harness artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: harness-artifacts
+          path: artifacts/harness
+          if-no-files-found: warn
+          retention-days: 7
 
   build:
     runs-on: windows-latest
@@ -54,8 +74,16 @@ jobs:
           node-version: '24'
           cache: 'pnpm'
 
+      - name: Prefer HTTPS for public GitHub git dependencies
+        run: |
+          git config --global "url.https://github.com/.insteadOf" "git@github.com:"
+          git config --global --add "url.https://github.com/.insteadOf" "ssh://git@github.com/"
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate extension bridge
+        run: pnpm run ext:bridge
 
       - name: Build
         run: pnpm run build:vite

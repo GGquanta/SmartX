@@ -1,12 +1,47 @@
-import { invokeIpc } from '@/lib/api-client';
-import { getCanonicalPrefixFromSessions, getMessageText, toMs } from './helpers';
+import { hostApi } from '@/lib/host-api';
+import { clearPendingOptimisticUserMessages, getCanonicalPrefixFromSessions, getMessageText, toMs } from './helpers';
+import { pickStartupSessionFallback } from './session-selection';
 import { DEFAULT_CANONICAL_PREFIX, DEFAULT_SESSION_KEY, type ChatSession, type RawMessage } from './types';
 import type { ChatGet, ChatSet, SessionHistoryActions } from './store-api';
+
+import {
+  LABEL_FETCH_CONCURRENCY,
+  beginSessionLabelHydration,
+  clearSessionLabelHydrationTracking,
+  finishSessionLabelHydration,
+  getSessionLabelHydrationCandidate,
+  getSessionLabelHydrationRuntimeKey,
+  isSessionLabelHydrationReady,
+} from './session-label-hydration';
 
 function getAgentIdFromSessionKey(sessionKey: string): string {
   if (!sessionKey.startsWith('agent:')) return 'main';
   const [, agentId] = sessionKey.split(':');
   return agentId || 'main';
+}
+
+function toSessionLabel(text: string, maxLength = 50): string {
+  const trimmed = text.trim();
+  if (!trimmed) return '';
+  return trimmed.length > maxLength ? `${trimmed.slice(0, maxLength)}…` : trimmed;
+}
+
+function applySessionBackendLabels(set: ChatSet, sessions: ChatSession[]): void {
+  const labels = Object.fromEntries(
+    sessions
+      .filter((session) => !session.key.endsWith(':main'))
+      .map((session) => [session.key, toSessionLabel(session.label || session.derivedTitle || '')] as const)
+      .filter((entry): entry is [string, string] => Boolean(entry[1])),
+  );
+  if (Object.keys(labels).length === 0) return;
+  set((state) => ({
+    sessionLabels: {
+      ...state.sessionLabels,
+      ...Object.fromEntries(
+        Object.entries(labels).filter(([key]) => !state.sessionLabels[key]),
+      ),
+    },
+  }));
 }
 
 function parseSessionUpdatedAtMs(value: unknown): number | undefined {
@@ -22,29 +57,80 @@ function parseSessionUpdatedAtMs(value: unknown): number | undefined {
   return undefined;
 }
 
+function parseSessionStatus(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim().toLowerCase() : undefined;
+}
+
+function sessionIndicatesIdle(session: ChatSession | undefined): boolean {
+  if (!session) return false;
+  if (session.hasActiveRun === false) return true;
+  return session.status === 'done'
+    || session.status === 'completed'
+    || session.status === 'finished'
+    || session.status === 'failed'
+    || session.status === 'error'
+    || session.status === 'aborted'
+    || session.status === 'cancelled';
+}
+
+function reconcileCurrentSessionIdleFromBackend(set: ChatSet, get: ChatGet, sessions: ChatSession[]): void {
+  const state = get();
+  if (!state.sending && state.activeRunId == null && !state.pendingFinal) return;
+
+  const current = sessions.find((session) => session.key === state.currentSessionKey);
+  if (!sessionIndicatesIdle(current)) return;
+
+  // Avoid clearing a brand-new send from stale sessions.list metadata.  The
+  // backend's session row must have been updated at or after the user message
+  // that armed the renderer run state.
+  if (
+    state.lastUserMessageAt != null
+    && typeof current?.updatedAt === 'number'
+    && current.updatedAt < toMs(state.lastUserMessageAt)
+  ) {
+    return;
+  }
+
+  set({
+    sending: false,
+    activeRunId: null,
+    pendingFinal: false,
+    lastUserMessageAt: null,
+    streamingText: '',
+    streamingMessage: null,
+    streamingTools: [],
+    pendingToolImages: [],
+  });
+}
+
 export function createSessionActions(
   set: ChatSet,
   get: ChatGet,
-): Pick<SessionHistoryActions, 'loadSessions' | 'switchSession' | 'newSession' | 'deleteSession' | 'cleanupEmptySession'> {
+): Pick<SessionHistoryActions, 'loadSessions' | 'switchSession' | 'newSession' | 'deleteSession' | 'renameSession' | 'cleanupEmptySession'> {
   return {
     loadSessions: async () => {
       try {
-        const result = await invokeIpc(
-          'gateway:rpc',
+        const data = await hostApi.gateway.rpc<Record<string, unknown>>(
           'sessions.list',
-          {}
-        ) as { success: boolean; result?: Record<string, unknown>; error?: string };
+          {
+            includeDerivedTitles: true,
+            includeLastMessage: true,
+          }
+        );
 
-        if (result.success && result.result) {
-          const data = result.result;
+        if (data) {
           const rawSessions = Array.isArray(data.sessions) ? data.sessions : [];
           const sessions: ChatSession[] = rawSessions.map((s: Record<string, unknown>) => ({
             key: String(s.key || ''),
             label: s.label ? String(s.label) : undefined,
             displayName: s.displayName ? String(s.displayName) : undefined,
+            derivedTitle: s.derivedTitle ? String(s.derivedTitle) : undefined,
+            lastMessagePreview: s.lastMessagePreview ? String(s.lastMessagePreview) : undefined,
             thinkingLevel: s.thinkingLevel ? String(s.thinkingLevel) : undefined,
             model: s.model ? String(s.model) : undefined,
             updatedAt: parseSessionUpdatedAtMs(s.updatedAt),
+            status: parseSessionStatus(s.status),
+            hasActiveRun: typeof s.hasActiveRun === 'boolean' ? s.hasActiveRun : undefined,
           })).filter((s: ChatSession) => s.key);
 
           const canonicalBySuffix = new Map<string, string>();
@@ -76,10 +162,12 @@ export function createSessionActions(
             }
           }
           if (!dedupedSessions.find((s) => s.key === nextSessionKey) && dedupedSessions.length > 0) {
-            // Current session not found in the backend list
             const isNewEmptySession = get().messages.length === 0;
             if (!isNewEmptySession) {
-              nextSessionKey = dedupedSessions[0].key;
+              const fallbackKey = pickStartupSessionFallback(nextSessionKey, dedupedSessions);
+              if (fallbackKey) {
+                nextSessionKey = fallbackKey;
+              }
             }
           }
 
@@ -105,44 +193,68 @@ export function createSessionActions(
               ...discoveredActivity,
             },
           }));
+          reconcileCurrentSessionIdleFromBackend(set, get, sessionsWithCurrent);
+          applySessionBackendLabels(set, sessionsWithCurrent);
+
+          const gatewayRuntimeKey = getSessionLabelHydrationRuntimeKey(undefined);
+          const shouldHydrateSessionLabels = isSessionLabelHydrationReady(gatewayRuntimeKey, true);
 
           if (currentSessionKey !== nextSessionKey) {
             get().loadHistory();
           }
 
-          // Background: fetch first user message for every non-main session to populate labels upfront.
-          // Uses a small limit so it's cheap; runs in parallel and doesn't block anything.
-          const sessionsToLabel = sessionsWithCurrent.filter((s) => !s.key.endsWith(':main'));
+          // Background: fetch first user message for every non-main session to populate labels.
+          // Concurrency-limited to avoid flooding the gateway with parallel RPCs.
+          // By the time this runs, the gateway should already be fully ready (Sidebar
+          // gates on gatewayReady), so no startup-retry loop is needed.
+          const sessionsToLabel = shouldHydrateSessionLabels
+            ? sessionsWithCurrent
+              .map((session) => ({
+                session,
+                candidate: getSessionLabelHydrationCandidate(
+                  session,
+                  get().sessionLabels,
+                  get().sessionLastActivity,
+                ),
+              }))
+              .filter((entry) => entry.candidate != null)
+              .map((entry) => ({ session: entry.session, version: entry.candidate!.version }))
+            : [];
           if (sessionsToLabel.length > 0) {
-            void Promise.all(
-              sessionsToLabel.map(async (session) => {
-                try {
-                  const r = await invokeIpc(
-                    'gateway:rpc',
-                    'chat.history',
-                    { sessionKey: session.key, limit: 1000 },
-                  ) as { success: boolean; result?: Record<string, unknown> };
-                  if (!r.success || !r.result) return;
-                  const msgs = Array.isArray(r.result.messages) ? r.result.messages as RawMessage[] : [];
-                  const firstUser = msgs.find((m) => m.role === 'user');
-                  const lastMsg = msgs[msgs.length - 1];
-                  set((s) => {
-                    const next: Partial<typeof s> = {};
-                    if (firstUser) {
-                      const labelText = getMessageText(firstUser.content).trim();
-                      if (labelText) {
-                        const truncated = labelText.length > 50 ? `${labelText.slice(0, 50)}…` : labelText;
-                        next.sessionLabels = { ...s.sessionLabels, [session.key]: truncated };
-                      }
+            void (async () => {
+              for (let i = 0; i < sessionsToLabel.length; i += LABEL_FETCH_CONCURRENCY) {
+                const batch = sessionsToLabel.slice(i, i + LABEL_FETCH_CONCURRENCY)
+                  .filter(({ session, version }) => beginSessionLabelHydration(session.key, version));
+                await Promise.all(
+                  batch.map(async ({ session, version }) => {
+                    try {
+                      const result = await hostApi.gateway.rpc<Record<string, unknown>>(
+                        'chat.history',
+                        { sessionKey: session.key, limit: 1000 },
+                      );
+                      const msgs = Array.isArray(result.messages) ? result.messages as RawMessage[] : [];
+                      const firstUser = msgs.find((m) => m.role === 'user');
+                      const lastMsg = msgs[msgs.length - 1];
+                      const labelText = firstUser ? getMessageText(firstUser.content).trim() : '';
+                      set((s) => {
+                        const next: Partial<typeof s> = {};
+                        if (labelText && !s.sessionLabels[session.key]?.trim()) {
+                          const truncated = labelText.length > 50 ? `${labelText.slice(0, 50)}…` : labelText;
+                          next.sessionLabels = { ...s.sessionLabels, [session.key]: truncated };
+                        }
+                        if (lastMsg?.timestamp) {
+                          next.sessionLastActivity = { ...s.sessionLastActivity, [session.key]: toMs(lastMsg.timestamp) };
+                        }
+                        return next;
+                      });
+                      finishSessionLabelHydration(session.key, version, labelText ? 'labeled' : 'empty');
+                    } catch {
+                      finishSessionLabelHydration(session.key, version, 'error');
                     }
-                    if (lastMsg?.timestamp) {
-                      next.sessionLastActivity = { ...s.sessionLastActivity, [session.key]: toMs(lastMsg.timestamp) };
-                    }
-                    return next;
-                  });
-                } catch { /* ignore per-session errors */ }
-              }),
-            );
+                  }),
+                );
+              }
+            })();
           }
         }
       } catch (err) {
@@ -191,20 +303,20 @@ export function createSessionActions(
     //
     // NOTE: The OpenClaw Gateway does NOT expose a sessions.delete (or equivalent)
     // RPC — confirmed by inspecting client.ts, protocol.ts and the full codebase.
-    // Deletion is therefore a local-only UI operation: the session is removed from
-    // the sidebar list and its labels/activity maps are cleared.  The underlying
-    // JSONL history file on disk is intentionally left intact, consistent with the
-    // newSession() design that avoids sessions.reset to preserve history.
+    // Deletion is therefore performed locally: the renderer drops the session
+    // from the sidebar / labels / activity maps and the Main process hard-deletes
+    // the on-disk transcript so it stops appearing in sessions.list and stops
+    // contributing to the Dashboard token-usage history.
 
     deleteSession: async (key: string) => {
-      // Soft-delete the session's JSONL transcript on disk.
-      // The main process renames <suffix>.jsonl → <suffix>.deleted.jsonl so that
-      // sessions.list skips it automatically.
+      clearSessionLabelHydrationTracking(key);
+      clearPendingOptimisticUserMessages(key);
+      // Hard-delete the session's JSONL transcript on disk.
+      // The main process unlinks <id>.jsonl plus any leftover
+      // <id>.deleted.jsonl and <id>.jsonl.reset.* siblings, then removes the
+      // entry from sessions.json so sessions.list stops surfacing it.
       try {
-        const result = await invokeIpc('session:delete', key) as {
-          success: boolean;
-          error?: string;
-        };
+        const result = await hostApi.sessions.delete(key);
         if (!result.success) {
           console.warn(`[deleteSession] IPC reported failure for ${key}:`, result.error);
         }
@@ -284,6 +396,34 @@ export function createSessionActions(
         pendingFinal: false,
         lastUserMessageAt: null,
         pendingToolImages: [],
+      }));
+    },
+
+    // ── Rename session ──
+
+    renameSession: async (key: string, label: string) => {
+      const normalized = label.trim();
+      if (!normalized) {
+        throw new Error('Session label cannot be empty');
+      }
+
+      // Persist the new label to sessions.json via IPC
+      try {
+        const result = await hostApi.sessions.rename(key, normalized);
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to rename session');
+        }
+      } catch (err) {
+        console.error(`[renameSession] IPC call failed for ${key}:`, err);
+        throw err;
+      }
+
+      // Update local state: both sessions array and sessionLabels
+      set((s) => ({
+        sessions: s.sessions.map((session) =>
+          session.key === key ? { ...session, label: normalized } : session,
+        ),
+        sessionLabels: { ...s.sessionLabels, [key]: normalized },
       }));
     },
 

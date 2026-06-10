@@ -1,27 +1,47 @@
-import { invokeIpc } from '@/lib/api-client';
-import { hostApiFetch } from '@/lib/host-api';
+import { hostApi } from '@/lib/host-api';
+import { fetchCronSessionHistory } from '@/lib/cron-session-history';
+import { useGatewayStore } from '@/stores/gateway';
 import {
   clearHistoryPoll,
+  enrichWithToolCallAttachments,
   enrichWithCachedImages,
   enrichWithToolResultFiles,
+  getLatestOptimisticUserMessage,
+  getMessageErrorMessage,
+  getMessageStopReason,
   getMessageText,
-  hasNonToolAssistantContent,
-  isInternalMessage,
-  isToolResultRole,
+  shouldDropMessageFromHistory,
   loadMissingPreviews,
+  mergePendingOptimisticUserMessages,
+  dropRedundantOptimisticUserMessages,
+  hasAssistantAfterLastRealUser,
+  hasOptimisticServerEcho,
+  isRecoverableRuntimeError,
+  setLastChatEventAt,
   toMs,
 } from './helpers';
-import { buildCronSessionHistoryPath, isCronSessionKey } from './cron-session-utils';
+import { isCronSessionKey } from './cron-session-utils';
+import {
+  CHAT_HISTORY_STARTUP_RETRY_DELAYS_MS,
+  classifyHistoryStartupRetryError,
+  getStartupHistoryTimeoutOverride,
+  shouldRetryStartupHistoryLoad,
+  sleep,
+} from './history-startup-retry';
+import {
+  buildChatHistoryRpcParams,
+  getChatHistoryMaxChars,
+} from './history-rpc-params';
+import { hydrateGatewayHistoryFromTranscript } from './history-transcript-hydrate';
 import type { RawMessage } from './types';
 import type { ChatGet, ChatSet, SessionHistoryActions } from './store-api';
+
+const foregroundHistoryLoadSeen = new Set<string>();
 
 async function loadCronFallbackMessages(sessionKey: string, limit = 200): Promise<RawMessage[]> {
   if (!isCronSessionKey(sessionKey)) return [];
   try {
-    const response = await hostApiFetch<{ messages?: RawMessage[] }>(
-      buildCronSessionHistoryPath(sessionKey, limit),
-    );
-    return Array.isArray(response.messages) ? response.messages : [];
+    return await fetchCronSessionHistory(sessionKey, limit);
   } catch (error) {
     console.warn('Failed to load cron fallback history:', error);
     return [];
@@ -31,10 +51,21 @@ async function loadCronFallbackMessages(sessionKey: string, limit = 200): Promis
 export function createHistoryActions(
   set: ChatSet,
   get: ChatGet,
-): Pick<SessionHistoryActions, 'loadHistory'> {
+): Pick<SessionHistoryActions, 'loadHistory' | 'loadMoreHistory'> {
   return {
+    loadMoreHistory: async () => {
+      // The legacy split-store path is not active in the Electron app. Keep a
+      // conservative implementation for type safety; the monolithic store in
+      // src/stores/chat.ts provides paginated transcript loading.
+      await get().loadHistory(true);
+    },
     loadHistory: async (quiet = false) => {
       const { currentSessionKey } = get();
+      const gatewayState = useGatewayStore.getState?.() as { status?: { pid?: number; connectedAt?: number; port?: number } } | undefined;
+      const gatewayStatus = gatewayState?.status;
+      const foregroundLoadKey = `${gatewayStatus?.pid ?? 'none'}:${gatewayStatus?.connectedAt ?? 'none'}:${gatewayStatus?.port ?? 'none'}|${currentSessionKey}`;
+      const isInitialForegroundLoad = !quiet && !foregroundHistoryLoadSeen.has(foregroundLoadKey);
+      const historyTimeoutOverride = getStartupHistoryTimeoutOverride(isInitialForegroundLoad);
       if (!quiet) set({ loading: true, error: null });
 
       const isCurrentSession = () => get().currentSessionKey === currentSessionKey;
@@ -61,6 +92,61 @@ export function createHistoryActions(
             : message;
         });
       };
+      type AttachedFile = NonNullable<RawMessage['_attachedFiles']>[number];
+      const getAttachmentMergeKey = (file: AttachedFile): string | null => (
+        file.filePath || file.gatewayUrl || null
+      );
+      const preserveExistingAttachmentPreviews = (
+        currentMessages: RawMessage[],
+        nextMessages: RawMessage[],
+      ): RawMessage[] => {
+        const currentFilesByMessageKey = new Map<string, Map<string, AttachedFile>>();
+        for (const message of currentMessages) {
+          if (!message._attachedFiles?.length) continue;
+          const filesByKey = new Map<string, AttachedFile>();
+          for (const file of message._attachedFiles) {
+            const key = getAttachmentMergeKey(file);
+            if (!key) continue;
+            if (!file.preview && !file.fileSize && !file.previewStatus) continue;
+            filesByKey.set(key, file);
+          }
+          if (filesByKey.size > 0) {
+            currentFilesByMessageKey.set(getPreviewMergeKey(message), filesByKey);
+          }
+        }
+
+        if (currentFilesByMessageKey.size === 0) return nextMessages;
+
+        return nextMessages.map((message) => {
+          if (!message._attachedFiles?.length) return message;
+          const currentFiles = currentFilesByMessageKey.get(getPreviewMergeKey(message));
+          if (!currentFiles) return message;
+
+          let changed = false;
+          const attachedFiles = message._attachedFiles.map((file) => {
+            const key = getAttachmentMergeKey(file);
+            const currentFile = key ? currentFiles.get(key) : undefined;
+            if (!currentFile) return file;
+
+            let nextFile = file;
+            if (!nextFile.preview && currentFile.preview) {
+              nextFile = { ...nextFile, preview: currentFile.preview };
+              changed = true;
+            }
+            if (!nextFile.fileSize && currentFile.fileSize) {
+              nextFile = { ...nextFile, fileSize: currentFile.fileSize };
+              changed = true;
+            }
+            if (!nextFile.previewStatus && currentFile.previewStatus) {
+              nextFile = { ...nextFile, previewStatus: currentFile.previewStatus };
+              changed = true;
+            }
+            return nextFile;
+          });
+
+          return changed ? { ...message, _attachedFiles: attachedFiles } : message;
+        });
+      };
 
       const applyLoadFailure = (errorMessage: string | null) => {
         if (!isCurrentSession()) return;
@@ -75,35 +161,71 @@ export function createHistoryActions(
       };
 
       const applyLoadedMessages = (rawMessages: RawMessage[], thinkingLevel: string | null) => {
-        if (!isCurrentSession()) return;
+        if (!isCurrentSession()) return false;
         // Before filtering: attach images/files from tool_result messages to the next assistant message
         const messagesWithToolImages = enrichWithToolResultFiles(rawMessages);
-        const filteredMessages = messagesWithToolImages.filter((msg) => !isToolResultRole(msg.role) && !isInternalMessage(msg));
+        const messagesWithToolAttachments = enrichWithToolCallAttachments(messagesWithToolImages);
+        const filteredMessages = messagesWithToolAttachments.filter((msg) => !shouldDropMessageFromHistory(msg));
         // Restore file attachments for user/assistant messages (from cache + text patterns)
         const enrichedMessages = enrichWithCachedImages(filteredMessages);
 
-        // Preserve the optimistic user message during an active send.
-        // The Gateway may not include the user's message in chat.history
-        // until the run completes, causing it to flash out of the UI.
-        let finalMessages = enrichedMessages;
+        // Preserve optimistic user messages independently from sending state.
+        // Gateway phase=end can clear sending before chat.history has persisted
+        // the user turn; without this, an early quiet reload briefly removes it.
+        let finalMessages = mergePendingOptimisticUserMessages(currentSessionKey, enrichedMessages);
         const userMsgAt = get().lastUserMessageAt;
         if (get().sending && userMsgAt) {
           const userMsMs = toMs(userMsgAt);
-          const hasRecentUser = enrichedMessages.some(
-            (m) => m.role === 'user' && m.timestamp && Math.abs(toMs(m.timestamp) - userMsMs) < 5000,
-          );
-          if (!hasRecentUser) {
-            const currentMsgs = get().messages;
-            const optimistic = [...currentMsgs].reverse().find(
-              (m) => m.role === 'user' && m.timestamp && Math.abs(toMs(m.timestamp) - userMsMs) < 5000,
-            );
-            if (optimistic) {
-              finalMessages = [...enrichedMessages, optimistic];
-            }
+          const optimistic = getLatestOptimisticUserMessage(get().messages, userMsMs);
+          const hasMatchingUser = optimistic
+            ? hasOptimisticServerEcho(finalMessages, optimistic, userMsMs)
+            : false;
+          if (optimistic && !hasMatchingUser) {
+            finalMessages = [...finalMessages, optimistic];
           }
         }
+        finalMessages = dropRedundantOptimisticUserMessages(currentSessionKey, finalMessages);
+        finalMessages = preserveExistingAttachmentPreviews(get().messages, finalMessages);
 
-        set({ messages: finalMessages, thinkingLevel, loading: false });
+        const { pendingFinal, lastUserMessageAt, sending: isSendingNow } = get();
+        const userMsTs = lastUserMessageAt ? toMs(lastUserMessageAt) : 0;
+        const isAfterUserMsg = (msg: RawMessage): boolean => {
+          if (!userMsTs || !msg.timestamp) return true;
+          return toMs(msg.timestamp) >= userMsTs;
+        };
+        const isRealUserBoundary = (msg: RawMessage): boolean => {
+          if (msg.role !== 'user') return false;
+          if (!Array.isArray(msg.content)) return true;
+          const blocks = msg.content as Array<{ type?: string }>;
+          return blocks.length === 0 || !blocks.every((block) => block.type === 'tool_result' || block.type === 'toolResult');
+        };
+        const postBoundaryMessages = userMsTs
+          ? filteredMessages.filter((msg) => isAfterUserMsg(msg))
+          : (() => {
+              for (let i = filteredMessages.length - 1; i >= 0; i -= 1) {
+                if (isRealUserBoundary(filteredMessages[i])) {
+                  return filteredMessages.slice(i + 1);
+                }
+              }
+              return filteredMessages;
+            })();
+        const lastAssistantAfterBoundary = [...postBoundaryMessages].reverse().find((msg) => msg.role === 'assistant');
+        const latestTerminalAssistantErrorMessage = lastAssistantAfterBoundary
+          && getMessageStopReason(lastAssistantAfterBoundary) === 'error'
+          ? getMessageErrorMessage(lastAssistantAfterBoundary)
+          : null;
+        const historyErrorIsTransient = Boolean(
+          latestTerminalAssistantErrorMessage
+          && isSendingNow
+          && isRecoverableRuntimeError(latestTerminalAssistantErrorMessage),
+        );
+
+        set({
+          messages: finalMessages,
+          thinkingLevel,
+          loading: false,
+          runError: historyErrorIsTransient ? null : latestTerminalAssistantErrorMessage,
+        });
 
         // Extract first user message text as a session label for display in the toolbar.
         // Skip main sessions (key ends with ":main") — they rely on the Gateway-provided
@@ -140,69 +262,155 @@ export function createHistoryActions(
             }));
           }
         });
-        const { pendingFinal, lastUserMessageAt, sending: isSendingNow } = get();
-
         // If we're sending but haven't received streaming events, check
-        // whether the loaded history reveals intermediate tool-call activity.
-        // This surfaces progress via the pendingFinal → ActivityIndicator path.
-        const userMsTs = lastUserMessageAt ? toMs(lastUserMessageAt) : 0;
-        const isAfterUserMsg = (msg: RawMessage): boolean => {
-          if (!userMsTs || !msg.timestamp) return true;
-          return toMs(msg.timestamp) >= userMsTs;
-        };
-
-        if (isSendingNow && !pendingFinal) {
-          const hasRecentAssistantActivity = [...filteredMessages].reverse().some((msg) => {
-            if (msg.role !== 'assistant') return false;
-            return isAfterUserMsg(msg);
+        // whether the loaded history reveals assistant activity (tool calls,
+        // narration, etc.).  Setting pendingFinal surfaces the execution
+        // graph / activity indicator in the UI.
+        //
+        // Note: we intentionally do NOT set sending=false here.  Run
+        // completion is exclusively signalled by the Gateway's phase
+        // 'completed' event (handled in gateway.ts) or by receiving a
+        // 'final' streaming event (handled in runtime-event-handlers.ts).
+        // Attempting to infer completion from message history is fragile
+        // and leads to premature sending=false during server-side tool
+        // execution.
+        if (latestTerminalAssistantErrorMessage && !historyErrorIsTransient) {
+          clearHistoryPoll();
+          set({
+            sending: false,
+            activeRunId: null,
+            pendingFinal: false,
+            lastUserMessageAt: null,
           });
-          if (hasRecentAssistantActivity) {
-            set({ pendingFinal: true });
-          }
+          return true;
         }
 
-        // If pendingFinal, check whether the AI produced a final text response.
-        if (pendingFinal || get().pendingFinal) {
-          const recentAssistant = [...filteredMessages].reverse().find((msg) => {
-            if (msg.role !== 'assistant') return false;
-            if (!hasNonToolAssistantContent(msg)) return false;
-            return isAfterUserMsg(msg);
-          });
-          if (recentAssistant) {
-            clearHistoryPoll();
-            set({ sending: false, activeRunId: null, pendingFinal: false });
+        if (isSendingNow && !pendingFinal && hasAssistantAfterLastRealUser(filteredMessages)) {
+          setLastChatEventAt(Date.now());
+          if (get().error) {
+            set({ error: null });
           }
+          set({ pendingFinal: true });
         }
+        return true;
       };
 
       try {
-        const result = await invokeIpc(
-          'gateway:rpc',
-          'chat.history',
-          { sessionKey: currentSessionKey, limit: 200 }
-        ) as { success: boolean; result?: Record<string, unknown>; error?: string };
+        const gatewayRpc = async <T>(
+          method: string,
+          params?: unknown,
+          timeoutMs?: number,
+        ): Promise<T> => {
+          return hostApi.gateway.rpc<T>(method, params, timeoutMs);
+        };
+        const chatHistoryParams = buildChatHistoryRpcParams(
+          currentSessionKey,
+          200,
+          getChatHistoryMaxChars(gatewayRpc),
+        );
 
-        if (result.success && result.result) {
+        let result: { success: boolean; result?: Record<string, unknown>; error?: string } | null = null;
+        let lastError: unknown = null;
+
+        for (let attempt = 0; attempt <= CHAT_HISTORY_STARTUP_RETRY_DELAYS_MS.length; attempt += 1) {
+          if (!isCurrentSession()) {
+            break;
+          }
+
+          try {
+            const data = await hostApi.gateway.rpc<Record<string, unknown>>(
+              'chat.history',
+              chatHistoryParams,
+              historyTimeoutOverride,
+            );
+            result = { success: true, result: data };
+            lastError = null;
+            break;
+          } catch (error) {
+            lastError = error;
+          }
+
+          if (!isCurrentSession()) {
+            break;
+          }
+
+          const errorKind = classifyHistoryStartupRetryError(lastError);
+          const shouldRetry = result?.success !== true
+            && isInitialForegroundLoad
+            && attempt < CHAT_HISTORY_STARTUP_RETRY_DELAYS_MS.length
+            && shouldRetryStartupHistoryLoad(useGatewayStore.getState().status, errorKind);
+
+          if (!shouldRetry) {
+            break;
+          }
+
+          console.warn('[chat.history] startup retry scheduled', {
+            sessionKey: currentSessionKey,
+            attempt: attempt + 1,
+            gatewayState: useGatewayStore.getState().status.state,
+            errorKind,
+            error: String(lastError),
+          });
+          await sleep(CHAT_HISTORY_STARTUP_RETRY_DELAYS_MS[attempt]!);
+        }
+
+        if (result?.success && result.result) {
           const data = result.result;
           let rawMessages = Array.isArray(data.messages) ? data.messages as RawMessage[] : [];
           const thinkingLevel = data.thinkingLevel ? String(data.thinkingLevel) : null;
           if (rawMessages.length === 0 && isCronSessionKey(currentSessionKey)) {
             rawMessages = await loadCronFallbackMessages(currentSessionKey, 200);
+          } else if (rawMessages.length > 0) {
+            rawMessages = await hydrateGatewayHistoryFromTranscript(
+              currentSessionKey,
+              rawMessages,
+              200,
+              get().messages,
+            );
           }
-          applyLoadedMessages(rawMessages, thinkingLevel);
+          const applied = applyLoadedMessages(rawMessages, thinkingLevel);
+          if (applied && isInitialForegroundLoad) {
+            foregroundHistoryLoadSeen.add(foregroundLoadKey);
+          }
+          return;
+        }
+
+        const errorKind = classifyHistoryStartupRetryError(lastError);
+        if (isCurrentSession() && isInitialForegroundLoad && errorKind) {
+          console.warn('[chat.history] startup retry exhausted', {
+            sessionKey: currentSessionKey,
+            gatewayState: useGatewayStore.getState().status.state,
+            errorKind,
+            error: String(lastError),
+          });
+        }
+
+        const fallbackMessages = await loadCronFallbackMessages(currentSessionKey, 200);
+        if (fallbackMessages.length > 0) {
+          const applied = applyLoadedMessages(fallbackMessages, null);
+          if (applied && isInitialForegroundLoad) {
+            foregroundHistoryLoadSeen.add(foregroundLoadKey);
+          }
+        } else if (errorKind === 'gateway_startup') {
+          // Suppress error UI for gateway startup -- the history will load
+          // once the gateway finishes initializing (via sidebar refresh or
+          // the next session switch).
+          set({ loading: false });
         } else {
-          const fallbackMessages = await loadCronFallbackMessages(currentSessionKey, 200);
-          if (fallbackMessages.length > 0) {
-            applyLoadedMessages(fallbackMessages, null);
-          } else {
-            applyLoadFailure(result.error || 'Failed to load chat history');
-          }
+          applyLoadFailure(
+            result?.error
+            || (lastError instanceof Error ? lastError.message : String(lastError))
+            || 'Failed to load chat history',
+          );
         }
       } catch (err) {
         console.warn('Failed to load chat history:', err);
         const fallbackMessages = await loadCronFallbackMessages(currentSessionKey, 200);
         if (fallbackMessages.length > 0) {
-          applyLoadedMessages(fallbackMessages, null);
+          const applied = applyLoadedMessages(fallbackMessages, null);
+          if (applied && isInitialForegroundLoad) {
+            foregroundHistoryLoadSeen.add(foregroundLoadKey);
+          }
         } else {
           applyLoadFailure(String(err));
         }

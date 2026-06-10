@@ -2,11 +2,8 @@
  * Shared OpenClaw Plugin Install Utilities
  *
  * Provides version-aware install/upgrade logic for bundled OpenClaw plugins
- * (DingTalk, WeCom, Feishu, WeChat).  Used both at app startup (to auto-upgrade
+ * (DingTalk, WeCom, Feishu, WeChat, Discord, QQBot, WhatsApp).  Used both at app startup (to auto-upgrade
  * stale plugins) and when a user configures a channel.
- *
- * Note: QQBot was moved to a built-in channel in OpenClaw 3.31 and is no longer
- * managed as a plugin.
  */
 import { app } from 'electron';
 import path from 'node:path';
@@ -234,6 +231,9 @@ const PLUGIN_NPM_NAMES: Record<string, string> = {
   dingtalk: '@soimy/dingtalk',
   wecom: '@wecom/wecom-openclaw-plugin',
   'feishu-openclaw-plugin': '@larksuite/openclaw-lark',
+  discord: '@openclaw/discord',
+  qqbot: '@openclaw/qqbot',
+  whatsapp: '@openclaw/whatsapp',
 
   'openclaw-weixin': '@tencent-weixin/openclaw-weixin',
 };
@@ -483,13 +483,18 @@ export function buildCandidateSources(pluginDirName: string): string[] {
   return app.isPackaged
     ? [
       join(process.resourcesPath, 'openclaw-plugins', pluginDirName),
+      join(process.resourcesPath, 'resources', 'openclaw-plugins', pluginDirName),
       join(process.resourcesPath, 'app.asar.unpacked', 'build', 'openclaw-plugins', pluginDirName),
+      join(process.resourcesPath, 'app.asar.unpacked', 'resources', 'openclaw-plugins', pluginDirName),
       join(process.resourcesPath, 'app.asar.unpacked', 'openclaw-plugins', pluginDirName),
     ]
     : [
       join(app.getAppPath(), 'build', 'openclaw-plugins', pluginDirName),
+      join(app.getAppPath(), 'resources', 'openclaw-plugins', pluginDirName),
       join(process.cwd(), 'build', 'openclaw-plugins', pluginDirName),
+      join(process.cwd(), 'resources', 'openclaw-plugins', pluginDirName),
       join(__dirname, '../../build/openclaw-plugins', pluginDirName),
+      join(__dirname, '../../resources/openclaw-plugins', pluginDirName),
     ];
 }
 
@@ -517,6 +522,26 @@ export function ensureWeChatPluginInstalled(): { installed: boolean; warning?: s
   return ensurePluginInstalled('openclaw-weixin', buildCandidateSources('openclaw-weixin'), 'WeChat');
 }
 
+export function ensureDiscordPluginInstalled(): { installed: boolean; warning?: string } {
+  return ensurePluginInstalled('discord', buildCandidateSources('discord'), 'Discord');
+}
+
+export function ensureQQBotPluginInstalled(): { installed: boolean; warning?: string } {
+  return ensurePluginInstalled('qqbot', buildCandidateSources('qqbot'), 'QQBot');
+}
+
+export function ensureWhatsAppPluginInstalled(): { installed: boolean; warning?: string } {
+  return ensurePluginInstalled('whatsapp', buildCandidateSources('whatsapp'), 'WhatsApp');
+}
+
+export function ensureClawXOpenAiImagePluginInstalled(): { installed: boolean; warning?: string } {
+  return ensurePluginInstalled(
+    'clawx-openai-image',
+    buildCandidateSources('clawx-openai-image'),
+    'ClawX OpenAI Image',
+  );
+}
+
 // ── Bulk startup installer ───────────────────────────────────────────────────
 
 /**
@@ -528,6 +553,10 @@ const ALL_BUNDLED_PLUGINS = [
 
   { fn: ensureFeishuPluginInstalled, label: 'Feishu' },
   { fn: ensureWeChatPluginInstalled, label: 'WeChat' },
+  { fn: ensureDiscordPluginInstalled, label: 'Discord' },
+  { fn: ensureQQBotPluginInstalled, label: 'QQBot' },
+  { fn: ensureWhatsAppPluginInstalled, label: 'WhatsApp' },
+  { fn: ensureClawXOpenAiImagePluginInstalled, label: 'ClawX OpenAI Image' },
 ] as const;
 
 /**
