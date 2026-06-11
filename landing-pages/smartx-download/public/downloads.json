@@ -14,7 +14,7 @@
           "label": "Apple Silicon",
           "format": "DMG",
           "arch": "arm64",
-          "path": "/releases/v0.4.9/SmartX-0.4.9-mac-arm64.dmg",
+          "path": "/latest/SmartX-0.4.9-mac-arm64.dmg",
           "size": "255.7 MB",
           "recommended": true
         },
@@ -23,7 +23,7 @@
           "label": "Intel",
           "format": "DMG",
           "arch": "x64",
-          "path": "/releases/v0.4.9/SmartX-0.4.9-mac-x64.dmg",
+          "path": "/latest/SmartX-0.4.9-mac-x64.dmg",
           "size": "262.2 MB"
         },
         {
@@ -31,7 +31,7 @@
           "label": "Apple Silicon",
           "format": "ZIP",
           "arch": "arm64",
-          "path": "/releases/v0.4.9/SmartX-0.4.9-mac-arm64.zip",
+          "path": "/latest/SmartX-0.4.9-mac-arm64.zip",
           "size": "287.3 MB"
         },
         {
@@ -39,7 +39,7 @@
           "label": "Intel",
           "format": "ZIP",
           "arch": "x64",
-          "path": "/releases/v0.4.9/SmartX-0.4.9-mac-x64.zip",
+          "path": "/latest/SmartX-0.4.9-mac-x64.zip",
           "size": "295.3 MB"
         }
       ]
@@ -54,7 +54,7 @@
           "label": "Windows 10+",
           "format": "安装包",
           "arch": "x64",
-          "path": "/releases/v0.4.9/SmartX-0.4.9-win-x64.exe",
+          "path": "/latest/SmartX-0.4.9-win-x64.exe",
           "size": "280.9 MB",
           "recommended": true
         }
@@ -70,7 +70,7 @@
           "label": "通用",
           "format": "AppImage",
           "arch": "arm64",
-          "path": "/releases/v0.4.9/SmartX-0.4.9-linux-arm64.AppImage",
+          "path": "/latest/SmartX-0.4.9-linux-arm64.AppImage",
           "size": "203.2 MB"
         },
         {
@@ -78,7 +78,7 @@
           "label": "通用",
           "format": "AppImage",
           "arch": "x64",
-          "path": "/releases/v0.4.9/SmartX-0.4.9-linux-x86_64.AppImage",
+          "path": "/latest/SmartX-0.4.9-linux-x86_64.AppImage",
           "size": "211.4 MB",
           "recommended": true
         },
@@ -87,7 +87,7 @@
           "label": "Debian / Ubuntu",
           "format": "deb",
           "arch": "arm64",
-          "path": "/releases/v0.4.9/SmartX-0.4.9-linux-arm64.deb",
+          "path": "/latest/SmartX-0.4.9-linux-arm64.deb",
           "size": "218.7 MB"
         },
         {
@@ -95,7 +95,7 @@
           "label": "Debian / Ubuntu",
           "format": "deb",
           "arch": "x64",
-          "path": "/releases/v0.4.9/SmartX-0.4.9-linux-amd64.deb",
+          "path": "/latest/SmartX-0.4.9-linux-amd64.deb",
           "size": "230.3 MB"
         },
         {
@@ -103,7 +103,7 @@
           "label": "Fedora / RHEL",
           "format": "rpm",
           "arch": "x64",
-          "path": "/releases/v0.4.9/SmartX-0.4.9-linux-x86_64.rpm",
+          "path": "/latest/SmartX-0.4.9-linux-x86_64.rpm",
           "size": "195.5 MB"
         }
       ]

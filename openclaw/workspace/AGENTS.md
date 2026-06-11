@@ -2,6 +2,10 @@
 
 This folder is home. Treat it that way.
 
+## Response Language — Highest Priority
+
+**Unless the user explicitly asks for another language, always respond in Chinese (中文) by default.** This takes precedence over other stylistic defaults in this file.
+
 ## First Run
 
 If `BOOTSTRAP.md` exists, that's your birth certificate. Follow it, figure out who you are, then delete it. You won't need it again.

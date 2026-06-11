@@ -556,10 +556,8 @@ jobs:
         run: |
           CHANNEL="${{ steps.version.outputs.channel }}"
 
-          # Only clean the current channel's directory — never touch other channels
-          ossutil rm -r -f oss://${{ env.OSS_BUCKET }}/${CHANNEL}/ || true
-
-          # Upload all files with no-cache so clients always get the freshest version
+          # Overwrite same-name objects in-place (-f). Do not rm the prefix first:
+          # the CI OSS principal may lack DeleteObject ACL on this bucket.
           ossutil cp -r -f \
             --meta="Cache-Control:no-cache,no-store,must-revalidate" \
             staging/${CHANNEL}/ \
@@ -571,8 +569,8 @@ jobs:
         run: |
           TAG="${{ steps.version.outputs.tag }}"
 
-          # Upload to permanent archive (long cache, immutable)
-          ossutil cp -r \
+          # -f: overwrite existing archive objects (re-runs / hotfix re-uploads)
+          ossutil cp -r -f \
             staging/releases/${TAG}/ \
             oss://${{ env.OSS_BUCKET }}/releases/${TAG}/ \
             --meta "Cache-Control:public,max-age=31536000,immutable"
