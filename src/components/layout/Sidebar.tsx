@@ -46,6 +46,9 @@ import { useTranslation } from 'react-i18next';
 import logoPng from '@/assets/logo.png';
 import { useNewChatAction } from './use-new-chat-action';
 
+/** Set to false to re-enable the Company Knowledge sidebar entry. */
+const COMPANY_KNOWLEDGE_NAV_DISABLED = true;
+
 interface NavItemProps {
   to: string;
   icon: React.ReactNode;
@@ -54,9 +57,38 @@ interface NavItemProps {
   collapsed?: boolean;
   onClick?: () => void;
   testId?: string;
+  disabled?: boolean;
 }
 
-function NavItem({ to, icon, label, badge, collapsed, onClick, testId }: NavItemProps) {
+function NavItem({ to, icon, label, badge, collapsed, onClick, testId, disabled }: NavItemProps) {
+  if (disabled) {
+    return (
+      <div
+        data-testid={testId}
+        aria-disabled="true"
+        className={cn(
+          'sidebar-nav-text flex cursor-not-allowed items-center gap-2 rounded-lg px-2.5 py-1.5',
+          'text-muted-foreground/40',
+          collapsed && 'justify-center px-0',
+        )}
+      >
+        <div className="flex shrink-0 items-center justify-center text-current [&_svg]:size-4">
+          {icon}
+        </div>
+        {!collapsed && (
+          <>
+            <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{label}</span>
+            {badge && (
+              <Badge variant="secondary" className="ml-auto shrink-0">
+                {badge}
+              </Badge>
+            )}
+          </>
+        )}
+      </div>
+    );
+  }
+
   return (
     <NavLink
       to={to}
@@ -323,7 +355,13 @@ export function Sidebar() {
     { to: '/skills', icon: <Puzzle className="h-4 w-4" strokeWidth={2} />, label: t('sidebar.skills'), testId: 'sidebar-nav-skills' },
     { to: '/cron', icon: <Clock className="h-4 w-4" strokeWidth={2} />, label: t('sidebar.cronTasks'), testId: 'sidebar-nav-cron' },
     { to: '/research-tools', icon: <Microscope className="h-4 w-4" strokeWidth={2} />, label: t('sidebar.researchTools'), testId: 'sidebar-nav-research-tools' },
-    { to: '/company-knowledge', icon: <Library className="h-4 w-4" strokeWidth={2} />, label: t('sidebar.companyKnowledge'), testId: 'sidebar-nav-company-knowledge' },
+    {
+      to: '/company-knowledge',
+      icon: <Library className="h-4 w-4" strokeWidth={2} />,
+      label: t('sidebar.companyKnowledge'),
+      testId: 'sidebar-nav-company-knowledge',
+      disabled: COMPANY_KNOWLEDGE_NAV_DISABLED,
+    },
     ...(devModeUnlocked
       ? [
         { to: '/image-generation', icon: <ImagePlus className="h-4 w-4" strokeWidth={2} />, label: t('common:sidebar.imageGeneration'), testId: 'sidebar-nav-image-generation' },

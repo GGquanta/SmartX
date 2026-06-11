@@ -450,3 +450,148 @@
     transform: translateY(-4px);
   }
 }
+
+/* Research tools — quantum hero card ambient motion */
+@keyframes research-tools-quantum-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes research-tools-quantum-particle-twinkle {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes research-tools-quantum-aurora-shift {
+  0%,
+  100% {
+    opacity: 0.28;
+    transform: scale(1) translate(0, 0);
+  }
+
+  50% {
+    opacity: 0.42;
+    transform: scale(1.04) translate(1%, -1%);
+  }
+}
+
+@keyframes research-tools-quantum-grid-drift {
+  from {
+    background-position: 0 0, 14px 18px;
+  }
+
+  to {
+    background-position: 28px 28px, 42px 46px;
+  }
+}
+
+.research-tools-quantum-glow-pulse {
+  animation: research-tools-quantum-glow-pulse 7s ease-in-out infinite;
+}
+
+.research-tools-quantum-glow-pulse-delayed {
+  animation: research-tools-quantum-glow-pulse 9s ease-in-out infinite;
+  animation-delay: -3s;
+}
+
+.research-tools-quantum-particle-twinkle {
+  animation: research-tools-quantum-particle-twinkle 3.2s ease-in-out infinite;
+}
+
+.research-tools-quantum-particle-twinkle-delayed {
+  animation: research-tools-quantum-particle-twinkle 4.1s ease-in-out infinite;
+  animation-delay: -1.4s;
+}
+
+.research-tools-quantum-aurora {
+  animation: research-tools-quantum-aurora-shift 12s ease-in-out infinite;
+}
+
+.research-tools-quantum-grid-drift {
+  animation: research-tools-quantum-grid-drift 24s linear infinite;
+}
+
+@keyframes research-tools-quantum-btn-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 18px rgba(56, 189, 248, 0.45),
+      0 0 36px rgba(14, 165, 233, 0.28),
+      0 0 56px rgba(59, 130, 246, 0.16);
+  }
+
+  50% {
+    box-shadow:
+      0 0 26px rgba(125, 211, 252, 0.7),
+      0 0 52px rgba(56, 189, 248, 0.45),
+      0 0 80px rgba(37, 99, 235, 0.28);
+  }
+}
+
+@keyframes research-tools-quantum-btn-halo {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1.05);
+  }
+
+  50% {
+    opacity: 0.85;
+    transform: scale(1.2);
+  }
+}
+
+.research-tools-quantum-btn-wrap {
+  isolation: isolate;
+}
+
+.research-tools-quantum-btn-halo {
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.55) 0%, rgba(14, 165, 233, 0.2) 45%, transparent 72%);
+  animation: research-tools-quantum-btn-halo 3.2s ease-in-out infinite;
+}
+
+.research-tools-quantum-btn-shell {
+  animation: research-tools-quantum-btn-glow 3.2s ease-in-out infinite;
+}
+
+.research-tools-quantum-btn-wrap:hover .research-tools-quantum-btn-halo,
+.research-tools-quantum-btn-wrap:hover .research-tools-quantum-btn-shell {
+  animation-duration: 2.2s;
+}
+
+.research-tools-quantum-btn-wrap:hover .research-tools-quantum-btn-halo {
+  opacity: 0.95;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .research-tools-quantum-glow-pulse,
+  .research-tools-quantum-glow-pulse-delayed,
+  .research-tools-quantum-particle-twinkle,
+  .research-tools-quantum-particle-twinkle-delayed,
+  .research-tools-quantum-aurora,
+  .research-tools-quantum-grid-drift,
+  .research-tools-quantum-btn-halo,
+  .research-tools-quantum-btn-shell {
+    animation: none;
+  }
+
+  .research-tools-quantum-btn-shell {
+    box-shadow:
+      0 0 22px rgba(56, 189, 248, 0.5),
+      0 0 44px rgba(14, 165, 233, 0.3);
+  }
+}
