@@ -1,6 +1,7 @@
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { Hero } from './components/sections/Hero';
+import { BetaCallout } from './components/sections/BetaCallout';
 import { DownloadSection } from './components/sections/DownloadSection';
 import { Features } from './components/sections/Features';
 import { Showcase } from './components/sections/Showcase';
@@ -13,6 +14,7 @@ export default function App() {
       <Header />
       <main>
         <Hero />
+        <BetaCallout />
         <DownloadSection />
         <Features />
         <Showcase />

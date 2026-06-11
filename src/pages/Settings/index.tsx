@@ -45,6 +45,12 @@ type ControlUiInfo = {
 
 const FEEDBACK_FORM_URL = 'https://docs.qq.com/form/page/DTGV4dVVmYkdocVBz#/fill';
 
+const BUBBLE_VISIBILITY_OPTIONS = [
+  { value: 'always', labelKey: 'appearance.bubble.always', descKey: 'appearance.bubble.alwaysDesc' },
+  { value: 'whenMinimized', labelKey: 'appearance.bubble.whenMinimized', descKey: 'appearance.bubble.whenMinimizedDesc' },
+  { value: 'never', labelKey: 'appearance.bubble.never', descKey: 'appearance.bubble.neverDesc' },
+] as const;
+
 export function Settings() {
   const { t, i18n } = useTranslation('settings');
   const {
@@ -517,37 +523,27 @@ export function Settings() {
               </div>
               <div className="space-y-3" data-testid="settings-bubble-section">
                 <Label className="text-sm font-medium text-foreground/80">{t('appearance.bubble.title')}</Label>
-                <div className="space-y-3">
-                  {([
-                    ['always', 'appearance.bubble.always', 'appearance.bubble.alwaysDesc'],
-                    ['whenMinimized', 'appearance.bubble.whenMinimized', 'appearance.bubble.whenMinimizedDesc'],
-                    ['never', 'appearance.bubble.never', 'appearance.bubble.neverDesc'],
-                  ] as const).map(([value, labelKey, descKey]) => (
-                    <label
+                <div className="flex flex-wrap gap-2">
+                  {BUBBLE_VISIBILITY_OPTIONS.map(({ value, labelKey }) => (
+                    <Button
                       key={value}
+                      variant={bubbleVisibility === value ? 'secondary' : 'outline'}
                       className={cn(
-                        'flex items-start gap-3 rounded-2xl border p-4 cursor-pointer transition-colors',
+                        'rounded-full px-5 h-10 border-black/10 dark:border-white/10',
                         bubbleVisibility === value
-                          ? 'border-blue-500/30 bg-blue-500/5'
-                          : 'border-black/5 dark:border-white/5 hover:bg-black/5 dark:hover:bg-white/5',
+                          ? 'bg-black/5 dark:bg-white/10 text-foreground'
+                          : 'bg-transparent text-muted-foreground hover:bg-black/5 dark:hover:bg-white/5',
                       )}
                       data-testid={`settings-bubble-visibility-${value}`}
+                      onClick={() => setBubbleVisibility(value)}
                     >
-                      <input
-                        type="radio"
-                        name="bubbleVisibility"
-                        value={value}
-                        checked={bubbleVisibility === value}
-                        onChange={() => setBubbleVisibility(value)}
-                        className="mt-1 h-4 w-4 accent-blue-600"
-                      />
-                      <div>
-                        <p className="text-sm font-medium text-foreground/90">{t(labelKey)}</p>
-                        <p className="text-meta text-muted-foreground mt-1">{t(descKey)}</p>
-                      </div>
-                    </label>
+                      {t(labelKey)}
+                    </Button>
                   ))}
                 </div>
+                <p className="text-meta text-muted-foreground">
+                  {t(BUBBLE_VISIBILITY_OPTIONS.find((option) => option.value === bubbleVisibility)?.descKey ?? 'appearance.bubble.alwaysDesc')}
+                </p>
               </div>
             </div>
           </div>

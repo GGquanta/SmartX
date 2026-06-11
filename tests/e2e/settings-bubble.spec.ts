@@ -8,7 +8,7 @@ async function readBubbleVisibility(page: import('@playwright/test').Page): Prom
 }
 
 test.describe('Settings bubble visibility', () => {
-  test('persists bubble visibility radio selection', async ({ page }) => {
+  test('persists bubble visibility pill selection', async ({ page }) => {
     await completeSetup(page);
 
     await page.getByTestId('sidebar-nav-settings').click();
