@@ -1,6 +1,7 @@
 import type { MouseEvent } from 'react';
 import { Download } from 'lucide-react';
 import type { DownloadVariant } from '../../types/downloads';
+import { ArchBadge } from './ArchBadge';
 
 interface DownloadCardProps {
   platformLabel: string;
@@ -51,15 +52,12 @@ export function DownloadCard({
         </span>
       </div>
 
-      <p className="mb-5 text-sm text-ink-muted">
-        架构 <span className="font-medium text-ink">{variant.arch}</span>
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <ArchBadge arch={variant.arch} />
         {variant.size ? (
-          <>
-            {' '}
-            · {variant.size}
-          </>
+          <span className="text-sm text-ink-muted">{variant.size}</span>
         ) : null}
-      </p>
+      </div>
 
       <a
         href={href}
