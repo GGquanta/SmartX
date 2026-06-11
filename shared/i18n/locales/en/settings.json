@@ -1,6 +1,7 @@
 {
   "title": "Settings",
   "subtitle": "Configure your SmartX experience",
+  "featureFeedback": "Feature Feedback",
   "appearance": {
     "title": "General",
     "description": "Customize the look and feel",
@@ -258,9 +259,11 @@
   },
   "about": {
     "title": "About",
-    "appName": "SmartX",
-    "tagline": "Graphical AI Assistant",
-    "basedOn": "Based on OpenClaw",
+    "appName": "小光",
+    "tagline": "Graphical Intelligent Office Assistant",
+    "codename": "Development codename: SmartX",
+    "basedOn": "Based on OpenClaw & ClawX",
+    "developer": "Developer: Beijing Zhongke Guoguang Quantum Technology Co., Ltd. · AI Research Team",
     "version": "Version {{version}}",
     "docs": "Website",
     "github": "GitHub",

@@ -1,6 +1,7 @@
 {
   "title": "设置",
   "subtitle": "配置您的 SmartX 体验",
+  "featureFeedback": "功能反馈",
   "appearance": {
     "title": "通用",
     "description": "自定义外观和风格",
@@ -258,9 +259,11 @@
   },
   "about": {
     "title": "关于",
-    "appName": "SmartX",
-    "tagline": "图形化 AI 助手",
-    "basedOn": "基于 OpenClaw",
+    "appName": "小光",
+    "tagline": "图形化智能办公助理",
+    "codename": "开发代号：SmartX",
+    "basedOn": "基于 OpenClaw & ClawX",
+    "developer": "开发者：北京中科国光量子科技有限公司 · AI研究小组",
     "version": "版本 {{version}}",
     "docs": "官网",
     "github": "GitHub",

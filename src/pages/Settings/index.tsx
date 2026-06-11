@@ -11,6 +11,7 @@ import {
   ExternalLink,
   Copy,
   FileText,
+  MessageSquare,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -41,6 +42,8 @@ type ControlUiInfo = {
   token: string;
   port: number;
 };
+
+const FEEDBACK_FORM_URL = 'https://docs.qq.com/form/page/DTGV4dVVmYkdocVBz#/fill';
 
 export function Settings() {
   const { t, i18n } = useTranslation('settings');
@@ -431,6 +434,17 @@ export function Settings() {
             <p className="text-subtitle text-foreground/70 font-medium">
               {t('subtitle')}
             </p>
+          </div>
+          <div className="flex items-center gap-3 md:mt-2">
+            <Button
+              data-testid="settings-feedback-button"
+              variant="outline"
+              onClick={() => void window.electron.openExternal(FEEDBACK_FORM_URL)}
+              className="h-9 text-meta font-medium rounded-full px-4 border border-blue-500/40 dark:border-blue-400/40 bg-blue-500/5 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 hover:border-blue-500/60 dark:hover:border-blue-400/60 hover:text-blue-700 dark:hover:text-blue-300 shadow-none transition-colors"
+            >
+              <MessageSquare className="h-3.5 w-3.5 mr-2" />
+              {t('featureFeedback')}
+            </Button>
           </div>
         </div>
 
@@ -997,15 +1011,17 @@ export function Settings() {
           <Separator className="bg-black/5 dark:bg-white/5" />
 
           {/* About */}
-          <div>
+          <div data-testid="settings-about-section">
             <h2 className="text-3xl font-serif text-foreground mb-6 font-normal tracking-tight">
               {t('about.title')}
             </h2>
             <div className="space-y-3 text-sm text-muted-foreground">
               <p>
-                <strong className="text-foreground font-semibold">{t('about.appName')}</strong> - {t('about.tagline')}
+                <strong className="text-foreground font-semibold">{t('about.appName')}</strong> · {t('about.tagline')}
               </p>
+              <p>{t('about.codename')}</p>
               <p>{t('about.basedOn')}</p>
+              <p>{t('about.developer')}</p>
               <p>{t('about.version', { version: currentVersion })}</p>
               <div className="flex gap-4 pt-3">
                 <Button

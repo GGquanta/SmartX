@@ -1,6 +1,7 @@
 {
   "title": "Настройки",
   "subtitle": "Настройте ваш опыт работы с SmartX",
+  "featureFeedback": "Обратная связь",
   "appearance": {
     "title": "Общие",
     "description": "Настройте внешний вид",
@@ -258,9 +259,11 @@
   },
   "about": {
     "title": "О приложении",
-    "appName": "SmartX",
-    "tagline": "Графический AI-ассистент",
-    "basedOn": "На базе OpenClaw",
+    "appName": "小光",
+    "tagline": "Графический интеллектуальный офисный ассистент",
+    "codename": "Кодовое имя разработки: SmartX",
+    "basedOn": "На базе OpenClaw & ClawX",
+    "developer": "Разработчик: Beijing Zhongke Guoguang Quantum Technology Co., Ltd. · Команда AI-исследований",
     "version": "Версия {{version}}",
     "docs": "Веб-сайт",
     "github": "GitHub",

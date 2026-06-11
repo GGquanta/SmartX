@@ -1,6 +1,7 @@
 {
   "title": "設定",
   "subtitle": "SmartX の体験をカスタマイズ",
+  "featureFeedback": "機能フィードバック",
   "appearance": {
     "title": "通用",
     "description": "外観とスタイルをカスタマイズ",
@@ -258,9 +259,11 @@
   },
   "about": {
     "title": "バージョン情報",
-    "appName": "SmartX",
-    "tagline": "グラフィカル AI アシスタント",
-    "basedOn": "OpenClaw ベース",
+    "appName": "小光",
+    "tagline": "グラフィカル スマートオフィスアシスタント",
+    "codename": "開発コードネーム：SmartX",
+    "basedOn": "OpenClaw & ClawX ベース",
+    "developer": "開発者：北京中科国光量子科技有限公司 · AI 研究チーム",
     "version": "バージョン {{version}}",
     "docs": "公式サイト",
     "github": "GitHub",
