@@ -51,6 +51,7 @@ export interface AppSettings {
   // UI State
   sidebarCollapsed: boolean;
   devModeUnlocked: boolean;
+  bubbleVisibility: 'always' | 'whenMinimized' | 'never';
 
   // Presets
   selectedBundles: string[];
@@ -102,6 +103,7 @@ function createDefaultSettings(): AppSettings {
     // UI State
     sidebarCollapsed: false,
     devModeUnlocked: false,
+    bubbleVisibility: 'always',
 
     // Presets
     selectedBundles: ['productivity', 'developer'],

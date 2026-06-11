@@ -1,4 +1,4 @@
-import type { UpdateStatusSnapshot } from '../host-api/contract';
+import type { UpdateStatusSnapshot, BubbleVisualStateEvent } from '../host-api/contract';
 import type { ChatRuntimeEvent } from '../chat-runtime-events';
 import type {
   GatewayNotification,
@@ -95,6 +95,9 @@ export type HostEventContract = {
     newChat: () => void;
     openClawCliInstalled: (installedPath: string) => void;
   };
+  bubble: {
+    visualState: (payload: BubbleVisualStateEvent) => void;
+  };
 };
 
 export type HostEventModule = keyof HostEventContract;
@@ -136,6 +139,9 @@ export const HOST_EVENT_CHANNELS = {
     navigate: 'navigate',
     newChat: 'new-chat',
     openClawCliInstalled: 'openclaw:cli-installed',
+  },
+  bubble: {
+    visualState: 'bubble:visual-state',
   },
 } as const satisfies {
   [M in Exclude<HostEventModule, 'channel'>]: {

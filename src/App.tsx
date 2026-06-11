@@ -30,6 +30,7 @@ import { loadExternalRendererExtensions } from './extensions/_ext-bridge.generat
 import { UpdateNotifier } from './components/update/UpdateNotifier';
 import { useNewChatAction } from './components/layout/use-new-chat-action';
 import { hostEvents } from './lib/host-events';
+import { BubbleApp } from './pages/Bubble';
 
 
 /**
@@ -99,6 +100,21 @@ class ErrorBoundary extends Component<
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
+
+  if (location.pathname === '/bubble') {
+    return <BubbleApp />;
+  }
+
+  return <MainApp navigate={navigate} location={location} />;
+}
+
+function MainApp({
+  navigate,
+  location,
+}: {
+  navigate: ReturnType<typeof useNavigate>;
+  location: ReturnType<typeof useLocation>;
+}) {
   const skipSetupForE2E = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('e2eSkipSetup') === '1';
   const initSettings = useSettingsStore((state) => state.init);

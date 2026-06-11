@@ -10,6 +10,7 @@ import { resolveSupportedLanguage } from '@shared/language';
 
 type Theme = 'light' | 'dark' | 'system';
 type UpdateChannel = 'stable' | 'beta' | 'dev';
+type BubbleVisibility = 'always' | 'whenMinimized' | 'never';
 
 interface SettingsState {
   // General
@@ -37,6 +38,7 @@ interface SettingsState {
   sidebarCollapsed: boolean;
   sidebarWidth: number;
   devModeUnlocked: boolean;
+  bubbleVisibility: BubbleVisibility;
 
   // Setup
   setupComplete: boolean;
@@ -61,6 +63,7 @@ interface SettingsState {
   setSidebarCollapsed: (value: boolean) => void;
   setSidebarWidth: (value: number) => void;
   setDevModeUnlocked: (value: boolean) => void;
+  setBubbleVisibility: (value: BubbleVisibility) => void;
   markSetupComplete: () => void;
   resetSettings: () => void;
 }
@@ -84,6 +87,7 @@ const defaultSettings = {
   sidebarCollapsed: false,
   sidebarWidth: 280,
   devModeUnlocked: false,
+  bubbleVisibility: 'always' as BubbleVisibility,
   setupComplete: false,
 };
 
@@ -161,6 +165,10 @@ export const useSettingsStore = create<SettingsState>()(
       setDevModeUnlocked: (devModeUnlocked) => {
         set({ devModeUnlocked });
         void hostApi.settings.set('devModeUnlocked', devModeUnlocked).catch(() => { });
+      },
+      setBubbleVisibility: (bubbleVisibility) => {
+        set({ bubbleVisibility });
+        void hostApi.settings.set('bubbleVisibility', bubbleVisibility).catch(() => { });
       },
       markSetupComplete: () => set({ setupComplete: true }),
       resetSettings: () => set(defaultSettings),

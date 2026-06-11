@@ -337,6 +337,12 @@ export const hostApi = {
       invokeHost('usage', 'recentTokenHistory', { limit })
     ),
   },
+  bubble: {
+    openMainWindow: () => invokeHost('bubble', 'openMainWindow'),
+    syncForegroundRun: (active: boolean) => (
+      invokeHost('bubble', 'syncForegroundRun', { active })
+    ),
+  },
 };
 
 export type HostApi = typeof hostApi;

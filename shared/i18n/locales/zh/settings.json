@@ -12,7 +12,16 @@
     "language": "语言",
     "menuLanguageUpdated": "菜单语言已更新",
     "launchAtStartup": "开机自动启动",
-    "launchAtStartupDesc": "登录系统后自动启动 SmartX"
+    "launchAtStartupDesc": "登录系统后自动启动 SmartX",
+    "bubble": {
+      "title": "桌面悬浮气泡",
+      "always": "始终显示气泡",
+      "alwaysDesc": "即使主窗口打开时也保持悬浮气泡可见",
+      "whenMinimized": "最小化时显示气泡",
+      "whenMinimizedDesc": "仅在主窗口隐藏或最小化时显示悬浮气泡",
+      "never": "不显示气泡",
+      "neverDesc": "完全隐藏桌面悬浮气泡"
+    }
   },
   "aiProviders": {
     "title": "AI 模型提供商",

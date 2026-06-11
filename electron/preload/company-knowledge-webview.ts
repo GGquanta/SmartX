@@ -52,7 +52,7 @@ try {
 } catch (firstErr) {
   try {
     // Guest has contextIsolation disabled — contextBridge is unavailable.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     (globalThis as typeof globalThis & { smartXBindKnowledgeBase?: typeof bindHandler }).smartXBindKnowledgeBase = bindHandler;
   } catch (secondErr) {
     console.error(

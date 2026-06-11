@@ -28,6 +28,7 @@ import {
 } from '../utils/openclaw-workspace';
 import { autoInstallCliIfNeeded, generateCompletionCache, installCompletionToProfile } from '../utils/openclaw-cli';
 import { isQuitting, setQuitting } from './app-state';
+import { initBubbleSystem, teardownBubbleSystem, isBubbleEnabledInCurrentProcess } from './bubble-window';
 import { getMacTrafficLightPosition, syncMacTrafficLightPosition } from './traffic-light-layout';
 import { getSetting } from '../utils/store';
 import { applyProxySettings } from './proxy';
@@ -364,7 +365,15 @@ async function initialize(): Promise<void> {
   );
 
   // Register IPC handlers
-  registerIpcHandlers(gatewayManager, clawHubService, window, hostApiRegistry);
+  registerIpcHandlers(gatewayManager, clawHubService, window, hostApiRegistry, focusMainWindow);
+
+  if (isBubbleEnabledInCurrentProcess()) {
+    initBubbleSystem({
+      gatewayManager,
+      getMainWindow: () => mainWindow,
+      focusMainWindow,
+    });
+  }
 
   // Initialize extension system
   await extensionRegistry.initialize({
@@ -644,6 +653,7 @@ if (gotTheLock) {
     }
 
     void extensionRegistry.teardownAll();
+    teardownBubbleSystem();
 
     const stopPromise = gatewayManager.stop().catch((err) => {
       logger.warn('gatewayManager.stop() error during quit:', err);

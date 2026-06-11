@@ -5,6 +5,7 @@
  * are in the toolbar; messages render with markdown + streaming.
  */
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { AlertCircle, ArrowDownToLine, Loader2, Sparkles } from 'lucide-react';
 import { useChatStore, type ChatRuntimeRunState, type RawMessage } from '@/stores/chat';
 import { isInternalMessage } from '@/stores/chat/helpers';
@@ -164,6 +165,7 @@ const streamingTimestampStore = new Map<string, number>();
 
 export function Chat() {
   const { t } = useTranslation('chat');
+  const location = useLocation();
   const gatewayStatus = useGatewayStore((s) => s.status);
   const isGatewayRunning = gatewayStatus.state === 'running';
 
@@ -755,6 +757,15 @@ export function Chat() {
   const inputRunActive = (sending && !imageGenerationSettled)
     || pendingImageGeneration
     || (hasActiveExecutionGraph && !runSettledInHistory);
+
+  useEffect(() => {
+    const isForegroundChat = location.pathname === '/';
+    const active = isForegroundChat && inputRunActive;
+    void hostApi.bubble.syncForegroundRun(active);
+    return () => {
+      void hostApi.bubble.syncForegroundRun(false);
+    };
+  }, [location.pathname, inputRunActive]);
 
   useEffect(() => {
     if (!shouldClearStoreLifecycleFromHistory) return;

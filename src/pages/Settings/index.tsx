@@ -74,6 +74,8 @@ export function Settings() {
     setDevModeUnlocked,
     telemetryEnabled,
     setTelemetryEnabled,
+    bubbleVisibility,
+    setBubbleVisibility,
   } = useSettingsStore();
 
   const { status: gatewayStatus, restart: restartGateway } = useGatewayStore();
@@ -512,6 +514,40 @@ export function Settings() {
                   checked={launchAtStartup}
                   onCheckedChange={setLaunchAtStartup}
                 />
+              </div>
+              <div className="space-y-3" data-testid="settings-bubble-section">
+                <Label className="text-sm font-medium text-foreground/80">{t('appearance.bubble.title')}</Label>
+                <div className="space-y-3">
+                  {([
+                    ['always', 'appearance.bubble.always', 'appearance.bubble.alwaysDesc'],
+                    ['whenMinimized', 'appearance.bubble.whenMinimized', 'appearance.bubble.whenMinimizedDesc'],
+                    ['never', 'appearance.bubble.never', 'appearance.bubble.neverDesc'],
+                  ] as const).map(([value, labelKey, descKey]) => (
+                    <label
+                      key={value}
+                      className={cn(
+                        'flex items-start gap-3 rounded-2xl border p-4 cursor-pointer transition-colors',
+                        bubbleVisibility === value
+                          ? 'border-blue-500/30 bg-blue-500/5'
+                          : 'border-black/5 dark:border-white/5 hover:bg-black/5 dark:hover:bg-white/5',
+                      )}
+                      data-testid={`settings-bubble-visibility-${value}`}
+                    >
+                      <input
+                        type="radio"
+                        name="bubbleVisibility"
+                        value={value}
+                        checked={bubbleVisibility === value}
+                        onChange={() => setBubbleVisibility(value)}
+                        className="mt-1 h-4 w-4 accent-blue-600"
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-foreground/90">{t(labelKey)}</p>
+                        <p className="text-meta text-muted-foreground mt-1">{t(descKey)}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
           </div>

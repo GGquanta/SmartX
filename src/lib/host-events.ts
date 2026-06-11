@@ -61,6 +61,11 @@ const onAppEvent = <E extends HostEventName<'app'>>(
   handler: HostEventHandler<'app', E>,
 ) => onIpc(HOST_EVENT_CHANNELS.app[event], handler);
 
+const onBubbleEvent = <E extends HostEventName<'bubble'>>(
+  event: E,
+  handler: HostEventHandler<'bubble', E>,
+) => onIpc(HOST_EVENT_CHANNELS.bubble[event], handler);
+
 export const hostEvents = {
   onGatewayStatus: (handler: HostEventHandler<'gateway', 'statusChanged'>) => (
     onGatewayEvent('statusChanged', handler)
@@ -115,4 +120,7 @@ export const hostEvents = {
   onOpenClawCliInstalled: (
     handler: HostEventHandler<'app', 'openClawCliInstalled'>,
   ) => onAppEvent('openClawCliInstalled', handler),
+  onBubbleVisualState: (handler: HostEventHandler<'bubble', 'visualState'>) => (
+    onBubbleEvent('visualState', handler)
+  ),
 };

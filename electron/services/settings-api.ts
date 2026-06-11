@@ -1,6 +1,7 @@
 import type { CompleteHostServiceRegistry } from '../main/ipc/host-contract';
 import type { GatewayManager } from '../gateway/manager';
 import { syncLaunchAtStartupSettingFromStore } from '../main/launch-at-startup';
+import { getBubbleWindowManager } from '../main/bubble-window';
 import { createMenu } from '../main/menu';
 import { applyProxySettings } from '../main/proxy';
 import { syncProxyConfigToOpenClaw } from '../utils/openclaw-proxy';
@@ -74,6 +75,10 @@ function patchTouchesLanguage(patch: Partial<AppSettings>): boolean {
   return Object.prototype.hasOwnProperty.call(patch, 'language');
 }
 
+function patchTouchesBubbleVisibility(patch: Partial<AppSettings>): boolean {
+  return Object.prototype.hasOwnProperty.call(patch, 'bubbleVisibility');
+}
+
 async function handleProxySettingsChange(gatewayManager: GatewayManager): Promise<void> {
   const settings = await getAllSettings();
   await syncProxyConfigToOpenClaw(settings, { preserveExistingWhenDisabled: false });
@@ -95,6 +100,12 @@ async function runSettingsSideEffects(
   }
   if (patchTouchesLanguage(patch)) {
     await createMenu(typeof patch.language === 'string' ? patch.language : undefined);
+  }
+  if (patchTouchesBubbleVisibility(patch)) {
+    const mode = patch.bubbleVisibility;
+    if (mode === 'always' || mode === 'whenMinimized' || mode === 'never') {
+      await getBubbleWindowManager()?.applyVisibilitySetting(mode);
+    }
   }
 }
 

@@ -96,6 +96,11 @@ export type UpdateCheckResult = HostSuccess & { status?: UpdateStatusSnapshot };
 export type UpdateSetChannelPayload = { channel: UpdateChannel };
 export type UpdateSetAutoDownloadPayload = { enable: boolean };
 
+export type BubbleVisibility = 'always' | 'whenMinimized' | 'never';
+export type BubbleSyncForegroundRunPayload = { active: boolean };
+export type BubbleVisualState = 'disconnected' | 'idle' | 'working';
+export type BubbleVisualStateEvent = { state: BubbleVisualState };
+
 export type SettingsSnapshot = Partial<{
   theme: 'light' | 'dark' | 'system';
   language: string;
@@ -116,7 +121,9 @@ export type SettingsSnapshot = Partial<{
   sidebarWidth: number;
   devModeUnlocked: boolean;
   setupComplete: boolean;
+  bubbleVisibility: BubbleVisibility;
 }>;
+
 export type SettingsKey = keyof SettingsSnapshot & string;
 export type SettingsValue = SettingsSnapshot[SettingsKey];
 export type SettingsGetPayload = { key: SettingsKey };
@@ -844,6 +851,10 @@ export type HostApiContract = {
   };
   usage: {
     recentTokenHistory: (payload?: UsageHistoryPayload) => UsageHistoryEntry[];
+  };
+  bubble: {
+    openMainWindow: () => void;
+    syncForegroundRun: (payload: BubbleSyncForegroundRunPayload) => void;
   };
 };
 

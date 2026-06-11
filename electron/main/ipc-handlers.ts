@@ -55,6 +55,7 @@ import { createUvApi } from '../services/uv-api';
 import { createGatewayApi } from '../services/gateway-api';
 import { createLogsApi } from '../services/logs-api';
 import { createSettingsApi } from '../services/settings-api';
+import { createBubbleApi } from '../services/bubble-api';
 import { createChannelsApi } from '../services/channels-api';
 import { createAgentsApi } from '../services/agents-api';
 import { createChatApi } from '../services/chat-api';
@@ -84,12 +85,13 @@ export function registerIpcHandlers(
   clawHubService: ClawHubService,
   mainWindow: BrowserWindow,
   hostApiRegistry: HostApiRegistry,
+  focusMainWindow: () => void,
 ): void {
   // Unified request protocol (non-breaking: legacy channels remain available)
   registerUnifiedRequestHandlers(gatewayManager);
 
   // Typed host invoke handlers (new renderer facade; legacy channels remain available)
-  registerTypedHostHandlers(gatewayManager, clawHubService, mainWindow, hostApiRegistry);
+  registerTypedHostHandlers(gatewayManager, clawHubService, mainWindow, hostApiRegistry, focusMainWindow);
 
   // Gateway handlers
   registerGatewayHandlers(gatewayManager);
@@ -133,6 +135,7 @@ function registerTypedHostHandlers(
   clawHubService: ClawHubService,
   mainWindow: BrowserWindow,
   hostApiRegistry: HostApiRegistry,
+  focusMainWindow: () => void,
 ): void {
   hostApiRegistry.registerCoreServices({
     app: createAppApi(),
@@ -143,6 +146,7 @@ function registerTypedHostHandlers(
     updates: createUpdatesApi(appUpdater),
     uv: createUvApi(),
     settings: createSettingsApi(gatewayManager),
+    bubble: createBubbleApi({ focusMainWindow }),
     gateway: createGatewayApi(gatewayManager, gatewayRpcBackpressure),
     logs: createLogsApi(),
     channels: createChannelsApi({ gatewayManager, mainWindow }),

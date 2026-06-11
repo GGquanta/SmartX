@@ -12,7 +12,16 @@
     "language": "Language",
     "menuLanguageUpdated": "Menu language updated",
     "launchAtStartup": "Launch at system startup",
-    "launchAtStartupDesc": "Automatically launch SmartX when you log in"
+    "launchAtStartupDesc": "Automatically launch SmartX when you log in",
+    "bubble": {
+      "title": "Desktop bubble",
+      "always": "Always show bubble",
+      "alwaysDesc": "Keep the floating bubble visible even when the main window is open",
+      "whenMinimized": "Show when minimized",
+      "whenMinimizedDesc": "Show the bubble only when the main window is hidden or minimized",
+      "never": "Don't show bubble",
+      "neverDesc": "Hide the desktop floating bubble completely"
+    }
   },
   "aiProviders": {
     "title": "AI Providers",
