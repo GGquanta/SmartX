@@ -19,7 +19,7 @@ import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { ExecutionGraphCard } from './ExecutionGraphCard';
 import { ChatToolbar } from './ChatToolbar';
-import { extractImages, extractText, extractThinking, extractToolUse, isInternalAssistantReplyText, isInternalProcessNarration, normalizeMessageRole, stripProcessMessagePrefix } from './message-utils';
+import { extractImages, extractText, extractThinking, extractToolUse, isInternalAssistantReplyText, isInternalProcessNarration, normalizeMessageRole, sanitizeAssistantReplyText, stripProcessMessagePrefix } from './message-utils';
 import {
   buildRunSegmentMessageIndices,
   deriveRuntimeTaskSteps,
@@ -581,7 +581,9 @@ export function Chat() {
       : sanitizeGraphSteps(buildSteps(rawStreamingReplyCandidate), showThinking);
     let streamingReplyText: string | null = null;
     if (rawStreamingReplyCandidate) {
-      const trimmedReplyText = stripProcessMessagePrefix(streamText, getPrimaryMessageStepTexts(steps));
+      const trimmedReplyText = sanitizeAssistantReplyText(
+        stripProcessMessagePrefix(streamText, getPrimaryMessageStepTexts(steps)),
+      );
       const hasReplyText = trimmedReplyText.trim().length > 0
         && !isInternalAssistantReplyText(trimmedReplyText);
       if (hasReplyText || hasStreamImages) {
@@ -789,7 +791,9 @@ export function Chat() {
       const replyMessage = messages[card.replyIndex];
       if (!replyMessage || replyMessage.role !== 'assistant') continue;
       const fullReplyText = extractText(replyMessage);
-      const trimmedReplyText = stripProcessMessagePrefix(fullReplyText, card.messageStepTexts);
+      const trimmedReplyText = sanitizeAssistantReplyText(
+        stripProcessMessagePrefix(fullReplyText, card.messageStepTexts),
+      );
       if (trimmedReplyText !== fullReplyText) {
         map.set(card.replyIndex, trimmedReplyText);
       }
@@ -1134,10 +1138,20 @@ export function Chat() {
       {runError && (
         <div className="px-4 pt-2" data-testid="chat-run-error">
           <div className="max-w-4xl mx-auto rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3">
-            <p className="text-sm font-medium text-destructive flex items-center gap-2">
-              <AlertCircle className="h-4 w-4" />
-              {t('runError.title')}
-            </p>
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-sm font-medium text-destructive flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                {t('runError.title')}
+              </p>
+              <button
+                type="button"
+                onClick={clearError}
+                className="shrink-0 text-xs text-destructive/60 hover:text-destructive underline"
+                data-testid="chat-run-error-dismiss"
+              >
+                {t('common:actions.dismiss')}
+              </button>
+            </div>
             <p className="mt-1 text-sm text-destructive/90 break-words">
               {runError}
             </p>
@@ -1221,14 +1235,37 @@ export function Chat() {
 function QuestionDirectory({ items }: { items: QuestionDirectoryItem[] }) {
   const { t } = useTranslation('chat');
   const scrollRef = useRef<HTMLElement | null>(null);
-  const visibleItems = items.slice(0, QUESTION_DIRECTORY_RENDER_LIMIT);
+  const visibleItems =
+    items.length > QUESTION_DIRECTORY_RENDER_LIMIT
+      ? items.slice(-QUESTION_DIRECTORY_RENDER_LIMIT)
+      : items;
   const hiddenCount = Math.max(0, items.length - visibleItems.length);
+  const lastItemKey = visibleItems.at(-1)?.index ?? -1;
 
   useEffect(() => {
     const scrollEl = scrollRef.current;
     if (!scrollEl) return;
-    scrollEl.scrollTop = scrollEl.scrollHeight;
-  }, [visibleItems.length]);
+
+    const scrollToEnd = () => {
+      scrollEl.scrollTop = scrollEl.scrollHeight;
+    };
+
+    scrollToEnd();
+    const frame = requestAnimationFrame(() => {
+      requestAnimationFrame(scrollToEnd);
+    });
+
+    if (typeof ResizeObserver === 'undefined') {
+      return () => cancelAnimationFrame(frame);
+    }
+
+    const observer = new ResizeObserver(scrollToEnd);
+    observer.observe(scrollEl);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [lastItemKey, visibleItems.length]);
 
   const handleJumpToMessage = (index: number) => {
     document.getElementById(`chat-message-${index}`)?.scrollIntoView({
@@ -1240,11 +1277,11 @@ function QuestionDirectory({ items }: { items: QuestionDirectoryItem[] }) {
   return (
     <aside
       data-testid="chat-question-directory"
-      className="w-full shrink-0 lg:w-64 xl:w-72"
+      className="flex min-h-0 w-full shrink-0 self-stretch lg:w-64 xl:w-72"
       aria-label={t('questionDirectory.title')}
     >
-      <div className="sticky top-2 max-h-full overflow-hidden rounded-2xl border border-black/5 bg-black/[0.02] p-3 shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
-        <div className="mb-2 flex items-center justify-between gap-2 px-1">
+      <div className="sticky top-2 flex min-h-0 w-full flex-1 flex-col rounded-2xl border border-black/5 bg-black/[0.02] p-3 shadow-sm dark:border-white/10 dark:bg-white/[0.03]">
+        <div className="mb-2 flex shrink-0 items-center justify-between gap-2 px-1">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {t('questionDirectory.title')}
           </h2>
@@ -1252,7 +1289,7 @@ function QuestionDirectory({ items }: { items: QuestionDirectoryItem[] }) {
             {items.length}
           </span>
         </div>
-        <nav ref={scrollRef} className="max-h-[calc(100vh-13rem)] space-y-1 overflow-y-auto pr-1">
+        <nav ref={scrollRef} className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pr-1">
           {visibleItems.map((item) => (
             <button
               key={item.index}
