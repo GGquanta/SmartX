@@ -465,6 +465,26 @@ describe('ChatMessage reply styling', () => {
     expect(bubble).not.toBeNull();
     expect(bubble).toHaveTextContent('Keep the prompt bubble.');
   });
+
+  it('shows a copy button below user prompt bubbles', async () => {
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: vi.fn(async () => undefined),
+      },
+    });
+
+    const message: RawMessage = {
+      role: 'user',
+      content: 'Copy this prompt.',
+    };
+
+    render(<ChatMessage message={message} />);
+
+    fireEvent.click(screen.getByTestId('user-message-copy'));
+    await vi.waitFor(() => {
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('Copy this prompt.');
+    });
+  });
 });
 
 describe('ChatMessage image copy', () => {

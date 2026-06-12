@@ -104,6 +104,29 @@ test.describe('SmartX assistant reply Markdown styling', () => {
       const userBubble = page.locator('div.rounded-2xl.bg-brand').filter({ hasText: 'Please render a Markdown reply plainly.' }).first();
       await expect(userBubble).toBeVisible({ timeout: 30_000 });
 
+      await page.evaluate(() => {
+        Object.defineProperty(navigator, 'clipboard', {
+          value: {
+            writeText: (value: string) => {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (window as any).__copiedUserMessage = value;
+              return Promise.resolve();
+            },
+          },
+          configurable: true,
+        });
+      });
+
+      await userBubble.hover();
+      const userCopyButton = page.getByTestId('user-message-copy');
+      await expect(userCopyButton).toBeVisible({ timeout: 10_000 });
+      await userCopyButton.click();
+      const copiedUserMessage = await page.evaluate(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return (window as any).__copiedUserMessage as string;
+      });
+      expect(copiedUserMessage).toBe('Please render a Markdown reply plainly.');
+
       const assistantProse = page.locator('.prose').filter({ hasText: 'Plain Markdown reply' }).first();
       await expect(assistantProse).toBeVisible({ timeout: 30_000 });
       await expect(assistantProse.locator('strong')).toHaveText('works');

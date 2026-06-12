@@ -330,6 +330,7 @@ export const ChatMessage = memo(function ChatMessage({
     : existingDerivedAttachedFiles;
   const imageCopyTarget = resolvePrimaryImageCopyTarget(resolvableContentImages, attachedFiles);
   const showAssistantHoverBar = !isUser && (hasText || imageCopyTarget != null);
+  const showUserHoverBar = isUser && (hasText || message.timestamp != null);
   const [lightboxImg, setLightboxImg] = useState<{ src: string; fileName: string; filePath?: string; base64?: string; mimeType?: string } | null>(null);
 
   // Never render tool result messages in chat UI
@@ -473,11 +474,9 @@ export const ChatMessage = memo(function ChatMessage({
           </div>
         )}
 
-        {/* Hover row for user messages — timestamp only */}
-        {isUser && message.timestamp && (
-          <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-200 select-none">
-            {formatTimestamp(message.timestamp)}
-          </span>
+        {/* Hover row for user messages — timestamp + copy */}
+        {showUserHoverBar && (
+          <UserHoverBar text={text} timestamp={message.timestamp} />
         )}
 
         {/* Hover row for assistant messages */}
@@ -578,6 +577,47 @@ function resolvePrimaryImageCopyTarget(
   return null;
 }
 
+// ── User hover bar (timestamp + copy, shown on group hover) ─────
+
+function UserHoverBar({
+  text,
+  timestamp,
+}: {
+  text: string;
+  timestamp?: number;
+}) {
+  const [copied, setCopied] = useState(false);
+  const hasCopyableText = text.trim().length > 0;
+
+  const copyContent = useCallback(async () => {
+    if (!hasCopyableText) return;
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [text, hasCopyableText]);
+
+  return (
+    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 select-none">
+      {timestamp != null && (
+        <span className="text-xs text-muted-foreground">
+          {formatTimestamp(timestamp)}
+        </span>
+      )}
+      {hasCopyableText && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 shrink-0"
+          onClick={copyContent}
+          data-testid="user-message-copy"
+        >
+          {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+        </Button>
+      )}
+    </div>
+  );
+}
+
 // ── Assistant hover bar (timestamp + copy, shown on group hover) ─
 
 function AssistantHoverBar({
@@ -607,14 +647,16 @@ function AssistantHoverBar({
   }, [text, imageCopyTarget]);
 
   return (
-    <div className="flex items-center justify-between w-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 select-none px-1">
-      <span className="text-xs text-muted-foreground">
-        {timestamp ? formatTimestamp(timestamp) : ''}
-      </span>
+    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 select-none">
+      {timestamp != null && (
+        <span className="text-xs text-muted-foreground">
+          {formatTimestamp(timestamp)}
+        </span>
+      )}
       <Button
         variant="ghost"
         size="icon"
-        className="h-6 w-6"
+        className="h-6 w-6 shrink-0"
         onClick={copyContent}
       >
         {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
