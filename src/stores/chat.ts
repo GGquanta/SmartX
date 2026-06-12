@@ -135,6 +135,12 @@ const ERROR_RECOVERY_DELAY_MS = 12_000;
 const LLM_IDLE_HINT_MS = 120_000;
 /** Wait past one LLM idle window before declaring a hard no-response failure. */
 const NO_RESPONSE_SAFETY_TIMEOUT_MS = 130_000;
+/** Delay before the first fallback transcript poll after a send. */
+const HISTORY_POLL_START_DELAY_MS = 3_000;
+/** Interval between fallback transcript poll ticks during an active send. */
+const HISTORY_POLL_INTERVAL_MS = 5_000;
+/** Only issue the fallback poll RPC after this much streamed-event silence. */
+const HISTORY_POLL_EVENT_SILENCE_MS = 10_000;
 
 type PendingOptimisticUserMessage = {
   message: RawMessage;
@@ -869,6 +875,26 @@ function isTerminalAssistantErrorMessage(message: RawMessage | unknown): boolean
   return msg.role === 'assistant' && getMessageStopReason(message) === 'error';
 }
 
+function shouldShowRunError(
+  sessionKey: string,
+  errorMessage: string | null | undefined,
+  dismissedBySession: Record<string, string>,
+): string | null {
+  if (!errorMessage) return null;
+  if (dismissedBySession[sessionKey] === errorMessage) return null;
+  return errorMessage;
+}
+
+function withoutDismissedRunError(
+  dismissedBySession: Record<string, string>,
+  sessionKey: string,
+): Record<string, string> {
+  if (!(sessionKey in dismissedBySession)) return dismissedBySession;
+  const next = { ...dismissedBySession };
+  delete next[sessionKey];
+  return next;
+}
+
 /** Extract media file refs from [media attached: <path> (<mime>) | ...] patterns */
 function extractMediaRefs(text: string): Array<{ filePath: string; mimeType: string }> {
   const refs: Array<{ filePath: string; mimeType: string }> = [];
@@ -1083,7 +1109,7 @@ function extractRawFilePaths(text: string): Array<{ filePath: string; mimeType: 
   // and other space-containing paths the agent emits with the explicit
   // `MEDIA:` marker still resolve. Newline and quote characters remain
   // path terminators so we don't accidentally swallow trailing prose.
-  const taggedRegex = new RegExp(`(?:^|[\\s(\\[{>])(?:MEDIA|media):((?:\\/|~\\/|[A-Za-z]:\\\\)[^\\n"'()\\[\\],<>` + '`' + `]*?\\.(?:${exts}))(?=$|[\\s\\n"'()\\[\\],<>` + '`' + `]|[，。；;,.!?])`, 'g');
+  const taggedRegex = new RegExp(`(?<![A-Za-z0-9/\\\\])(?:MEDIA|media):((?:\\/|~\\/|[A-Za-z]:\\\\)[^\\n"'()\\[\\],<>` + '`' + `]*?\\.(?:${exts}))(?=$|[\\s\\n"'()\\[\\],<>` + '`' + `]|[，。；;,.!?])`, 'g');
   let workingText = text;
   let taggedMatch: RegExpExecArray | null;
   while ((taggedMatch = taggedRegex.exec(text)) !== null) {
@@ -2563,6 +2589,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   hasMoreHistory: false,
   error: null,
   runError: null,
+  dismissedRunErrors: {},
 
   sending: false,
   activeRunId: null,
@@ -3136,7 +3163,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
         messages: finalMessages,
         thinkingLevel,
         loading: false,
-        runError: historyErrorIsTransient ? null : latestTerminalAssistantErrorMessage,
+        runError: historyErrorIsTransient
+          ? null
+          : shouldShowRunError(
+            currentSessionKey,
+            latestTerminalAssistantErrorMessage,
+            get().dismissedRunErrors,
+          ),
       });
       cacheSessionHistory(currentSessionKey, finalMessages, thinkingLevel);
 
@@ -3632,6 +3665,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       sending: true,
       error: null,
       runError: null,
+      dismissedRunErrors: withoutDismissedRunError(s.dismissedRunErrors, currentSessionKey),
       streamingText: '',
       streamingMessage: null,
       streamingTools: [],
@@ -3658,6 +3692,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
     _lastChatEventAt = Date.now();
     clearHistoryPoll();
     clearErrorRecoveryTimer();
+
+    // Fallback transcript poll: streamed runtime events are the primary
+    // active-run path, but when they go missing entirely (first run right
+    // after gateway startup, silent WS drops, event-normalization gaps) the
+    // safety timeout above would fire a false "No response received" error
+    // even though the gateway is making progress. Polling chat.history keeps
+    // progress detection honest in that case. The RPC is skipped while
+    // streamed events are fresh, so healthy runs issue no extra requests.
+    const pollHistoryFallback = () => {
+      _historyPollTimer = null;
+      const state = get();
+      if (!state.sending || state.currentSessionKey !== currentSessionKey) return;
+      if (Date.now() - _lastChatEventAt >= HISTORY_POLL_EVENT_SILENCE_MS) {
+        void state.loadHistory(true);
+      }
+      _historyPollTimer = setTimeout(pollHistoryFallback, HISTORY_POLL_INTERVAL_MS);
+    };
+    _historyPollTimer = setTimeout(pollHistoryFallback, HISTORY_POLL_START_DELAY_MS);
 
     const checkStuck = () => {
       const state = get();
@@ -3912,14 +3964,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     }
 
-    // Only pause the history poll when we receive actual streaming data.
-    // The gateway sends "agent" events with { phase, startedAt } that carry
-    // no message — these must NOT kill the poll, since the poll is our only
-    // way to track progress when the gateway doesn't stream intermediate turns.
+    // Streaming data pauses the fallback transcript poll implicitly: each
+    // event refreshes _lastChatEventAt, so the poll skips its RPC while the
+    // stream is healthy. Do NOT clear the poll timer here — it must stay
+    // armed to recover progress tracking if the stream stalls mid-run.
     const hasUsefulData = resolvedState === 'delta' || resolvedState === 'final'
       || resolvedState === 'error' || resolvedState === 'aborted';
     if (hasUsefulData) {
-      clearHistoryPoll();
       // Adopt run started from another client only for user-initiated turns.
       // Background :main heartbeat runs must not surface "Thinking..." in the UI.
       const { sending } = get();
@@ -4420,7 +4471,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
     await Promise.all([loadHistory(), loadSessions()]);
   },
 
-  clearError: () => set({ error: null, runError: null }),
+  clearError: () => {
+    const { runError, currentSessionKey, dismissedRunErrors } = get();
+    set({
+      error: null,
+      runError: null,
+      ...(runError
+        ? { dismissedRunErrors: { ...dismissedRunErrors, [currentSessionKey]: runError } }
+        : {}),
+    });
+  },
 }));
 
 export function syncCachedSessionRunIdle(sessionKey: string): void {

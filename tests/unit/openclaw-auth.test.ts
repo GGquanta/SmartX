@@ -1219,8 +1219,12 @@ describe('auth-backed provider discovery', () => {
 
     const { getActiveOpenClawProviders } = await import('@electron/utils/openclaw-auth');
 
+    // Raw runtime keys (openai-codex / google-gemini-cli) are kept alongside
+    // their normalized UI aliases: newer OpenClaw versions no longer write
+    // explicit models.providers / plugins entries for OAuth CLI providers, so
+    // the auth profile is the only signal that the runtime provider is active.
     await expect(getActiveOpenClawProviders()).resolves.toEqual(
-      new Set(['openai', 'anthropic', 'google']),
+      new Set(['openai', 'openai-codex', 'anthropic', 'google', 'google-gemini-cli']),
     );
   });
 
@@ -1345,6 +1349,47 @@ describe('auth-backed provider discovery', () => {
     expect((config.models as { providers?: Record<string, unknown> }).providers).toEqual({});
     expect(result.providers).toEqual({});
     await expect(getActiveOpenClawProviders()).resolves.toEqual(new Set());
+  });
+
+  it('removes deleted provider refs from agent defaults and overrides', async () => {
+    await writeOpenClawJson({
+      models: {
+        providers: {
+          'custom-abc12345': {
+            baseUrl: 'https://api.example.com/v1',
+            api: 'openai-completions',
+          },
+          'minimax-portal': {
+            baseUrl: 'https://api.minimax.io/anthropic',
+            api: 'anthropic-messages',
+          },
+        },
+      },
+      agents: {
+        defaults: {
+          model: {
+            primary: 'custom-abc12345/gpt-5.5',
+            fallbacks: ['minimax-portal/MiniMax-M3'],
+          },
+        },
+        list: [
+          { id: 'main', name: 'Main', default: true, model: { primary: 'custom-abc12345/gpt-5.5' } },
+        ],
+      },
+    });
+
+    const { removeProviderFromOpenClaw } = await import('@electron/utils/openclaw-auth');
+    await removeProviderFromOpenClaw('custom-abc12345');
+
+    const config = await readOpenClawJson();
+    const agents = config.agents as {
+      defaults?: { model?: { primary?: string; fallbacks?: string[] } };
+      list?: Array<{ id: string; model?: { primary?: string } }>;
+    };
+
+    expect(agents.defaults?.model?.primary).toBeUndefined();
+    expect(agents.defaults?.model?.fallbacks).toEqual(['minimax-portal/MiniMax-M3']);
+    expect(agents.list?.[0]?.model).toBeUndefined();
   });
 
   it('removes merged and legacy minimax plugin registrations when deleting the provider', async () => {
@@ -1778,6 +1823,33 @@ describe('pruneInvalidApiProviderEntries', () => {
     const after = await readOpenClawJson();
     expect(after).toEqual(before);
   });
+
+  it('migrates legacy openai-codex-responses api values instead of pruning them', async () => {
+    await writeOpenClawJson({
+      models: {
+        providers: {
+          'openai-codex': {
+            baseUrl: 'https://api.openai.com/v1',
+            api: 'openai-codex-responses',
+          },
+          openrouter: {
+            baseUrl: 'https://openrouter.ai/api/v1',
+            api: 'openrouter',
+          },
+        },
+      },
+    });
+
+    const { pruneInvalidApiProviderEntries } = await import('@electron/utils/openclaw-auth');
+    const removed = await pruneInvalidApiProviderEntries();
+
+    expect(removed).toEqual(['openrouter']);
+    const result = await readOpenClawJson();
+    const providers = (result.models as Record<string, unknown>).providers as Record<string, unknown>;
+    expect(providers['openai-codex']).toBeUndefined();
+    expect((providers.openai as { api: string }).api).toBe('openai-chatgpt-responses');
+    expect((providers.openai as { baseUrl: string }).baseUrl).toBe('https://chatgpt.com/backend-api/codex');
+  });
 });
 
 describe('openai agentRuntime pin', () => {
@@ -1820,7 +1892,7 @@ describe('openai agentRuntime pin', () => {
 
     await syncProviderConfigToOpenClaw('openai-codex', 'gpt-5.5', {
       baseUrl: 'https://api.openai.com/v1',
-      api: 'openai-codex-responses',
+      api: 'openai-chatgpt-responses',
     });
 
     const result = await readOpenClawJson();
@@ -1829,7 +1901,8 @@ describe('openai agentRuntime pin', () => {
 
     expect(codex).toBeDefined();
     expect(codex.agentRuntime).toEqual({ id: 'pi' });
-    expect(codex.api).toBe('openai-codex-responses');
+    expect(codex.api).toBe('openai-chatgpt-responses');
+    expect(codex.baseUrl).toBe('https://chatgpt.com/backend-api/codex');
   });
 
   it('preserves a user-provided agentRuntime override on the openai entry', async () => {
@@ -1939,7 +2012,7 @@ describe('syncOpenAiCompatibleImageRelay', () => {
   });
 });
 
-describe('setOpenClawDefaultModel for openai-codex OAuth', () => {
+describe('setOpenClawDefaultModel for OpenAI OAuth', () => {
   beforeEach(async () => {
     vi.doUnmock('@electron/utils/provider-registry');
     vi.resetModules();
@@ -1948,7 +2021,7 @@ describe('setOpenClawDefaultModel for openai-codex OAuth', () => {
     await rm(testUserData, { recursive: true, force: true });
   });
 
-  it('writes models.providers.openai-codex with a pinned pi runtime', async () => {
+  it('writes models.providers.openai with a pinned pi runtime for legacy openai-codex calls', async () => {
     await writeOpenClawJson({
       models: { providers: {} },
     });
@@ -1958,12 +2031,14 @@ describe('setOpenClawDefaultModel for openai-codex OAuth', () => {
 
     const result = await readOpenClawJson();
     const providers = (result.models as Record<string, unknown>).providers as Record<string, unknown>;
-    const codex = providers['openai-codex'] as Record<string, unknown>;
+    const openai = providers.openai as Record<string, unknown>;
     const defaults = ((result.agents as Record<string, unknown>).defaults as Record<string, unknown>).model as Record<string, unknown>;
 
-    expect(defaults.primary).toBe('openai-codex/gpt-5.5');
-    expect(codex.agentRuntime).toEqual({ id: 'pi' });
-    expect(codex.api).toBe('openai-codex-responses');
+    expect(defaults.primary).toBe('openai/gpt-5.5');
+    expect(openai.agentRuntime).toEqual({ id: 'pi' });
+    expect(openai.api).toBe('openai-chatgpt-responses');
+    expect(openai.baseUrl).toBe('https://chatgpt.com/backend-api/codex');
+    expect(providers['openai-codex']).toBeUndefined();
   });
 });
 
@@ -2006,7 +2081,7 @@ describe('ensureOpenClawProviderAgentRuntimePins', () => {
         providers: {
           'openai-codex': {
             baseUrl: 'https://api.openai.com/v1',
-            api: 'openai-codex-responses',
+            api: 'openai-chatgpt-responses',
             models: [{ id: 'gpt-5.5', name: 'gpt-5.5' }],
           },
         },
@@ -2034,7 +2109,7 @@ describe('ensureOpenClawProviderAgentRuntimePins', () => {
           },
           'openai-codex': {
             baseUrl: 'https://api.openai.com/v1',
-            api: 'openai-codex-responses',
+            api: 'openai-chatgpt-responses',
             models: [{ id: 'gpt-5.5', name: 'gpt-5.5' }],
           },
         },
@@ -2047,7 +2122,30 @@ describe('ensureOpenClawProviderAgentRuntimePins', () => {
     const result = await readOpenClawJson();
     const providers = (result.models as Record<string, unknown>).providers as Record<string, unknown>;
     expect((providers.openai as Record<string, unknown>).agentRuntime).toEqual({ id: 'pi' });
-    expect((providers['openai-codex'] as Record<string, unknown>).agentRuntime).toEqual({ id: 'pi' });
+    expect(providers['openai-codex']).toBeUndefined();
+  });
+
+  it('migrates legacy openai-codex-responses api values during sanitizeOpenClawConfig', async () => {
+    await writeOpenClawJson({
+      models: {
+        providers: {
+          'openai-codex': {
+            baseUrl: 'https://api.openai.com/v1',
+            api: 'openai-codex-responses',
+            models: [{ id: 'gpt-5.5', name: 'gpt-5.5' }],
+          },
+        },
+      },
+    });
+
+    const { sanitizeOpenClawConfig } = await import('@electron/utils/openclaw-auth');
+    await sanitizeOpenClawConfig();
+
+    const result = await readOpenClawJson();
+    const providers = (result.models as Record<string, unknown>).providers as Record<string, unknown>;
+    expect((providers.openai as { api: string }).api).toBe('openai-chatgpt-responses');
+    expect((providers.openai as { baseUrl: string }).baseUrl).toBe('https://chatgpt.com/backend-api/codex');
+    expect(providers['openai-codex']).toBeUndefined();
   });
 
   it('leaves entries untouched when the openai entry already has any agentRuntime.id', async () => {
