@@ -67,6 +67,55 @@ describe('collectQuickAccessSkills', () => {
     });
   });
 
+  it('parses YAML block-scalar descriptions in frontmatter', async () => {
+    const workspaceDir = join(testRoot, 'workspace');
+    const blockDescription = [
+      '去除文本中的 AI 生成痕迹。适用于编辑或审阅文本，使其听起来更自然、更像人类书写。',
+      '基于维基百科的"AI 写作特征"综合指南。检测并修复以下模式：夸大的象征意义、',
+      '宣传性语言、以 -ing 结尾的肤浅分析、模糊的归因、破折号过度使用、三段式法则、',
+      'AI 词汇、否定式排比、过多的连接性短语。',
+    ].join('\n');
+
+    writeSkill(
+      join(workspaceDir, 'skills'),
+      'humanizer-zh',
+      `---\nname: humanizer-zh\ndescription: |\n  ${blockDescription.replace(/\n/g, '\n  ')}\n---\n# Humanizer-zh\n`,
+    );
+
+    const skills = await collectQuickAccessSkills({
+      agentsRoots: [],
+      legacyRoots: [],
+      openClawRoots: [],
+      workspace: workspaceDir,
+    });
+
+    expect(skills).toHaveLength(1);
+    expect(skills[0]).toMatchObject({
+      name: 'humanizer-zh',
+      description: blockDescription,
+    });
+  });
+
+  it('parses YAML folded-scalar descriptions in frontmatter', async () => {
+    const workspaceDir = join(testRoot, 'workspace');
+
+    writeSkill(
+      join(workspaceDir, 'skills'),
+      'folded-skill',
+      '---\nname: folded-skill\ndescription: >\n  First sentence continues\n  on the next line.\n---\n# Folded Skill\n',
+    );
+
+    const skills = await collectQuickAccessSkills({
+      agentsRoots: [],
+      legacyRoots: [],
+      openClawRoots: [],
+      workspace: workspaceDir,
+    });
+
+    expect(skills).toHaveLength(1);
+    expect(skills[0]?.description).toBe('First sentence continues on the next line.');
+  });
+
   it('supports plural skills directories and falls back to body text descriptions', async () => {
     const workspaceDir = join(testRoot, 'workspace');
     const openClawDir = join(testRoot, 'openclaw');
