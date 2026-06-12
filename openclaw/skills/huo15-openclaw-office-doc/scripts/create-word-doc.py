@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-create-word-doc.py — 火一五企业级 Word 文档生成器 v7.0
+create-word-doc.py — 企业级 Word 文档生成器 v7.0
 
 相对 v6.0 的改进：
   - 解析器拆出 doc_core.py，与 PDF 渲染器共用
@@ -1138,7 +1138,7 @@ def create_word_doc(output_path, title='', content='', doc_number=None,
         doc, title=title, author=author or company,
         subject=preset.name, category=preset.name,
         keywords=f'{preset.name},{company}',
-        comments=f'由火一五文档技能 v{__doc__.split("v")[1].split()[0] if "v" in (__doc__ or "") else "7"} 生成',
+        comments=f'由企业文档技能 v{__doc__.split("v")[1].split()[0] if "v" in (__doc__ or "") else "7"} 生成',
     )
 
     for sec in doc.sections:
@@ -1248,7 +1248,7 @@ def _use_legacy_cli(argv):
 def _parse_args(argv):
     parser = argparse.ArgumentParser(
         prog='create-word-doc',
-        description='火一五企业级 Word 生成器 v7.0（12 类规范）',
+        description='企业级 Word 生成器 v7.0（12 类规范）',
     )
     parser.add_argument('--output', '-o', required=False, default=None,
                         help='输出 .docx 路径（--list-formats 模式下可省略）')

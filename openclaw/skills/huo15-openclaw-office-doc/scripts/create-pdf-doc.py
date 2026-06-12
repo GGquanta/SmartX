@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-create-pdf-doc.py — 火一五企业级原生 PDF 生成器 v7.0
+create-pdf-doc.py — 企业级原生 PDF 生成器 v7.0
 
 不经过 Word 直接生成 PDF：
   - 复用 doc_core.py 的 Markdown 解析与文档规范预设（与 Word 渲染一致的版式语义）
@@ -993,11 +993,11 @@ def create_pdf_doc(output_path, title='', content='', doc_number=None,
         rightMargin=preset.margin_right * cm,
         topMargin=preset.margin_top * cm,
         bottomMargin=preset.margin_bottom * cm,
-        title=title or '火一五企业文档',
+        title=title or '企业文档',
         author=author or company,
         subject=preset.name,
         keywords=f'{preset.name},{company}',
-        creator='火一五文档技能 v7.1',
+        creator='企业文档技能 v7.1',
     )
     doc.addPageTemplates([template])
     # PDF 默认就显示左侧大纲（PageMode = UseOutlines）
@@ -1017,7 +1017,7 @@ def create_pdf_doc(output_path, title='', content='', doc_number=None,
 def _parse_args(argv):
     parser = argparse.ArgumentParser(
         prog='create-pdf-doc',
-        description='火一五原生 PDF 生成器 v7.0（12 类规范）',
+        description='原生 PDF 生成器 v7.0（12 类规范）',
     )
     parser.add_argument('--output', '-o', required=False, default=None,
                         help='输出 .pdf 路径（--list-formats 模式可省略）')

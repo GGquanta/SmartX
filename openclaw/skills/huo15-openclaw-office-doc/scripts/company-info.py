@@ -187,7 +187,7 @@ def cmd_check(args):
 
 
 def build_parser():
-    parser = argparse.ArgumentParser(description="huo15 公司信息读写工具")
+    parser = argparse.ArgumentParser(description="公司信息读写工具")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     p_get = sub.add_parser("get", help="读取当前公司信息")

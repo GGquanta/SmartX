@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-doc_core.py — 火一五企业文档生成共用核心 (v7.0)
+doc_core.py — 企业文档生成共用核心 (v7.0)
 
 提供 Word / PDF 两套渲染器共用的：
   1. 文档规范预设（FormatPreset） — 12 种规范

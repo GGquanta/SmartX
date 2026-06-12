@@ -1,5 +1,5 @@
 ## Description: <br>
-Huo15 Openclaw Office Doc helps agents generate Chinese enterprise documents as Word or PDF files across contracts, reports, plans, technical documents, and related business formats. <br>
+OpenClaw Office Doc helps agents generate Chinese enterprise documents as Word or PDF files across contracts, reports, plans, technical documents, and related business formats. <br>
 
 This skill is ready for commercial/non-commercial use. <br>
 
