@@ -2,7 +2,7 @@
   "productName": "小光",
   "version": "0.4.9",
   "updatedAt": "2026-06-10",
-  "assetBaseUrl": "https://smartx-assets.oss-cn-hongkong.aliyuncs.com",
+  "assetBaseUrl": "https://smartx.qubitlab.cc",
   "platforms": [
     {
       "id": "macos",

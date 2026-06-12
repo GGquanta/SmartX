@@ -493,7 +493,7 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           CHANNEL="${{ steps.version.outputs.channel }}"
-          BASE_URL="https://oss.intelli-spectrum.com/${CHANNEL}"
+          BASE_URL="https://smartx.qubitlab.cc/${CHANNEL}"
 
           jq -n \
             --arg version "$VERSION" \
