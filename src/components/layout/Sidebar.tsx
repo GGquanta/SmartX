@@ -438,7 +438,7 @@ export function Sidebar() {
           data-testid="sidebar-new-chat"
           onClick={handleNewChat}
           className={cn(
-            'sidebar-nav-text flex items-center gap-2 rounded-lg px-2.5 py-2 transition-colors',
+            'sidebar-nav-text mb-3 flex items-center gap-2 rounded-lg px-2.5 py-2 transition-colors',
             'hover:bg-black/5 dark:hover:bg-white/5 text-foreground/80',
             sidebarCollapsed && 'justify-center px-0',
           )}

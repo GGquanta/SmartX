@@ -26,6 +26,10 @@ test.describe('SmartX main navigation without setup flow', () => {
       await expect(page.getByTestId('sidebar-resize-handle')).toBeVisible();
       await expect(page.getByTestId('main-content')).toHaveCSS('border-top-left-radius', '16px');
 
+      const newChatButton = page.getByTestId('sidebar-new-chat');
+      await expect(newChatButton).toBeVisible();
+      await expect(newChatButton).toHaveCSS('justify-content', 'normal');
+
       await page.getByTestId('sidebar-nav-models').click();
       await expect(page.getByTestId('models-page')).toBeVisible();
       await expect(page.getByTestId('models-page-title')).toBeVisible();
