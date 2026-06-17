@@ -181,10 +181,12 @@ pnpm dev
 
 When you launch SmartX for the first time, the **Setup Wizard** will guide you through:
 
-1. **Language & Region** – Configure your preferred locale
-2. **AI Provider** – Add providers with API keys or OAuth (for providers that support browser/device login)
-3. **Skill Bundles** – Select pre-configured skills for common use cases
-4. **Verification** – Test your configuration before entering the main interface
+1. **Welcome** – Introduce Xiaoguang and supported capabilities
+2. **Environment Check** – Verify Node.js, OpenClaw, Gateway readiness, and apply a default AI provider from `PROVIDER_DEFAULT_*` when configured (otherwise shows a skip hint)
+3. **Setup** – Install essential bundled skills
+4. **Complete** – Finish onboarding and enter the main interface
+
+If `PROVIDER_DEFAULT_*` variables are set in `.env` / `.env.local` (or available to the Electron main process at runtime), the environment-check step auto-creates the default AI provider and shows the configured provider on the completion screen. You can also configure providers manually anytime in **Settings → AI Providers**.
 
 The wizard preselects your system language when it is supported, and falls back to English otherwise.
 

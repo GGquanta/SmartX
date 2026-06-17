@@ -21,6 +21,20 @@ export type OpenClawDoctorResult = HostSuccess & {
 };
 export type OpenClawDoctorPayload = { mode: OpenClawDoctorMode };
 
+export type ProviderEnvDefaultsPreview = {
+  providerId: string;
+  providerName: string;
+  model: string;
+  baseUrl: string;
+};
+
+export type SeedProviderFromEnvResponse = {
+  status: 'seeded' | 'skipped' | 'missing-env' | 'already-configured' | 'failed';
+  providerName?: string;
+  model?: string;
+  error?: string;
+};
+
 export type OpenClawStatusResult = {
   packageExists: boolean;
   isBuilt: boolean;
@@ -678,6 +692,8 @@ export type DeliveryTargetsResult = HostSuccess & { targets: DeliveryChannelGrou
 export type HostApiContract = {
   app: {
     openClawDoctor: (payload: OpenClawDoctorPayload) => Omit<OpenClawDoctorResult, 'mode'>;
+    getProviderEnvDefaults: () => ProviderEnvDefaultsPreview | null;
+    seedProviderFromEnv: () => SeedProviderFromEnvResponse;
   };
   openclaw: {
     status: () => OpenClawStatusResult;

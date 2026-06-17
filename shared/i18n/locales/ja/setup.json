@@ -42,6 +42,16 @@
         "nodejs": "Node.js ランタイム",
         "openclaw": "OpenClaw パッケージ",
         "gateway": "ゲートウェイサービス",
+        "provider": {
+            "label": "AI プロバイダー",
+            "status": {
+                "checking": "デフォルトプロバイダーを適用しています...",
+                "skip": "デフォルトプロバイダーが未設定です。後で設定から追加できます",
+                "success": "{{name}} を設定しました",
+                "successWithModel": "{{name}} · {{model}}",
+                "error": "デフォルトプロバイダーの設定に失敗しました"
+            }
+        },
         "startGateway": "ゲートウェイを起動",
         "status": {
             "checking": "確認中...",

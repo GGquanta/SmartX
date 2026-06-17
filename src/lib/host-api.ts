@@ -59,8 +59,10 @@ export type {
   OpenClawCliCommandResult,
   OpenClawDoctorResult,
   OpenClawStatusResult,
+  ProviderEnvDefaultsPreview,
   ProviderAccountKeyInfo,
   ProviderDefaultAccountResult,
+  SeedProviderFromEnvResponse,
   ProviderValidationResult,
   SessionHistoryResult,
   SessionLabelSummary,
@@ -83,6 +85,8 @@ export const hostApi = {
     getCompanyKnowledgeWebviewPreloadPath: () => (
       window.electron.ipcRenderer.invoke('app:getCompanyKnowledgeWebviewPreloadPath') as Promise<string>
     ),
+    getProviderEnvDefaults: () => invokeHost('app', 'getProviderEnvDefaults'),
+    seedProviderFromEnv: () => invokeHost('app', 'seedProviderFromEnv'),
   },
   openclaw: {
     status: () => invokeHost('openclaw', 'status'),

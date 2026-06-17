@@ -42,6 +42,16 @@
         "nodejs": "Node.js 运行时",
         "openclaw": "OpenClaw 包",
         "gateway": "网关服务",
+        "provider": {
+            "label": "模型提供商",
+            "status": {
+                "checking": "正在应用默认模型提供商...",
+                "skip": "未配置默认模型提供商，可稍后在设置中添加",
+                "success": "已配置 {{name}}",
+                "successWithModel": "{{name}} · {{model}}",
+                "error": "默认模型提供商配置失败"
+            }
+        },
         "startGateway": "启动网关",
         "status": {
             "checking": "检查中...",
