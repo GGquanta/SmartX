@@ -45,7 +45,9 @@ test.describe('SmartX main navigation without setup flow', () => {
       await expect(page.getByTestId('research-tools-hero-card')).toBeVisible();
       await expect(page.getByTestId('research-tools-quafu-login-button')).toBeVisible();
 
-      await expect(page.getByTestId('sidebar-nav-company-knowledge')).toHaveAttribute('aria-disabled', 'true');
+      await page.getByTestId('sidebar-nav-company-knowledge').click();
+      await expect(page.getByTestId('company-knowledge-page')).toBeVisible();
+      await expect(page.getByTestId('company-knowledge-page-title')).toBeVisible();
     } finally {
       await closeElectronApp(app);
     }

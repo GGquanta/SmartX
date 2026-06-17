@@ -46,8 +46,8 @@ import { useTranslation } from 'react-i18next';
 import logoPng from '@/assets/logo.png';
 import { useNewChatAction } from './use-new-chat-action';
 
-/** Set to false to re-enable the Company Knowledge sidebar entry. */
-const COMPANY_KNOWLEDGE_NAV_DISABLED = true;
+/** Set to true to hide the Company Knowledge sidebar entry. */
+const COMPANY_KNOWLEDGE_NAV_DISABLED = false;
 
 interface NavItemProps {
   to: string;
