@@ -129,7 +129,7 @@ Skills 页面可展示来自多个 OpenClaw 来源的技能（托管目录、wor
 - `TAVILY_API_KEY`：用于 `tavily-search`（上游运行时也可能支持 OAuth）
 
 可选 UI 内嵌（在 `.env` / `.env.local` 中配置 Vite）：`VITE_COMPANY_KNOWLEDGE_URL` — **企业知识库**页面内嵌地址（默认 `http://localhost:5001/`）。
-内嵌 `<webview>` 会在 Chromium 默认 User-Agent 末尾追加 `SmartX/<应用版本>`（版本来自 `app.getVersion()`），便于服务端识别桌面客户端。
+内嵌 `<webview>` 使用标准 Chrome User-Agent（不含 `Electron/` 或应用标识），以便 Cloudflare Turnstile 等子 frame 挑战获得一致的请求头。桌面客户端识别应通过 `window.smartXBindKnowledgeBase` 完成，而非 User-Agent 嗅探。
 专用 preload 会注入 `window.smartXBindKnowledgeBase(payload)`：校验通过后将绑定信息合并写入 `~/.openclaw/openclaw.json` 的 `skills.entries["company-knowledge"]`（`apiKey` 为令牌，另有 `env`：`COMPANY_KNOWLEDGE_API_BASE_URL`、`COMPANY_KNOWLEDGE_USER_ID`、`COMPANY_KNOWLEDGE_NICKNAME`、`COMPANY_KNOWLEDGE_MAX_CLEARANCE`）。桌面壳通过 `ipc-message` 以 Toast 提示绑定成功或失败。
 
 ### 🔐 安全的供应商集成

@@ -53,10 +53,15 @@ import { browserOAuthManager } from '../utils/browser-oauth';
 import { whatsAppLoginManager } from '../utils/whatsapp-login';
 import { syncAllProviderAuthToRuntime } from '../services/providers/provider-runtime-sync';
 import { loadProviderDefaultEnvFiles, resolveSmartXProjectRoot } from '../utils/provider-default-env';
+import { buildChromeUserAgent } from '@shared/chrome-user-agent';
 
 const WINDOWS_APP_USER_MODEL_ID = 'app.smartx.desktop';
 
 loadProviderDefaultEnvFiles(resolveSmartXProjectRoot());
+
+// Subframe/worker requests (e.g. Cloudflare Turnstile iframes) can bypass per-webview
+// useragent and fall back to this default. Must be set before any webContents is created.
+app.userAgentFallback = buildChromeUserAgent();
 
 const isE2EMode = process.env.SMARTX_E2E === '1';
 const requestedUserDataDir = process.env.SMARTX_USER_DATA_DIR?.trim();

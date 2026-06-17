@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 
 import { hostApi } from '@/lib/host-api';
+import { buildChromeUserAgentFromNavigator } from '@shared/chrome-user-agent';
 
 const DEFAULT_COMPANY_KNOWLEDGE_URL = 'http://localhost:5001/';
 
@@ -17,10 +18,9 @@ function resolveCompanyKnowledgeUrl(): string {
   return DEFAULT_COMPANY_KNOWLEDGE_URL;
 }
 
-function buildCompanyKnowledgeWebviewUserAgent(appVersion: string): string {
-  const base = typeof navigator !== 'undefined' ? navigator.userAgent.trim() : '';
-  const smartx = `SmartX/${appVersion}`;
-  return base ? `${base} ${smartx}` : smartx;
+function buildCompanyKnowledgeWebviewUserAgent(): string {
+  const navigatorUa = typeof navigator !== 'undefined' ? navigator.userAgent.trim() : '';
+  return buildChromeUserAgentFromNavigator(navigatorUa);
 }
 
 type WebviewPrep = {
@@ -51,30 +51,16 @@ export function CompanyKnowledge() {
     let cancelled = false;
     void (async () => {
       try {
-        const [version, preloadPath] = await Promise.all([
-          hostApi.app.version(),
-          hostApi.app.getCompanyKnowledgeWebviewPreloadPath(),
-        ]);
+        const preloadPath = await hostApi.app.getCompanyKnowledgeWebviewPreloadPath();
         if (!cancelled) {
           setWebviewPrep({
-            userAgent: buildCompanyKnowledgeWebviewUserAgent(version),
+            userAgent: buildCompanyKnowledgeWebviewUserAgent(),
             preloadPath,
           });
         }
       } catch {
-        if (cancelled) return;
-        try {
-          const preloadPath = await hostApi.app.getCompanyKnowledgeWebviewPreloadPath();
-          if (!cancelled) {
-            setWebviewPrep({
-              userAgent: buildCompanyKnowledgeWebviewUserAgent('0.0.0'),
-              preloadPath,
-            });
-          }
-        } catch {
-          if (!cancelled) {
-            setWebviewPrep(null);
-          }
+        if (!cancelled) {
+          setWebviewPrep(null);
         }
       }
     })();

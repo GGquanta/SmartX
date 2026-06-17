@@ -129,7 +129,7 @@ Environment variables for bundled search skills:
 - `find-skills` and `self-improving-agent` do not require API keys
 
 Optional UI embed (set in `.env` / `.env.local` for Vite): `VITE_COMPANY_KNOWLEDGE_URL` — URL loaded inside **Company Knowledge** (defaults to `http://localhost:5001/`).
-The embedded `<webview>` uses the app’s Chromium user agent with `SmartX/<app version>` appended (from `app.getVersion()`), so upstream pages can detect the desktop client.
+The embedded `<webview>` uses a standard Chrome User-Agent (without `Electron/` or app tokens) so Cloudflare Turnstile and other subframe challenges receive consistent headers. Desktop client detection should use `window.smartXBindKnowledgeBase` rather than User-Agent sniffing.
 A dedicated preload injects `window.smartXBindKnowledgeBase(payload)` for one-way binding: validated payloads are merged into `~/.openclaw/openclaw.json` under `skills.entries["company-knowledge"]` (`apiKey` = token, plus `env` keys `COMPANY_KNOWLEDGE_API_BASE_URL`, `COMPANY_KNOWLEDGE_USER_ID`, `COMPANY_KNOWLEDGE_NICKNAME`, `COMPANY_KNOWLEDGE_MAX_CLEARANCE`). The host page receives bind success/failure via `ipc-message` / toast in the desktop shell.
 
 ### 🔐 Secure Provider Integration
