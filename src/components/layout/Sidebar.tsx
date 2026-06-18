@@ -520,6 +520,7 @@ export function Sidebar() {
                       ) : (
                         <>
                           <button
+                            data-testid={`sidebar-session-${s.key}`}
                             onClick={() => {
                               if (currentSessionKey === s.key) {
                                 void loadHistory(false);
