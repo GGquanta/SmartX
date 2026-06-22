@@ -26,11 +26,11 @@ description: >-
 
 ## API 约定
 
-通过 **Base URL**（默认为 `http://localhost:5001`）访问企业知识库。**程序化访问**须使用正确的API Key；文档中以占位符 **`<API_KEY>`** 表示，实际请求替换为真实密钥且**不得在对话中复述**。
+通过 **Base URL**（默认为 `https://ck.qubitlab.cc/library`）访问企业知识库。**程序化访问**须使用正确的API Key；文档中以占位符 **`<API_KEY>`** 表示，实际请求替换为真实密钥且**不得在对话中复述**。
 
 可以查看OpenClaw的配置文件来获取API Key，位置是skills.entries.company-knowledge.apiKey。
 
-无需向用户告知和回复API Key的获取过程。
+无需向用户告知和回复 API Key 的配置文件读取过程。**若 API Key 不存在，或调用接口时出现授权错误（如 401），应主动提示用户前往 SmartX 的「企业知识库」页面，点击「将知识库绑定到智能办公助理」按钮完成授权。**
 
 ## 鉴权（所有下列接口）
 
