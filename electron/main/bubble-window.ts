@@ -33,11 +33,14 @@ type BubbleWindowManagerDeps = {
 
 export class BubbleWindowManager {
   private bubbleWindow: BrowserWindow | null = null;
+  private ownedBubbleWindows = new Set<BrowserWindow>();
   private mainWindowListenersAttached = false;
   private stateUnsubscribe: (() => void) | null = null;
   private visibilityMode: AppSettings['bubbleVisibility'] = 'always';
   private isQuitting = false;
   private pendingShow = false;
+  private ensureBubbleWindowTask: Promise<void> | null = null;
+  private visibilitySyncChain: Promise<void> = Promise.resolve();
 
   constructor(private readonly deps: BubbleWindowManagerDeps) {}
 
@@ -50,7 +53,7 @@ export class BubbleWindowManager {
     this.visibilityMode = await getSetting('bubbleVisibility');
     this.attachMainWindowListeners();
     this.subscribeToVisualState();
-    await this.syncVisibility();
+    await this.runSyncVisibility();
   }
 
   setQuitting(): void {
@@ -60,15 +63,18 @@ export class BubbleWindowManager {
   destroy(): void {
     this.stateUnsubscribe?.();
     this.stateUnsubscribe = null;
-    if (this.bubbleWindow && !this.bubbleWindow.isDestroyed()) {
-      this.bubbleWindow.destroy();
+    for (const win of [...this.ownedBubbleWindows]) {
+      if (!win.isDestroyed()) {
+        win.destroy();
+      }
     }
+    this.ownedBubbleWindows.clear();
     this.bubbleWindow = null;
   }
 
   async applyVisibilitySetting(mode: AppSettings['bubbleVisibility']): Promise<void> {
     this.visibilityMode = mode;
-    await this.syncVisibility();
+    await this.runSyncVisibility();
   }
 
   openMainWindow(): void {
@@ -125,7 +131,17 @@ export class BubbleWindowManager {
     return !mainWindow.isVisible() || mainWindow.isMinimized();
   }
 
-  private async syncVisibility(): Promise<void> {
+  private syncVisibility(): void {
+    if (this.isQuitting) return;
+
+    this.visibilitySyncChain = this.visibilitySyncChain
+      .then(() => this.runSyncVisibility())
+      .catch((error) => {
+        logger.warn('Bubble visibility sync failed:', error);
+      });
+  }
+
+  private async runSyncVisibility(): Promise<void> {
     if (this.isQuitting) return;
 
     if (!this.shouldShowBubble()) {
@@ -138,6 +154,44 @@ export class BubbleWindowManager {
   }
 
   private async ensureBubbleWindow(): Promise<void> {
+    if (this.bubbleWindow && !this.bubbleWindow.isDestroyed()) {
+      return;
+    }
+
+    if (this.ensureBubbleWindowTask) {
+      await this.ensureBubbleWindowTask;
+      return;
+    }
+
+    this.ensureBubbleWindowTask = this.createBubbleWindow();
+    try {
+      await this.ensureBubbleWindowTask;
+    } finally {
+      this.ensureBubbleWindowTask = null;
+    }
+  }
+
+  private registerBubbleWindow(win: BrowserWindow): void {
+    this.ownedBubbleWindows.add(win);
+    win.on('closed', () => {
+      this.ownedBubbleWindows.delete(win);
+      if (this.bubbleWindow === win) {
+        this.bubbleWindow = null;
+      }
+    });
+  }
+
+  private adoptBubbleWindow(win: BrowserWindow): void {
+    for (const existing of this.ownedBubbleWindows) {
+      if (existing !== win && !existing.isDestroyed()) {
+        logger.warn('Destroying stale bubble window after duplicate creation');
+        existing.destroy();
+      }
+    }
+    this.bubbleWindow = win;
+  }
+
+  private async createBubbleWindow(): Promise<void> {
     if (this.bubbleWindow && !this.bubbleWindow.isDestroyed()) {
       return;
     }
@@ -191,16 +245,12 @@ export class BubbleWindowManager {
       onDragEnd: () => this.finalizeWindowPosition(win),
     });
 
-    win.on('closed', () => {
-      if (this.bubbleWindow === win) {
-        this.bubbleWindow = null;
-      }
-    });
+    this.registerBubbleWindow(win);
 
     const url = this.getBubbleLoadUrl();
     await win.loadURL(url);
 
-    this.bubbleWindow = win;
+    this.adoptBubbleWindow(win);
 
     const controller = this.deps.getStateController();
     if (controller) {
@@ -311,6 +361,10 @@ export function initBubbleSystem(deps: {
 }): BubbleWindowManager | null {
   if (!isBubbleEnabledInCurrentProcess()) {
     return null;
+  }
+
+  if (bubbleWindowManager) {
+    return bubbleWindowManager;
   }
 
   bubbleStateController = new BubbleStateController(deps.gatewayManager);
