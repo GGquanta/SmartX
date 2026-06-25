@@ -1,14 +1,22 @@
-import { afterEach, describe, expect, it } from 'vitest';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+
+vi.mock('../../electron/utils/paths', () => ({
+  isAppPackaged: vi.fn(() => false),
+  getResourcesDir: vi.fn(() => ''),
+}));
+
 import {
+  BUNDLED_PROVIDER_DEFAULTS_FILENAME,
   getProviderDefaultsFromEnv,
   loadProviderDefaultEnvFiles,
   resetProviderDefaultEnvCache,
   resolveProviderDefaultName,
   resolveSmartXProjectRoot,
 } from '../../electron/utils/provider-default-env';
+import { getResourcesDir, isAppPackaged } from '../../electron/utils/paths';
 
 describe('provider-default-env', () => {
   const originalEnv = { ...process.env };
@@ -16,6 +24,8 @@ describe('provider-default-env', () => {
   afterEach(() => {
     process.env = { ...originalEnv };
     resetProviderDefaultEnvCache();
+    vi.mocked(isAppPackaged).mockReturnValue(false);
+    vi.mocked(getResourcesDir).mockReturnValue('');
   });
 
   it('returns null when no provider default env vars are set', () => {
@@ -154,5 +164,62 @@ describe('provider-default-env', () => {
     loadProviderDefaultEnvFiles(root);
 
     expect(getProviderDefaultsFromEnv(root)?.model).toBe('from-local');
+  });
+
+  it('reads bundled provider defaults in packaged builds', () => {
+    const root = mkdtempSync(join(tmpdir(), 'smartx-env-bundled-'));
+    const resourcesDir = join(root, 'resources');
+    mkdirSync(resourcesDir, { recursive: true });
+    writeFileSync(
+      join(resourcesDir, BUNDLED_PROVIDER_DEFAULTS_FILENAME),
+      [
+        'PROVIDER_DEFAULT_NAME=bailian',
+        'PROVIDER_DEFAULT_APIKEY=sk-bundled',
+      ].join('\n'),
+      'utf8',
+    );
+
+    vi.mocked(isAppPackaged).mockReturnValue(true);
+    vi.mocked(getResourcesDir).mockReturnValue(resourcesDir);
+
+    delete process.env.PROVIDER_DEFAULT_NAME;
+    delete process.env.PROVIDER_DEFAULT_APIKEY;
+    delete process.env.PROVIDER_DEFAULT_MODEL;
+    delete process.env.PROVIDER_DEFAULT_BASE_URL;
+    resetProviderDefaultEnvCache();
+    loadProviderDefaultEnvFiles(root);
+
+    expect(getProviderDefaultsFromEnv(root)).toEqual({
+      providerId: 'bailian',
+      apiKey: 'sk-bundled',
+      model: 'qwen3.7-max',
+      baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    });
+  });
+
+  it('lets project .env.local override bundled defaults in packaged builds', () => {
+    const root = mkdtempSync(join(tmpdir(), 'smartx-env-bundled-override-'));
+    const resourcesDir = join(root, 'resources');
+    mkdirSync(resourcesDir, { recursive: true });
+    writeFileSync(
+      join(resourcesDir, BUNDLED_PROVIDER_DEFAULTS_FILENAME),
+      'PROVIDER_DEFAULT_NAME=bailian\nPROVIDER_DEFAULT_APIKEY=sk-bundled\n',
+      'utf8',
+    );
+    writeFileSync(
+      join(root, '.env.local'),
+      'PROVIDER_DEFAULT_APIKEY=sk-local-override\n',
+      'utf8',
+    );
+
+    vi.mocked(isAppPackaged).mockReturnValue(true);
+    vi.mocked(getResourcesDir).mockReturnValue(resourcesDir);
+
+    delete process.env.PROVIDER_DEFAULT_NAME;
+    delete process.env.PROVIDER_DEFAULT_APIKEY;
+    resetProviderDefaultEnvCache();
+    loadProviderDefaultEnvFiles(root);
+
+    expect(getProviderDefaultsFromEnv(root)?.apiKey).toBe('sk-local-override');
   });
 });

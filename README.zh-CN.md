@@ -201,7 +201,7 @@ pnpm dev
 3. **安装组件** – 安装必要的内置技能
 4. **完成** – 结束引导并进入主界面
 
-若在 `.env` / `.env.local` 中配置了 `PROVIDER_DEFAULT_*`（或在 Electron 主进程运行时可用），环境检查步骤会自动创建默认供应商，并在完成页显示配置结果。也可随时在 **设置 → AI 供应商** 中手动配置。
+若在 `.env` / `.env.local` 中配置了 `PROVIDER_DEFAULT_*`（开发环境），或在 CI 打包时通过 Release workflow secrets 写入并随安装包分发的 `resources/provider-defaults.env`（生产环境），环境检查步骤会自动创建默认供应商，并在完成页显示配置结果。也可随时在 **设置 → AI 供应商** 中手动配置。
 
 如果系统语言在支持列表中，向导会默认选中该语言；否则回退到英文。
 

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { getProviderDefinition } from '../shared/providers/registry';
 import { PROVIDER_TYPES, type ProviderType } from '../shared/providers/types';
 import { logger } from './logger';
+import { getResourcesDir, isAppPackaged } from './paths';
 
 export type ProviderEnvDefaults = {
   providerId: string;
@@ -18,6 +19,8 @@ const ENV_KEYS = [
   'PROVIDER_DEFAULT_MODEL',
   'PROVIDER_DEFAULT_BASE_URL',
 ] as const;
+
+export const BUNDLED_PROVIDER_DEFAULTS_FILENAME = 'provider-defaults.env';
 
 let envFilesLoaded = false;
 let loadedRoot: string | null = null;
@@ -130,6 +133,23 @@ export function resolveProviderRegistryDefaults(
   };
 }
 
+export function resolveBundledProviderDefaultsPath(): string {
+  return join(getResourcesDir(), BUNDLED_PROVIDER_DEFAULTS_FILENAME);
+}
+
+function loadBundledProviderDefaults(): void {
+  if (!isAppPackaged()) {
+    return;
+  }
+
+  const bundledPath = resolveBundledProviderDefaultsPath();
+  if (!existsSync(bundledPath)) {
+    return;
+  }
+
+  applyParsedEnv(parseEnvFile(readFileSync(bundledPath, 'utf8')), false);
+}
+
 function applyRegistryDefaultsToProcessEnv(providerId: ProviderType | null): void {
   if (!providerId || providerId === 'custom') {
     return;
@@ -145,7 +165,11 @@ function applyRegistryDefaultsToProcessEnv(providerId: ProviderType | null): voi
 }
 
 /**
- * Load `.env` then `.env.local` from the project root.
+ * Load provider defaults from:
+ * 1. Bundled `resources/provider-defaults.env` (packaged builds only; written at CI/package time)
+ * 2. Project-root `.env`
+ * 3. Project-root `.env.local` (overrides the above)
+ *
  * In dev, re-reads on each call so `.env.local` edits apply without restarting Electron.
  */
 export function loadProviderDefaultEnvFiles(rootDir?: string): void {
@@ -157,6 +181,8 @@ export function loadProviderDefaultEnvFiles(rootDir?: string): void {
 
   envFilesLoaded = true;
   loadedRoot = root;
+
+  loadBundledProviderDefaults();
 
   const envPath = join(root, '.env');
   if (existsSync(envPath)) {
@@ -174,6 +200,8 @@ export function loadProviderDefaultEnvFiles(rootDir?: string): void {
 
   logger.debug('Provider default env loaded', {
     root,
+    bundledPath: isAppPackaged() ? resolveBundledProviderDefaultsPath() : undefined,
+    hasBundledFile: isAppPackaged() && existsSync(resolveBundledProviderDefaultsPath()),
     hasName: Boolean(process.env.PROVIDER_DEFAULT_NAME?.trim()),
     hasModel: Boolean(process.env.PROVIDER_DEFAULT_MODEL?.trim()),
     hasBaseUrl: Boolean(process.env.PROVIDER_DEFAULT_BASE_URL?.trim()),

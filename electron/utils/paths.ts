@@ -99,6 +99,11 @@ export function getAppRootPath(): string {
   return getElectronApp().getAppPath();
 }
 
+/** Whether SmartX is running from a packaged build (not dev). */
+export function isAppPackaged(): boolean {
+  return getElectronApp().isPackaged;
+}
+
 /**
  * Get resources directory (for bundled assets)
  */

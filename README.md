@@ -186,7 +186,7 @@ When you launch SmartX for the first time, the **Setup Wizard** will guide you t
 3. **Setup** – Install essential bundled skills
 4. **Complete** – Finish onboarding and enter the main interface
 
-If `PROVIDER_DEFAULT_*` variables are set in `.env` / `.env.local` (or available to the Electron main process at runtime), the environment-check step auto-creates the default AI provider and shows the configured provider on the completion screen. You can also configure providers manually anytime in **Settings → AI Providers**.
+If `PROVIDER_DEFAULT_*` variables are set in `.env` / `.env.local` (dev) or baked into `resources/provider-defaults.env` during CI packaging (Release workflow secrets → bundled into the installer), the environment-check step auto-creates the default AI provider and shows the configured provider on the completion screen. You can also configure providers manually anytime in **Settings → AI Providers**.
 
 The wizard preselects your system language when it is supported, and falls back to English otherwise.
 

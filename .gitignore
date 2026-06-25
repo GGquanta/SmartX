@@ -23,6 +23,7 @@ release/
 .env
 .env.local
 .env.*.local
+resources/provider-defaults.env
 
 # Logs
 logs
