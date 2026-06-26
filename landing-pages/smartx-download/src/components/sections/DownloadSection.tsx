@@ -91,6 +91,7 @@ export function DownloadSection() {
                         variant={variant}
                         version={data.version}
                         assetBaseUrl={data.assetBaseUrl}
+                        ossBaseUrl={data.ossBaseUrl}
                         highlighted={isVariantRecommendedForPlatform(
                           platform.id,
                           variant,

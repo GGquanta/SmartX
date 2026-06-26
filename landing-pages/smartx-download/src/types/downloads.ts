@@ -22,5 +22,7 @@ export interface DownloadsManifest {
   version: string;
   updatedAt: string;
   assetBaseUrl: string;
+  /** Aliyun OSS direct download base URL for high-speed mirror links */
+  ossBaseUrl?: string;
   platforms: DownloadPlatform[];
 }

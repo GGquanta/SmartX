@@ -3,6 +3,7 @@
   "version": "0.4.11",
   "updatedAt": "2026-06-25",
   "assetBaseUrl": "https://smartx.qubitlab.cc",
+  "ossBaseUrl": "https://smartx-assets.oss-cn-hongkong.aliyuncs.com",
   "platforms": [
     {
       "id": "macos",
@@ -15,7 +16,7 @@
           "format": "DMG",
           "arch": "arm64",
           "path": "/latest/SmartX-0.4.11-mac-arm64.dmg",
-          "size": "255.7 MB",
+          "size": "225.2 MB",
           "recommended": true
         },
         {
@@ -24,7 +25,7 @@
           "format": "DMG",
           "arch": "x64",
           "path": "/latest/SmartX-0.4.11-mac-x64.dmg",
-          "size": "262.2 MB"
+          "size": "229.3 MB"
         },
         {
           "id": "macos-arm64-zip",
@@ -32,7 +33,7 @@
           "format": "ZIP",
           "arch": "arm64",
           "path": "/latest/SmartX-0.4.11-mac-arm64.zip",
-          "size": "287.3 MB"
+          "size": "256.0 MB"
         },
         {
           "id": "macos-x64-zip",
@@ -40,7 +41,7 @@
           "format": "ZIP",
           "arch": "x64",
           "path": "/latest/SmartX-0.4.11-mac-x64.zip",
-          "size": "295.3 MB"
+          "size": "262.3 MB"
         }
       ]
     },
@@ -55,7 +56,7 @@
           "format": "安装包",
           "arch": "x64",
           "path": "/latest/SmartX-0.4.11-win-x64.exe",
-          "size": "280.9 MB",
+          "size": "251.9 MB",
           "recommended": true
         }
       ]
@@ -79,7 +80,7 @@
           "format": "AppImage",
           "arch": "x64",
           "path": "/latest/SmartX-0.4.11-linux-x86_64.AppImage",
-          "size": "211.4 MB",
+          "size": "195.2 MB",
           "recommended": true
         },
         {
@@ -96,7 +97,7 @@
           "format": "deb",
           "arch": "x64",
           "path": "/latest/SmartX-0.4.11-linux-amd64.deb",
-          "size": "230.3 MB"
+          "size": "202.5 MB"
         },
         {
           "id": "linux-x64-rpm",
@@ -104,7 +105,7 @@
           "format": "rpm",
           "arch": "x64",
           "path": "/latest/SmartX-0.4.11-linux-x86_64.rpm",
-          "size": "195.5 MB"
+          "size": "169.6 MB"
         }
       ]
     }

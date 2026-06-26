@@ -6,6 +6,7 @@
   "scripts": {
     "predev": "node scripts/sync-images.mjs",
     "prebuild": "node scripts/sync-images.mjs",
+    "sync:downloads": "node scripts/sync-downloads.mjs",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
