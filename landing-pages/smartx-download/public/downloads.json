@@ -1,7 +1,7 @@
 {
   "productName": "小光",
   "version": "0.4.11",
-  "updatedAt": "2026-06-25",
+  "updatedAt": "2026-06-26",
   "assetBaseUrl": "https://smartx.qubitlab.cc",
   "ossBaseUrl": "https://smartx-assets.oss-cn-hongkong.aliyuncs.com",
   "platforms": [
@@ -16,7 +16,7 @@
           "format": "DMG",
           "arch": "arm64",
           "path": "/latest/SmartX-0.4.11-mac-arm64.dmg",
-          "size": "225.2 MB",
+          "size": "223.5 MB",
           "recommended": true
         },
         {
@@ -33,7 +33,7 @@
           "format": "ZIP",
           "arch": "arm64",
           "path": "/latest/SmartX-0.4.11-mac-arm64.zip",
-          "size": "256.0 MB"
+          "size": "254.4 MB"
         },
         {
           "id": "macos-x64-zip",
@@ -105,7 +105,7 @@
           "format": "rpm",
           "arch": "x64",
           "path": "/latest/SmartX-0.4.11-linux-x86_64.rpm",
-          "size": "169.6 MB"
+          "size": "169.7 MB"
         }
       ]
     }
