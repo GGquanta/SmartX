@@ -19,6 +19,7 @@ import { statFile } from '@/lib/file-preview-client';
 import { hostApi } from '@/lib/host-api';
 import type { RawMessage, AttachedFileMeta } from '@/stores/chat';
 import { extractText, extractImages, extractToolUse, formatTimestamp, isUnresolvableImageUrl } from './message-utils';
+import { maskIncompleteMarkdownImage } from './mask-incomplete-markdown-image';
 import { copyImageToClipboard, type ImageCopyTarget } from './copy-image';
 
 interface ChatMessageProps {
@@ -681,6 +682,53 @@ function UserMessageBubble({
 
 // ── Assistant Markdown ──────────────────────────────────────────
 
+function MarkdownImageSkeleton({
+  testId,
+  className,
+}: {
+  testId: string;
+  className?: string;
+}) {
+  return (
+    <div
+      data-testid={testId}
+      className={cn(
+        'h-36 w-full max-w-md animate-pulse rounded-lg bg-black/5 dark:bg-white/5',
+        className,
+      )}
+      aria-hidden
+    />
+  );
+}
+
+function MarkdownImage({ src, alt }: { src: string; alt: string }) {
+  const [loaded, setLoaded] = useState(false);
+  const [errored, setErrored] = useState(false);
+
+  useEffect(() => {
+    setLoaded(false);
+    setErrored(false);
+  }, [src]);
+
+  const showSkeleton = !loaded && !errored;
+
+  return (
+    <span className="relative my-2 block max-w-full">
+      {showSkeleton && <MarkdownImageSkeleton testId="markdown-image-skeleton" />}
+      <img
+        src={src}
+        alt={alt}
+        className={cn('max-w-full rounded-lg', showSkeleton && 'sr-only')}
+        onLoad={() => setLoaded(true)}
+        onError={() => {
+          setErrored(true);
+          setLoaded(true);
+        }}
+      />
+    </span>
+  );
+}
+
 function AssistantMarkdown({
   text,
   isStreaming,
@@ -688,6 +736,11 @@ function AssistantMarkdown({
   text: string;
   isStreaming: boolean;
 }) {
+  const { text: displayText, showSkeleton: showStreamImageSkeleton } = maskIncompleteMarkdownImage(
+    text,
+    isStreaming,
+  );
+
   return (
     <div className="prose prose-sm dark:prose-invert w-full max-w-none break-words text-foreground">
       <ReactMarkdown
@@ -730,13 +783,19 @@ function AssistantMarkdown({
           img({ src, alt }) {
             if (!src || isUnresolvableImageUrl(String(src))) return null;
             return (
-              <img src={String(src)} alt={typeof alt === 'string' ? alt : 'image'} className="max-w-full rounded-lg" />
+              <MarkdownImage
+                src={String(src)}
+                alt={typeof alt === 'string' ? alt : 'image'}
+              />
             );
           },
         }}
       >
-        {normalizeLatexDelimiters(text)}
+        {normalizeLatexDelimiters(displayText)}
       </ReactMarkdown>
+      {showStreamImageSkeleton && (
+        <MarkdownImageSkeleton testId="markdown-image-stream-skeleton" className="my-2" />
+      )}
       {isStreaming && (
         <span className="inline-block w-2 h-4 bg-foreground/50 animate-pulse ml-0.5" />
       )}

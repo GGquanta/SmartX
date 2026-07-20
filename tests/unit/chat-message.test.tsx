@@ -331,6 +331,50 @@ describe('ChatMessage attachment dedupe', () => {
   });
 });
 
+describe('ChatMessage streaming markdown images', () => {
+  it('shows a skeleton instead of raw incomplete https image markdown while streaming', () => {
+    const message: RawMessage = {
+      role: 'assistant',
+      content: '知识库引用：\n\n![架构图](https://kb.example.com/assets/architecture.pn',
+    };
+
+    render(<ChatMessage message={message} isStreaming />);
+
+    expect(screen.getByText('知识库引用：')).toBeInTheDocument();
+    expect(screen.getByTestId('markdown-image-stream-skeleton')).toBeInTheDocument();
+    expect(screen.queryByText(/!\[架构图\]/)).not.toBeInTheDocument();
+    expect(screen.queryByAltText('架构图')).not.toBeInTheDocument();
+  });
+
+  it('keeps complete https images while streaming and shows a load skeleton until onLoad', () => {
+    const message: RawMessage = {
+      role: 'assistant',
+      content: '知识库引用：\n\n![架构图](https://kb.example.com/assets/architecture.png)',
+    };
+
+    render(<ChatMessage message={message} isStreaming />);
+
+    expect(screen.getByTestId('markdown-image-skeleton')).toBeInTheDocument();
+    expect(screen.queryByTestId('markdown-image-stream-skeleton')).not.toBeInTheDocument();
+    const img = screen.getByAltText('架构图');
+    expect(img).toHaveAttribute('src', 'https://kb.example.com/assets/architecture.png');
+
+    fireEvent.load(img);
+    expect(screen.queryByTestId('markdown-image-skeleton')).not.toBeInTheDocument();
+  });
+
+  it('does not leave a stream skeleton after streaming ends with incomplete image markup', () => {
+    const message: RawMessage = {
+      role: 'assistant',
+      content: '写法示例：![架构图](https://kb.example.com/a.pn',
+    };
+
+    render(<ChatMessage message={message} isStreaming={false} />);
+
+    expect(screen.queryByTestId('markdown-image-stream-skeleton')).not.toBeInTheDocument();
+  });
+});
+
 describe('ChatMessage LaTeX rendering', () => {
   it('renders markdown images with http(s) URLs inline', () => {
     const message: RawMessage = {
