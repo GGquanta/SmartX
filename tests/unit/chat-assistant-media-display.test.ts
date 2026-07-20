@@ -38,6 +38,19 @@ C:\Users\alice\.openclaw\media\outbound\cat---abc.png`;
     expect(extractText({ role: 'assistant', content: text })).toBe('宇航员图片完成啦 🧑‍🚀✨');
   });
 
+  it('keeps markdown images with http(s) URLs for enterprise knowledge-base content', () => {
+    const text = '参考文档如下：\n\n![架构图](https://kb.example.com/assets/architecture.png)';
+
+    expect(extractText({ role: 'assistant', content: text })).toBe(text);
+    expect(sanitizeAssistantReplyText(text)).toBe(text);
+  });
+
+  it('keeps markdown images with data URLs', () => {
+    const text = '![inline](data:image/png;base64,iVBORw0KGgo=)';
+
+    expect(extractText({ role: 'assistant', content: text })).toBe(text);
+  });
+
   it('strips internal delivery-planning narration before the user-facing caption', () => {
     const text = [
       "The message tool isn't suitable here since I'm in a webchat session with no proper routing target. The runtime context says 'Use the current visible-reply contract... Otherwise, write the normal final reply and attach every generated media path with final-reply MEDIA lines.' Since webchat isn't a valid channel for the message tool, I should fall back to writing the normal final reply with MEDIA directives.",

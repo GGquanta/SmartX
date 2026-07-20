@@ -332,6 +332,17 @@ describe('ChatMessage attachment dedupe', () => {
 });
 
 describe('ChatMessage LaTeX rendering', () => {
+  it('renders markdown images with http(s) URLs inline', () => {
+    const message: RawMessage = {
+      role: 'assistant',
+      content: '知识库引用：\n\n![架构图](https://kb.example.com/assets/architecture.png)',
+    };
+    render(<ChatMessage message={message} />);
+    const img = screen.getByAltText('架构图');
+    expect(img).toBeInTheDocument();
+    expect(img).toHaveAttribute('src', 'https://kb.example.com/assets/architecture.png');
+  });
+
   it('renders inline `$...$` math with KaTeX', () => {
     const message: RawMessage = {
       role: 'assistant',

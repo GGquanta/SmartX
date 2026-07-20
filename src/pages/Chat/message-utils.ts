@@ -86,7 +86,12 @@ function stripAssistantMediaTags(text: string): string {
   return text
     .replace(tagged, '')
     .replace(bareOpenClawMedia, (_, lead: string) => lead)
-    .replace(/!\[[^\]]*\]\([^)]+\)/g, '')
+    // Strip markdown images only when the renderer cannot fetch the URL directly
+    // (Gateway proxy paths, local filesystem paths). Keep http(s) and data: URLs
+    // so enterprise knowledge-base citations like `![alt](https://...)` stay visible.
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, _alt, url: string) => (
+      isUnresolvableImageUrl(url.trim()) ? '' : match
+    ))
     // Collapse the empty lines / orphan whitespace the strip leaves behind.
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
