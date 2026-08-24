@@ -2720,10 +2720,33 @@ describe('batchSyncConfigFields', () => {
     expect(defaults.compaction).toEqual({
       mode: 'safeguard',
       reserveTokensFloor: 50_000,
+      midTurnPrecheck: { enabled: true },
     });
   });
 
-  it('backfills reserveTokensFloor on safeguard compaction seeded without a floor', async () => {
+  it('enables mid-turn precheck without changing the existing reserve floor', async () => {
+    await writeOpenClawJson({
+      gateway: { auth: { mode: 'token', token: 'old' } },
+      agents: {
+        defaults: {
+          compaction: { mode: 'safeguard', reserveTokensFloor: 50_000 },
+        },
+      },
+    });
+
+    const { batchSyncConfigFields } = await import('@electron/utils/openclaw-auth');
+    await batchSyncConfigFields('new-token');
+
+    const config = await readOpenClawJson();
+    const defaults = ((config.agents as Record<string, unknown>).defaults as Record<string, unknown>);
+    expect(defaults.compaction).toEqual({
+      mode: 'safeguard',
+      reserveTokensFloor: 50_000,
+      midTurnPrecheck: { enabled: true },
+    });
+  });
+
+  it('backfills compaction safety fields on safeguard config seeded without them', async () => {
     await writeOpenClawJson({
       gateway: { auth: { mode: 'token', token: 'old' } },
       agents: {
@@ -2741,15 +2764,20 @@ describe('batchSyncConfigFields', () => {
     expect(defaults.compaction).toEqual({
       mode: 'safeguard',
       reserveTokensFloor: 50_000,
+      midTurnPrecheck: { enabled: true },
     });
   });
 
-  it('does not touch an explicit compaction config', async () => {
+  it('does not touch explicit compaction safety values', async () => {
     await writeOpenClawJson({
       gateway: { auth: { mode: 'token', token: 'old' } },
       agents: {
         defaults: {
-          compaction: { mode: 'default', reserveTokensFloor: 30000 },
+          compaction: {
+            mode: 'default',
+            reserveTokensFloor: 30000,
+            midTurnPrecheck: { enabled: false },
+          },
         },
       },
     });
@@ -2759,7 +2787,11 @@ describe('batchSyncConfigFields', () => {
 
     const config = await readOpenClawJson();
     const defaults = ((config.agents as Record<string, unknown>).defaults as Record<string, unknown>);
-    expect(defaults.compaction).toEqual({ mode: 'default', reserveTokensFloor: 30000 });
+    expect(defaults.compaction).toEqual({
+      mode: 'default',
+      reserveTokensFloor: 30000,
+      midTurnPrecheck: { enabled: false },
+    });
   });
 
   it('seeds FTS-only memory search when no OpenAI embedding key exists', async () => {

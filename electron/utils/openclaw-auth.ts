@@ -864,6 +864,7 @@ function ensureCompactionSafeguardDefault(config: Record<string, unknown>): bool
   defaults.compaction = {
     mode: 'safeguard',
     reserveTokensFloor: DEFAULT_COMPACTION_RESERVE_TOKENS_FLOOR,
+    midTurnPrecheck: { enabled: true },
   };
   agents.defaults = defaults;
   config.agents = agents;
@@ -871,11 +872,11 @@ function ensureCompactionSafeguardDefault(config: Record<string, unknown>): bool
 }
 
 /**
- * Backfill `reserveTokensFloor` on compaction configs that ClawX or OpenClaw
- * seeded without one. OpenClaw's built-in default (20k) is too low once
- * contextWindow backfill activates safeguard compaction on 200k+ models.
+ * Backfill missing compaction safety fields without changing explicit values.
+ * This enables the tool-loop guard on upgrade while preserving every existing
+ * reserveTokensFloor and midTurnPrecheck.enabled choice.
  */
-function backfillCompactionReserveTokensFloor(config: Record<string, unknown>): boolean {
+function backfillCompactionSafetyDefaults(config: Record<string, unknown>): boolean {
   const agents = (config.agents && typeof config.agents === 'object'
     ? config.agents as Record<string, unknown>
     : null);
@@ -889,9 +890,26 @@ function backfillCompactionReserveTokensFloor(config: Record<string, unknown>): 
   const compaction = (defaults.compaction && typeof defaults.compaction === 'object'
     ? defaults.compaction as Record<string, unknown>
     : null);
-  if (!compaction || compaction.reserveTokensFloor !== undefined) return false;
+  if (!compaction) return false;
 
-  compaction.reserveTokensFloor = DEFAULT_COMPACTION_RESERVE_TOKENS_FLOOR;
+  let changed = false;
+  if (compaction.reserveTokensFloor === undefined) {
+    compaction.reserveTokensFloor = DEFAULT_COMPACTION_RESERVE_TOKENS_FLOOR;
+    changed = true;
+  }
+
+  if (compaction.midTurnPrecheck === undefined) {
+    compaction.midTurnPrecheck = { enabled: true };
+    changed = true;
+  } else if (
+    isPlainRecord(compaction.midTurnPrecheck)
+    && compaction.midTurnPrecheck.enabled === undefined
+  ) {
+    compaction.midTurnPrecheck.enabled = true;
+    changed = true;
+  }
+
+  if (!changed) return false;
   defaults.compaction = compaction;
   agents.defaults = defaults;
   config.agents = agents;
@@ -2693,10 +2711,10 @@ export async function batchSyncConfigFields(token: string): Promise<void> {
     // ── Compaction safeguard default ──
     if (ensureCompactionSafeguardDefault(config)) {
       modified = true;
-      compactionLog = `[batch-sync] Seeded agents.defaults.compaction.mode=safeguard reserveTokensFloor=${DEFAULT_COMPACTION_RESERVE_TOKENS_FLOOR}`;
-    } else if (backfillCompactionReserveTokensFloor(config)) {
+      compactionLog = `[batch-sync] Seeded agents.defaults.compaction.mode=safeguard reserveTokensFloor=${DEFAULT_COMPACTION_RESERVE_TOKENS_FLOOR} midTurnPrecheck.enabled=true`;
+    } else if (backfillCompactionSafetyDefaults(config)) {
       modified = true;
-      compactionLog = `[batch-sync] Backfilled agents.defaults.compaction.reserveTokensFloor=${DEFAULT_COMPACTION_RESERVE_TOKENS_FLOOR}`;
+      compactionLog = '[batch-sync] Backfilled missing agents.defaults.compaction safety defaults';
     }
 
     // ── Memory search default ──
