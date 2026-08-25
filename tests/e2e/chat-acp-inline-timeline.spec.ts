@@ -468,6 +468,31 @@ test.describe('ClawX ACP inline timeline', () => {
     }
   });
 
+  test('shows active ACP context usage from usage updates', async ({ launchElectronApp }) => {
+    const app = await launchElectronApp({ skipSetup: true });
+
+    try {
+      await installAcpChatMocks(app);
+      const page = await openChat(app);
+      await expect(page.getByTestId('acp-chat-empty-state')).toBeVisible({ timeout: 30_000 });
+      await expect(page.getByTestId('chat-composer-context-usage')).toHaveCount(0);
+
+      await emitAcpSessionUpdates(app, [{
+        sessionUpdate: 'usage_update',
+        used: 25_000,
+        size: 100_000,
+      }]);
+
+      const ring = page.getByTestId('chat-composer-context-usage');
+      await expect(ring).toBeVisible({ timeout: 30_000 });
+      await expect(ring).toHaveAttribute('aria-label', '25% context used: 25,000 / 100,000 tokens');
+      await ring.focus();
+      await expect(page.getByRole('tooltip')).toHaveText('25% context used: 25,000 / 100,000 tokens');
+    } finally {
+      await closeElectronApp(app);
+    }
+  });
+
   test('supplements an ACP-replayed assistant turn with historical duration', async ({ launchElectronApp }) => {
     const app = await launchElectronApp({ skipSetup: true });
 
@@ -863,7 +888,7 @@ test.describe('ClawX ACP inline timeline', () => {
     }
   });
 
-  test('groups assistant text and tool calls into one assistant turn', async ({ launchElectronApp }) => {
+  test('keeps a shorter trailing assistant chunk after a tool call', async ({ launchElectronApp }) => {
     const app = await launchElectronApp({ skipSetup: true });
 
     try {
@@ -875,7 +900,10 @@ test.describe('ClawX ACP inline timeline', () => {
         {
           sessionUpdate: 'agent_message_chunk',
           messageId: 'assistant-turn',
-          content: { type: 'text', text: 'I will inspect the file.' },
+          content: {
+            type: 'text',
+            text: 'I will inspect the generated report before answering.',
+          },
         },
         {
           sessionUpdate: 'tool_call',
@@ -888,7 +916,18 @@ test.describe('ClawX ACP inline timeline', () => {
         {
           sessionUpdate: 'agent_message_chunk',
           messageId: 'assistant-turn',
-          content: { type: 'text', text: ' The file is safe.' },
+          content: {
+            type: 'text',
+            text: 'Inspection complete. The generated report passed all validation checks.\n\n- Source: `report.txt`\n- Result: val',
+          },
+        },
+        {
+          sessionUpdate: 'agent_message_chunk',
+          messageId: 'assistant-turn',
+          content: {
+            type: 'text',
+            text: 'id\n- Package: `report.zip`',
+          },
         },
       ]);
 
@@ -897,8 +936,11 @@ test.describe('ClawX ACP inline timeline', () => {
       await expect(page.getByTestId('acp-assistant-copy')).toHaveCount(1);
       await expect(page.getByTestId('acp-tool-call-card')).toContainText('Read grouped file');
       await expect.poll(async () => await page.getByTestId('acp-tool-call-card').evaluate((element) => Boolean(element.closest('[data-testid="acp-assistant-turn"]')))).toBe(true);
-      await expect(page.getByTestId('acp-assistant-turn')).toContainText('I will inspect the file.');
-      await expect(page.getByTestId('acp-assistant-turn')).toContainText('The file is safe.');
+      await expect(page.getByTestId('acp-assistant-turn')).toContainText('I will inspect the generated report');
+      await expect(page.getByTestId('acp-assistant-turn')).toContainText('Inspection complete');
+      await expect(page.getByTestId('acp-assistant-turn')).toContainText('Source: report.txt');
+      await expect(page.getByTestId('acp-assistant-turn')).toContainText('Result: valid');
+      await expect(page.getByTestId('acp-assistant-turn')).toContainText('Package: report.zip');
     } finally {
       await closeElectronApp(app);
     }

@@ -12,6 +12,8 @@
 
 コンポーザーから挿入したスキルは `/skill-name` カードとして表示されます。カードをクリックすると右側のプレビューサイドバーが開き、そのスキルの `SKILL.md` を読めます。
 
+アクティブな OpenClaw ACP セッションがコンテキスト使用量を報告すると、コンポーザーにコンパクトなリングが表示されます。リングにホバーまたはフォーカスすると、ローカライズされた使用率と使用済み/合計トークン数を確認できます。リングはアクティブな ACP の `usage_update` メタデータだけを使用し、メタデータがない場合や無効な場合は表示されません。
+
 `@agent` で別のエージェントを指定すると、ClawXはデフォルトエージェントを経由せず、そのエージェント自身の会話コンテキストへ直接切り替えます。エージェントのワークスペースは既定で分離されますが、より強い実行時分離はOpenClawのsandbox設定に依存します。
 
 セッションサイドバーはワークスペース優先で構成されます。既定のワークスペースが先頭に固定され、その他のワークスペースは自然な順序で並びます。各ワークスペースは折りたたんだり、セッションを追加読み込みしたりできます。AIが返信中のセッション行にはスピナーが表示され、未確認の返信が完了すると青い点が表示されます。会話を開いた後は相対的なアクティビティ時刻が表示され、ホバーすると行の操作が表示されます。インポートしたワークスペースはサイドバーの見出しから名前を変更できます。カスタム名はチャットコンポーザーにも反映され、見出しにホバーするとファイルシステムのパスを確認できます。
@@ -64,7 +66,7 @@ OpenAI互換ゲートウェイで **Custom** プロバイダーを使う場合�
 
 プロバイダーを編集または切り替える際、ClawXは `input: ["text", "image"]` など既存のモデル単位の能力メタデータを保持します。新しく選択したCustomプロバイダーのモデルにはOpenClaw onboarding互換の画像入力推論を適用し、不明なモデルはテキスト専用として扱います。
 
-Customプロバイダーのモデル行には、モデルファミリーから推定した明示的な `contextWindow`（例：`gpt-5.x` → 272k）も付与されます。旧バージョンで保存された行は起動時に補完されるため、OpenClawは長いセッションが「Context overflow」エラーになる前に圧縮できます。圧縮設定がない場合、ClawXは `agents.defaults.compaction.mode = "safeguard"`、`reserveTokensFloor = 50000`、`midTurnPrecheck.enabled = true` を初期設定します。アップグレード時は不足している安全設定のみを補完し、明示的な `reserveTokensFloor` 値と `midTurnPrecheck.enabled` の選択はすべて維持されます。
+Customプロバイダーのモデル行には、モデルファミリーから推定した明示的な `contextWindow`（例：`gpt-5.x` → 272k）も付与されます。旧バージョンで保存された行は起動時に補完されるため、OpenClawは長いセッションが「Context overflow」エラーになる前に圧縮できます。圧縮設定がない場合、ClawXは `agents.defaults.compaction.mode = "safeguard"`、`reserveTokensFloor = 50000`、`keepRecentTokens = 0`、`recentTurnsPreserve = 0`、`midTurnPrecheck.enabled = true` を初期設定します。起動時の同期ではこの2つの履歴保持値を常に `0` に設定し、完了済みターンを圧縮後に逐語的に再生するのではなく、すべて要約へ含めます。明示的な `reserveTokensFloor` 値と `midTurnPrecheck.enabled` の選択には従来の動作を維持します。
 
 Z.AI（CN / Global）はOpenClaw組み込みの `zai` プロバイダー（`ZAI_API_KEY`）に対応し、既定モデルは `glm-5.2` です。Code PlanプリセットではCoding Planエンドポイント（`.../api/coding/paas/v4`）を、通常のAPIでは（`.../api/paas/v4`）を使います。CNとGlobalは同じOpenClawランタイムキーを共有するため相互排他的です。
 

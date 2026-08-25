@@ -12,6 +12,8 @@ Communicate with AI agents through a modern chat experience. ClawX supports mult
 
 Skills inserted from the composer appear as `/skill-name` cards. Click a card to open the preview sidebar and read that skill's `SKILL.md`.
 
+When an active OpenClaw ACP session reports context usage, the composer shows a compact ring. Hover or focus it to see the localized percentage and used/total token counts. The ring uses only the active ACP `usage_update` metadata and stays hidden when that metadata is missing or invalid.
+
 When you target another agent with `@agent`, ClawX switches directly to that agent's own conversation context instead of relaying through the default agent. Agent workspaces stay separate by default, while stronger runtime isolation depends on OpenClaw sandbox settings.
 
 The session sidebar is workspace-first: the default workspace stays at the top, other workspaces sort naturally, and each workspace can collapse or load more sessions. A session row shows a spinner while the AI is replying, a blue dot when an unseen reply finishes, and its relative activity time after the conversation is opened; hovering still reveals row actions. Imported workspaces can be renamed from their sidebar header. The custom name is reflected in the chat composer, while hovering the header still reveals the filesystem path.
@@ -64,7 +66,7 @@ For **Custom** providers used with OpenAI-compatible gateways, you can set a cus
 
 When you edit or switch providers, ClawX preserves existing per-model capability metadata such as `input: ["text", "image"]`. Newly selected Custom-provider models use OpenClaw onboarding-compatible image-input inference, with unknown models defaulting to text-only.
 
-Custom-provider model rows also receive an explicit `contextWindow`, inferred from the model family, such as `gpt-5.x` -> 272k. Rows saved by older versions are backfilled on startup so OpenClaw can compact long sessions before they fail with "Context overflow" errors. When no compaction configuration exists, ClawX seeds `agents.defaults.compaction.mode = "safeguard"`, `reserveTokensFloor = 50000`, and `midTurnPrecheck.enabled = true`. On upgrade, missing safety fields are backfilled, while every explicit `reserveTokensFloor` value and explicit `midTurnPrecheck.enabled` choice is preserved.
+Custom-provider model rows also receive an explicit `contextWindow`, inferred from the model family, such as `gpt-5.x` -> 272k. Rows saved by older versions are backfilled on startup so OpenClaw can compact long sessions before they fail with "Context overflow" errors. When no compaction configuration exists, ClawX seeds `agents.defaults.compaction.mode = "safeguard"`, `reserveTokensFloor = 50000`, `keepRecentTokens = 0`, `recentTurnsPreserve = 0`, and `midTurnPrecheck.enabled = true`. Startup sync always applies both zero-valued history settings so every completed turn is summarized instead of being replayed verbatim after compaction, while explicit `reserveTokensFloor` values and explicit `midTurnPrecheck.enabled` choices retain their existing behavior.
 
 Z.AI (CN / Global) maps to OpenClaw's built-in `zai` provider (`ZAI_API_KEY`). The default model is `glm-5.2`. Use the Code Plan preset for Coding Plan endpoints (`.../api/coding/paas/v4`) or the normal API endpoints (`.../api/paas/v4`). CN and Global are mutually exclusive because they share one OpenClaw runtime key.
 

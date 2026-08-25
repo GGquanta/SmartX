@@ -8,6 +8,7 @@
 ### 💬 智能聊天界面
 通过现代化的聊天体验与 AI 智能体交互。支持多会话上下文、消息历史记录，并以流式 Markdown 渲染智能体回复，支持带语法高亮的围栏代码块、面向中日韩文本的解析、GitHub 风格表格，以及由 KaTeX 渲染的 LaTeX 数学公式（`$行内$`、`$$块级$$`、`\(行内\)` 和 `\[块级\]`）；用户输入则始终按原始文本显示。同时支持在多 Agent 场景下通过主输入框中的 `@agent` 直接路由到目标智能体。围栏代码会保留源码换行、自动软换行，并在流式输出结束后提供本地化的复制操作。
 从输入框插入的技能会以 `/技能名` 卡片形式显示；点击卡片可在右侧预览栏打开并阅读该技能的 `SKILL.md`。
+当活动的 OpenClaw ACP 会话上报上下文用量时，输入框会显示一个紧凑的用量环。悬停或聚焦该环可查看本地化百分比以及已用/总 token 数。该用量环只使用活动 ACP 的 `usage_update` 元数据；元数据缺失或无效时不会显示。
 当你使用 `@agent` 选择其他智能体时，ClawX 会直接切换到该智能体自己的对话上下文，而不是经过默认智能体转发。各 Agent 工作区默认彼此分离，但更强的运行时隔离仍取决于 OpenClaw 的 sandbox 配置。
 会话侧边栏现在以工作空间优先组织：默认工作空间固定在最上方，其它工作空间按自然顺序排列，每个工作空间都可折叠或继续加载更多会话。AI 回复期间，会话行显示加载指示器；未查看的回复完成后显示蓝点；打开会话后恢复显示相对活跃时间，悬停时仍会露出操作按钮。导入的工作空间可从侧边栏标题处重命名，新名称会同步显示在对话输入框下方，同时悬浮标题仍可查看文件系统路径。如果当前所选会话存在有效工作空间，新对话会继承该工作空间，并在首次发送前保持可编辑。对于可编辑的新对话或未绑定对话，输入框的工作空间卡片会打开一个小菜单，列出最近使用及现有会话中的工作空间，并可切回默认工作空间或选择其它目录。如果保存的工作空间文件夹已被移动或删除，Chat 会暂停创建会话并提示选择现有文件夹，而不会持续重试失效路径。不可用的非默认工作空间会在侧边栏显示标记，并可在确认后删除；该操作会永久删除分组中的全部会话。只有永久删除成功后，会话行才会移除且页面才会跳转；删除失败时会保留会话与确认框，方便重试。OpenClaw 生成的 UUID 加日期兜底标题只有在与该会话 ID 匹配时才会被视为缺失标题，随后改用会话的首条用户消息展示，而不会被持久化为会话名称。
 每个 Agent 还可以单独覆盖自己的 `provider/model` 运行时设置；未覆盖的 Agent 会继续继承全局默认模型。
@@ -40,7 +41,7 @@ Skills 页面可展示来自多个 OpenClaw 来源的技能（托管目录、wor
 在开发者模式下，独立的“图像生成”页面支持配置 OpenAI 兼容生图端点（Base URL、API Key 和模型名，例如 `gpt-image-2`），生图请求会走专用的 `/v1/images/generations` 服务，聊天仍继续使用正常的 OpenAI Provider。
 如果你通过 **自定义（Custom）Provider** 对接 OpenAI-compatible 网关，可以在 **设置 → AI Providers → 编辑 Provider** 中配置自定义 `User-Agent`，以提高兼容性。
 编辑或切换 Provider 时，ClawX 会保留已有的模型级能力元数据，例如 `input: ["text", "image"]`。新选择的自定义 Provider 模型会使用与 OpenClaw onboarding 一致的图片输入能力推断；未知模型默认按纯文本模型处理。
-自定义 Provider 的模型行还会写入显式的 `contextWindow`（按模型系列推断，例如 `gpt-5.x` → 272k），旧版本保存的模型行会在启动时自动回填，使 OpenClaw 能在长会话超限前主动压缩上下文，避免出现 "Context overflow" 报错。当你没有配置 compaction 时，ClawX 会默认写入 `agents.defaults.compaction.mode = "safeguard"`、`reserveTokensFloor = 50000` 和 `midTurnPrecheck.enabled = true`。升级时仅回填缺失的安全字段，所有显式设置的 `reserveTokensFloor` 及 `midTurnPrecheck.enabled` 选项都会保持不变。
+自定义 Provider 的模型行还会写入显式的 `contextWindow`（按模型系列推断，例如 `gpt-5.x` → 272k），旧版本保存的模型行会在启动时自动回填，使 OpenClaw 能在长会话超限前主动压缩上下文，避免出现 "Context overflow" 报错。当你没有配置 compaction 时，ClawX 会默认写入 `agents.defaults.compaction.mode = "safeguard"`、`reserveTokensFloor = 50000`、`keepRecentTokens = 0`、`recentTurnsPreserve = 0` 和 `midTurnPrecheck.enabled = true`。启动同步始终会将这两个历史保留值设为 `0`，使所有已完成回合进入摘要，而不是在压缩后逐字重放；显式设置的 `reserveTokensFloor` 及 `midTurnPrecheck.enabled` 仍沿用现有策略。
 Z.AI（国内站 / 国际站）会映射到 OpenClaw 内置的 `zai` 供应商（`ZAI_API_KEY`），默认模型为 `glm-5.2`。可通过 Code Plan 预设切换到编码套餐端点（`…/api/coding/paas/v4`），或使用普通 API 端点（`…/api/paas/v4`）；国内站与国际站互斥，因为它们共享同一个 OpenClaw 运行时 key。
 如果兼容网关的 `/models` 因非鉴权原因不可用，ClawX 会在校验 API Key 时使用已配置的模型，自动降级为轻量的 `/chat/completions` 或 `/responses` 探测。
 

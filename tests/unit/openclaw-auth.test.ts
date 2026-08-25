@@ -13,6 +13,7 @@ const { testHome, testUserData, getSettingMock, setSettingMock } = vi.hoisted(()
     setSettingMock: vi.fn(),
   };
 });
+const COMPACTION_IDENTIFIER_INSTRUCTIONS = 'Preserve only identifiers referenced by unresolved asks, active constraints, modified files, or pending next steps.';
 
 vi.mock('os', async () => {
   const actual = await vi.importActual<typeof import('os')>('os');
@@ -2710,7 +2711,10 @@ describe('batchSyncConfigFields', () => {
   });
 
   it('seeds compaction safeguard default when compaction is unset', async () => {
-    await writeOpenClawJson({ gateway: { auth: { mode: 'token', token: 'old' } } });
+    await writeOpenClawJson({
+      gateway: { auth: { mode: 'token', token: 'old' } },
+      agents: { defaults: { model: { primary: 'openai/gpt-5.6-luna' } } },
+    });
 
     const { batchSyncConfigFields } = await import('@electron/utils/openclaw-auth');
     await batchSyncConfigFields('new-token');
@@ -2719,7 +2723,12 @@ describe('batchSyncConfigFields', () => {
     const defaults = ((config.agents as Record<string, unknown>).defaults as Record<string, unknown>);
     expect(defaults.compaction).toEqual({
       mode: 'safeguard',
-      reserveTokensFloor: 50_000,
+      qualityGuard: { enabled: false },
+      keepRecentTokens: 0,
+      recentTurnsPreserve: 0,
+      identifierPolicy: 'custom',
+      identifierInstructions: COMPACTION_IDENTIFIER_INSTRUCTIONS,
+      reserveTokensFloor: 68_000,
       midTurnPrecheck: { enabled: true },
     });
   });
@@ -2741,6 +2750,11 @@ describe('batchSyncConfigFields', () => {
     const defaults = ((config.agents as Record<string, unknown>).defaults as Record<string, unknown>);
     expect(defaults.compaction).toEqual({
       mode: 'safeguard',
+      qualityGuard: { enabled: false },
+      keepRecentTokens: 0,
+      recentTurnsPreserve: 0,
+      identifierPolicy: 'custom',
+      identifierInstructions: COMPACTION_IDENTIFIER_INSTRUCTIONS,
       reserveTokensFloor: 50_000,
       midTurnPrecheck: { enabled: true },
     });
@@ -2751,7 +2765,8 @@ describe('batchSyncConfigFields', () => {
       gateway: { auth: { mode: 'token', token: 'old' } },
       agents: {
         defaults: {
-          compaction: { mode: 'safeguard' },
+          model: { primary: 'openai/gpt-5.6-luna' },
+          compaction: { mode: 'safeguard', qualityGuard: {} },
         },
       },
     });
@@ -2763,21 +2778,32 @@ describe('batchSyncConfigFields', () => {
     const defaults = ((config.agents as Record<string, unknown>).defaults as Record<string, unknown>);
     expect(defaults.compaction).toEqual({
       mode: 'safeguard',
-      reserveTokensFloor: 50_000,
+      qualityGuard: { enabled: false },
+      keepRecentTokens: 0,
+      recentTurnsPreserve: 0,
+      identifierPolicy: 'custom',
+      identifierInstructions: COMPACTION_IDENTIFIER_INSTRUCTIONS,
+      reserveTokensFloor: 68_000,
       midTurnPrecheck: { enabled: true },
     });
   });
 
-  it('does not touch explicit compaction safety values', async () => {
+  it('overrides ClawX-managed compaction values while preserving unrelated settings', async () => {
     await writeOpenClawJson({
       gateway: { auth: { mode: 'token', token: 'old' } },
       agents: {
         defaults: {
           compaction: {
             mode: 'default',
+            qualityGuard: { enabled: true, maxRetries: 3 },
+            keepRecentTokens: 50_000,
+            recentTurnsPreserve: 9,
+            identifierPolicy: 'off',
+            identifierInstructions: 'Keep every local identifier.',
             reserveTokensFloor: 30000,
             midTurnPrecheck: { enabled: false },
           },
+          model: { primary: 'openai/gpt-5.6-luna' },
         },
       },
     });
@@ -2789,7 +2815,12 @@ describe('batchSyncConfigFields', () => {
     const defaults = ((config.agents as Record<string, unknown>).defaults as Record<string, unknown>);
     expect(defaults.compaction).toEqual({
       mode: 'default',
-      reserveTokensFloor: 30000,
+      qualityGuard: { enabled: false },
+      keepRecentTokens: 0,
+      recentTurnsPreserve: 0,
+      identifierPolicy: 'custom',
+      identifierInstructions: COMPACTION_IDENTIFIER_INSTRUCTIONS,
+      reserveTokensFloor: 68_000,
       midTurnPrecheck: { enabled: false },
     });
   });
