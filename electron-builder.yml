@@ -87,6 +87,10 @@ mac:
   entitlements: entitlements.mac.plist
   entitlementsInherit: entitlements.mac.plist
   notarize: true
+  # Resource files are sealed by the parent bundle. Signing each one individually
+  # hits Apple's timestamp server thousands of times and dominates macOS packaging.
+  signIgnore:
+    - "\\.(pak|png|jpe?g|gif|webp|ico|svg|bcmap|md|txt|html|css|json|map|woff2?|ttf)$"
   extendInfo:
     NSMicrophoneUsageDescription: SmartX requires microphone access for voice features
     NSCameraUsageDescription: SmartX requires camera access for video features

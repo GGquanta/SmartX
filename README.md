@@ -374,9 +374,12 @@ pnpm run build:vite       # Build frontend only
 pnpm build                # Full production build (with packaging assets)
 pnpm package              # Package for current platform (includes bundled preinstalled skills)
 pnpm package:mac          # Package for macOS
+pnpm package:mac:signed   # Package macOS with Developer ID signing + notarization
 pnpm package:win          # Package for Windows
 pnpm package:linux        # Package for Linux
 ```
+
+Local macOS signing uses the same method as QuantaMate: a Keychain `Developer ID Application` identity plus an App Store Connect API key (`APPLE_API_KEY_ID` / `APPLE_API_ISSUER` / `APPLE_API_KEY_P8_PATH`; see `.env.example`). Run `node scripts/mac-signing-env.mjs preflight` to confirm the certificate and `notarytool` before a full package.
 
 On headless Linux, run Electron tests under a display server such as `xvfb-run -a pnpm run test:e2e`.
 

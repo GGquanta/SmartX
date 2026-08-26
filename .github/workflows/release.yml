@@ -1,5 +1,19 @@
 # SmartX Release Workflow
 # Builds and publishes releases for macOS, Windows, and Linux
+#
+# Secrets (macOS code signing + notarization — required for stable mac builds):
+#   CSC_LINK / MAC_CERTS                 — Developer ID Application .p12 (base64 or file:// / https URL)
+#   CSC_KEY_PASSWORD / MAC_CERTS_PASSWORD — Password for the .p12
+#   APPLE_API_KEY_ID                     — App Store Connect API Key ID (10 chars)
+#   APPLE_API_ISSUER                     — App Store Connect Issuer ID (UUID)
+#   APPLE_API_KEY_P8                     — Full contents of AuthKey_<KEY_ID>.p8
+# Fallback (legacy Apple ID notarization, used only if API key secrets are absent):
+#   APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID
+#
+# Prepare CSC_LINK on a Mac with the certificate installed:
+#   security find-identity -v -p codesigning
+#   # Export "Developer ID Application" from Keychain Access as .p12, then:
+#   base64 -i DeveloperID.p12 | pbcopy
 
 name: Release
 
@@ -165,19 +179,101 @@ jobs:
           echo "File descriptor limit: $(ulimit -n)"
           pnpm run package:mac:internal
 
+      - name: Prepare Apple notarization API key
+        if: matrix.platform == 'mac' && steps.release-channel.outputs.is_internal != 'true'
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          CSC_LINK: ${{ secrets.CSC_LINK || secrets.MAC_CERTS }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD || secrets.MAC_CERTS_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+        run: |
+          if [ -z "${CSC_LINK}" ] || [ -z "${CSC_KEY_PASSWORD}" ]; then
+            echo "::error::Missing CSC_LINK/MAC_CERTS or CSC_KEY_PASSWORD/MAC_CERTS_PASSWORD"
+            exit 1
+          fi
+
+          if [ -n "${APPLE_API_KEY_P8}" ]; then
+            missing=0
+            for name in APPLE_API_KEY_ID APPLE_API_ISSUER APPLE_API_KEY_P8; do
+              if [ -z "${!name}" ]; then
+                echo "::error::Missing required secret: ${name}"
+                missing=1
+              fi
+            done
+            if [ "$missing" -ne 0 ]; then
+              exit 1
+            fi
+
+            KEY_PATH="${RUNNER_TEMP}/AuthKey_${APPLE_API_KEY_ID}.p8"
+            printf '%s' "${APPLE_API_KEY_P8}" > "${KEY_PATH}"
+            [[ "$(tail -c1 "${KEY_PATH}" | wc -l)" -eq 0 ]] && printf '\n' >> "${KEY_PATH}"
+            chmod 600 "${KEY_PATH}"
+            echo "APPLE_API_KEY=${KEY_PATH}" >> "$GITHUB_ENV"
+            echo "Wrote App Store Connect API key to ${KEY_PATH}"
+
+            echo "=== Preflight: notarytool auth ==="
+            xcrun notarytool history \
+              --key "${KEY_PATH}" \
+              --key-id "${APPLE_API_KEY_ID}" \
+              --issuer "${APPLE_API_ISSUER}" || {
+                echo "::error::notarytool auth failed — check APPLE_API_KEY_P8 / KEY_ID / ISSUER"
+                exit 1
+              }
+          elif [ -n "${APPLE_ID}" ]; then
+            echo "::warning::APPLE_API_KEY_P8 is unset; falling back to Apple ID notarization"
+          else
+            echo "::error::Configure APPLE_API_KEY_P8 / APPLE_API_KEY_ID / APPLE_API_ISSUER (preferred) or APPLE_ID"
+            exit 1
+          fi
+
       - name: Build macOS (signed + notarized)
         if: matrix.platform == 'mac' && steps.release-channel.outputs.is_internal != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK: ${{ secrets.MAC_CERTS }}
-          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
+          CSC_LINK: ${{ secrets.CSC_LINK || secrets.MAC_CERTS }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD || secrets.MAC_CERTS_PASSWORD }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          DEBUG: electron-builder,electron-osx-sign
         run: |
           ulimit -n 65536
           echo "File descriptor limit: $(ulimit -n)"
+          echo "CSC_LINK length: ${#CSC_LINK}"
+          echo "APPLE_API_KEY: ${APPLE_API_KEY:-<unset>}"
+          echo "APPLE_API_KEY_ID: ${APPLE_API_KEY_ID:-<unset>}"
           pnpm run package:mac
+
+      - name: Verify macOS signature and notarization
+        if: matrix.platform == 'mac' && steps.release-channel.outputs.is_internal != 'true'
+        run: |
+          set -euo pipefail
+          APP_PATH="$(find release -name 'SmartX.app' -not -path '*/Frameworks/*' -print | head -n 1 || true)"
+          DMG_PATH="$(find release -maxdepth 1 -name '*-mac-*.dmg' -print | head -n 1 || true)"
+
+          if [ -z "${APP_PATH}" ] && [ -n "${DMG_PATH}" ]; then
+            MOUNT_POINT="$(mktemp -d)"
+            hdiutil attach "${DMG_PATH}" -nobrowse -readonly -mountpoint "${MOUNT_POINT}"
+            APP_PATH="$(find "${MOUNT_POINT}" -maxdepth 1 -name 'SmartX.app' -print | head -n 1)"
+            cleanup() { hdiutil detach "${MOUNT_POINT}" -quiet || true; rm -rf "${MOUNT_POINT}"; }
+            trap cleanup EXIT
+          fi
+
+          if [ -z "${APP_PATH}" ]; then
+            echo "::error::No SmartX.app found to verify after macOS build"
+            ls -laR release || true
+            exit 1
+          fi
+
+          node scripts/mac-signing-env.mjs verify "${APP_PATH}"
+          xcrun stapler validate "${APP_PATH}" || echo "::warning::stapler validate failed (notarize ticket may still be pending)"
+          spctl --assess --type execute --verbose "${APP_PATH}" || {
+            echo "::warning::spctl assess reported a warning (codesign already verified)"
+          }
 
       # Windows specific steps
       - name: Build Windows

@@ -3,6 +3,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { applyMacSigningEnv } from './mac-signing-env.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -10,6 +11,12 @@ const ELECTRON_BUILDER_BIN = process.platform === 'win32'
   ? path.join(ROOT, 'node_modules', '.bin', 'electron-builder.cmd')
   : path.join(ROOT, 'node_modules', '.bin', 'electron-builder');
 const args = process.argv.slice(2);
+
+if (process.platform === 'darwin') {
+  Object.assign(process.env, applyMacSigningEnv(process.env, { root: ROOT }));
+  const codesignShimDir = path.join(ROOT, 'scripts', 'mac-codesign-shim');
+  process.env.PATH = `${codesignShimDir}${path.delimiter}${process.env.PATH || ''}`;
+}
 
 const writeProviderDefaults = spawnSync(process.execPath, ['scripts/write-provider-defaults-env.mjs'], {
   cwd: ROOT,

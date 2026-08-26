@@ -389,9 +389,12 @@ pnpm run build:vite       # 仅构建前端
 pnpm build                # 完整生产构建（含打包资源）
 pnpm package              # 为当前平台打包（包含预装技能资源）
 pnpm package:mac          # 为 macOS 打包
+pnpm package:mac:signed   # macOS 签名 + 公证打包（需 Developer ID 与 App Store Connect API Key）
 pnpm package:win          # 为 Windows 打包
 pnpm package:linux        # 为 Linux 打包
 ```
+
+本地 macOS 签名与公证使用与 QuantaMate 相同的方式：钥匙串中的 `Developer ID Application` 身份，加上 App Store Connect API Key（`APPLE_API_KEY_ID` / `APPLE_API_ISSUER` / `APPLE_API_KEY_P8_PATH`，见 `.env.example`）。先运行 `node scripts/mac-signing-env.mjs preflight` 可在完整打包前确认证书与 `notarytool` 可用。
 
 在无头 Linux 环境下，Electron 测试需要显示服务；可使用 `xvfb-run -a pnpm run test:e2e`。
 

@@ -10,6 +10,7 @@ const require = createRequire(import.meta.url);
 type AfterPackTestHooks = {
   cleanupNativePlatformPackages: (nodeModulesDir: string, platform: string, arch: string) => number;
   cleanupNodeModulesRuntimeJunk: (nodeModulesDir: string, platform: string, arch: string) => number;
+  cleanupKnownRuntimeJunk: (rootDir: string, platform: string, arch: string) => number;
 };
 
 const afterPack = require('../../scripts/after-pack.cjs') as { __test?: AfterPackTestHooks };
@@ -61,5 +62,21 @@ describe('after-pack cleanup helpers', () => {
     expect(existsSync(join(prebuilds, 'darwin-arm64'))).toBe(true);
     expect(existsSync(join(prebuilds, 'darwin-x64'))).toBe(true);
     expect(existsSync(join(prebuilds, 'linux-x64'))).toBe(false);
+  });
+
+  it('prunes nested pi-tui native payloads for a single mac arch', () => {
+    const nodeModules = makeTempNodeModules();
+    const native = join(nodeModules, '@earendil-works', 'pi-tui', 'native');
+    mkdirSync(join(native, 'darwin', 'prebuilds', 'darwin-arm64'), { recursive: true });
+    mkdirSync(join(native, 'darwin', 'prebuilds', 'darwin-x64'), { recursive: true });
+    mkdirSync(join(native, 'win32', 'prebuilds', 'win32-x64'), { recursive: true });
+    mkdirSync(join(native, 'linux', 'prebuilds', 'linux-x64'), { recursive: true });
+
+    afterPack.__test!.cleanupKnownRuntimeJunk(nodeModules, 'darwin', 'arm64');
+
+    expect(existsSync(join(native, 'darwin', 'prebuilds', 'darwin-arm64'))).toBe(true);
+    expect(existsSync(join(native, 'darwin', 'prebuilds', 'darwin-x64'))).toBe(false);
+    expect(existsSync(join(native, 'win32'))).toBe(false);
+    expect(existsSync(join(native, 'linux'))).toBe(false);
   });
 });

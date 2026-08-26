@@ -368,9 +368,12 @@ pnpm run build:vite       # フロントエンドのみビルド
 pnpm build                # フルプロダクションビルド（パッケージアセット含む）
 pnpm package              # 現在のプラットフォーム向けにパッケージ化（同梱プリインストールスキルを含む）
 pnpm package:mac          # macOS向けにパッケージ化
+pnpm package:mac:signed   # Developer ID 署名 + 公証付きの macOS パッケージ
 pnpm package:win          # Windows向けにパッケージ化
 pnpm package:linux        # Linux向けにパッケージ化
 ```
+
+ローカルの macOS 署名は QuantaMate と同じ方法です。Keychain の `Developer ID Application` と App Store Connect API キー（`APPLE_API_KEY_ID` / `APPLE_API_ISSUER` / `APPLE_API_KEY_P8_PATH`、`.env.example` を参照）を使います。フルパッケージの前に `node scripts/mac-signing-env.mjs preflight` で証明書と `notarytool` を確認できます。
 
 ヘッドレス Linux では Electron テストに表示サーバーが必要です。`xvfb-run -a pnpm run test:e2e` を利用してください。
 

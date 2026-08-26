@@ -357,9 +357,12 @@ pnpm run build:vite           # Собрать только фронтенд
 pnpm build                    # Полная production-сборка (с ресурсами упаковки)
 pnpm package                  # Упаковать для текущей платформы (включает предустановленные навыки)
 pnpm package:mac              # Упаковать для macOS
+pnpm package:mac:signed       # Упаковать macOS с подписью Developer ID и нотаризацией
 pnpm package:win              # Упаковать для Windows
 pnpm package:linux            # Упаковать для Linux
 ```
+
+Локальная подпись macOS использует тот же метод, что и QuantaMate: идентификатор `Developer ID Application` в Keychain и ключ App Store Connect API (`APPLE_API_KEY_ID` / `APPLE_API_ISSUER` / `APPLE_API_KEY_P8_PATH`, см. `.env.example`). Перед полной упаковкой можно проверить сертификат и `notarytool` командой `node scripts/mac-signing-env.mjs preflight`.
 
 На headless Linux запускайте тесты Electron под сервером отображения, например `xvfb-run -a pnpm run test:e2e`.
 
