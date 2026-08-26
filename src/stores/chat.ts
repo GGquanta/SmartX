@@ -63,8 +63,21 @@ let successfulSessionListTsFloor: number | null = null;
 let localSessionCatalogRevision = 0;
 const pendingCatalogConfirmationSessionKeys = new Set<string>();
 const localDraftSessionKeys = new Set<string>();
+const deletedAgentSessionIds = new Set<string>();
 
 const SESSION_LOAD_MIN_INTERVAL_MS = 1_200;
+
+function belongsToDeletedAgent(sessionKey: string): boolean {
+  for (const agentId of deletedAgentSessionIds) {
+    if (sessionKey.startsWith(`agent:${agentId}:`)) return true;
+  }
+  return false;
+}
+
+function isDeletedAgentSessionEvent(payload: GatewaySessionsChangedPayload): boolean {
+  const keys = [payload.sessionKey, payload.key, payload.session?.key];
+  return keys.some((key) => typeof key === 'string' && belongsToDeletedAgent(key.trim()));
+}
 
 function markLocalSessionCatalogMutation(): void {
   localSessionCatalogRevision += 1;
@@ -173,7 +186,7 @@ function applySessionBackendLabels(set: ChatSet, sessions: ChatSession[]): void 
     let nextLabels = state.sessionLabels;
 
     for (const session of sessions) {
-      if (session.key.endsWith(':main')) continue;
+      if (session.key === DEFAULT_SESSION_KEY) continue;
 
       if (hasExplicitSessionLabel(session)) {
         const label = toSessionLabel(session.label || '');
@@ -550,9 +563,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
           const data = await fetchChatSessionsList();
           if (generation === sessionCatalogGeneration) {
             const rawSessions = Array.isArray(data.sessions) ? data.sessions : [];
-            const normalizedSessions = rawSessions.map((session) => (
-              normalizeGatewaySessionRow(session as Record<string, unknown>)
-            ));
+            const normalizedSessions = rawSessions
+              .map((session) => normalizeGatewaySessionRow(session as Record<string, unknown>))
+              .filter((session) => !belongsToDeletedAgent(session.key));
             const normalizedSessionKeys = new Set(normalizedSessions.map((session) => session.key));
             const sessions = normalizedSessions.filter(shouldIncludeSessionInSidebarList);
 
@@ -624,7 +637,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
             }
 
             const listTs = typeof data.ts === 'number' && Number.isFinite(data.ts) ? data.ts : undefined;
-            const uncertainty = getSessionEventUncertainty(context.events);
+            const applicableEvents = context.events.filter((event) => !isDeletedAgentSessionEvent(event));
+            const uncertainty = getSessionEventUncertainty(applicableEvents);
             const toOrderableAttentionRows = (rows: ChatSession[]): ChatSession[] => (
               uncertainty.keys.size === 0
                 ? rows
@@ -651,7 +665,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
               }
             }
 
-            for (const event of context.events) {
+            for (const event of applicableEvents) {
               const eventTs = typeof event.ts === 'number' && Number.isFinite(event.ts)
                 ? event.ts
                 : undefined;
@@ -1006,7 +1020,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
           console.warn('Failed to load sessions:', error);
           if (generation === sessionCatalogGeneration) {
             let reducedSessions = get().sessions;
-            const uncertainty = getSessionEventUncertainty(context.events);
+            const applicableEvents = context.events.filter((event) => !isDeletedAgentSessionEvent(event));
+            const uncertainty = getSessionEventUncertainty(applicableEvents);
             const toOrderableAttentionRows = (rows: ChatSession[]): ChatSession[] => (
               uncertainty.keys.size === 0
                 ? rows
@@ -1017,7 +1032,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             const observedPendingConfirmationKeys = new Set<string>();
             let appliedAny = false;
 
-            for (const event of context.events) {
+            for (const event of applicableEvents) {
               if (typeof event.ts !== 'number' || !Number.isFinite(event.ts)) continue;
               if (successfulSessionListTsFloor !== null && event.ts < successfulSessionListTsFloor) continue;
               const sessionsBeforeEvent = reducedSessions;
@@ -1125,6 +1140,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   handleSessionsChanged: (payload) => {
+    if (isDeletedAgentSessionEvent(payload)) return;
+
     if (loadSessionsContext?.generation === sessionCatalogGeneration) {
       loadSessionsContext.events.push(payload);
       return;
@@ -1240,7 +1257,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   acknowledgeAcpSessionCreated: (key, workspacePath, initialPrompt) => {
     const normalizedWorkspacePath = workspacePath?.trim();
-    const initialLabel = key.endsWith(':main') ? '' : toSessionLabel(initialPrompt || '');
+    const initialLabel = key === DEFAULT_SESSION_KEY ? '' : toSessionLabel(initialPrompt || '');
     localDraftSessionKeys.delete(key);
     pendingCatalogConfirmationSessionKeys.add(key);
     markLocalSessionCatalogMutation();
@@ -1361,6 +1378,68 @@ export const useChatStore = create<ChatState>((set, get) => ({
       };
     });
     return { deletedKeys, failedKeys };
+  },
+
+  removeAgentSessions: (agentId) => {
+    const normalizedAgentId = agentId.trim();
+    if (!normalizedAgentId) return;
+    deletedAgentSessionIds.add(normalizedAgentId);
+    const sessionPrefix = `agent:${normalizedAgentId}:`;
+    const belongsToAgent = (sessionKey: string): boolean => sessionKey.startsWith(sessionPrefix);
+    const state = get();
+    const composerDrafts = useComposerDraftStore.getState().drafts;
+    const attentionKeys = Object.keys(useSessionAttentionStore.getState().bySessionKey);
+    const removedKeys = new Set([
+      ...state.sessions.map((session) => session.key),
+      ...Object.keys(state.sessionLabels),
+      ...Object.keys(state.sessionLastActivity),
+      ...Object.keys(composerDrafts),
+      ...attentionKeys,
+      ...localDraftSessionKeys,
+      ...pendingCatalogConfirmationSessionKeys,
+      state.currentSessionKey,
+    ].filter(belongsToAgent));
+
+    for (const key of removedKeys) {
+      clearSessionLabelHydrationTracking(key);
+      localDraftSessionKeys.delete(key);
+      pendingCatalogConfirmationSessionKeys.delete(key);
+      useComposerDraftStore.getState().clearDraft(key);
+      useSessionAttentionStore.getState().removeSession(key);
+    }
+
+    markLocalSessionCatalogMutation();
+    set((current) => {
+      const remaining = current.sessions.filter((session) => !belongsToAgent(session.key));
+      const currentWasRemoved = belongsToAgent(current.currentSessionKey);
+      const selection = currentWasRemoved
+        ? repairMissingCurrentSelection(DEFAULT_SESSION_KEY, remaining)
+        : {
+            sessions: remaining,
+            currentSessionKey: current.currentSessionKey,
+            currentAgentId: current.currentAgentId,
+          };
+      return {
+        sessions: selection.sessions,
+        sessionLabels: Object.fromEntries(
+          Object.entries(current.sessionLabels).filter(([key]) => !belongsToAgent(key)),
+        ),
+        sessionLastActivity: Object.fromEntries(
+          Object.entries(current.sessionLastActivity).filter(([key]) => !belongsToAgent(key)),
+        ),
+        currentSessionKey: selection.currentSessionKey,
+        currentAgentId: selection.currentAgentId,
+      };
+    });
+  },
+
+  reconcileAgentSessionTombstones: (agentIds) => {
+    let changed = false;
+    for (const agentId of agentIds) {
+      const normalizedAgentId = agentId.trim();
+      if (normalizedAgentId && deletedAgentSessionIds.delete(normalizedAgentId)) changed = true;
+    }
+    if (changed) markLocalSessionCatalogMutation();
   },
 
   renameSession: async (key, label) => {

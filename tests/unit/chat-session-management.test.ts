@@ -57,8 +57,8 @@ describe('chat session management', () => {
     expect(useChatStore.getState().sessions).toContainEqual(expect.objectContaining({ key: persistedKey }));
   });
 
-  it('keeps workspace identity when selecting and acknowledging an ACP session', async () => {
-    const key = 'agent:research:session-new';
+  it('uses the first prompt to title a newly created non-default Agent main session', async () => {
+    const key = 'agent:research:main';
     const { useChatStore } = await import('@/stores/chat');
     useChatStore.setState({
       currentSessionKey: 'agent:main:main',
@@ -209,6 +209,100 @@ describe('chat session management', () => {
       expect.objectContaining({ key: state.currentSessionKey, createdLocally: true }),
     ]);
     expect(state.currentSessionKey).not.toBe('agent:main:main');
+  });
+
+  it('forgets all sessions and renderer state after an agent is deleted', async () => {
+    const deletedMain = 'agent:test1:main';
+    const deletedChat = 'agent:test1:session-123';
+    const similarlyNamed = 'agent:test10:main';
+    const survivingMain = 'agent:main:main';
+    const { useChatStore } = await import('@/stores/chat');
+    const { useComposerDraftStore } = await import('@/stores/composer-drafts');
+    const { useSessionAttentionStore } = await import('@/stores/session-attention');
+    useChatStore.setState({
+      currentSessionKey: deletedChat,
+      currentAgentId: 'test1',
+      sessions: [
+        { key: deletedMain },
+        { key: deletedChat },
+        { key: similarlyNamed },
+        { key: survivingMain },
+      ],
+      sessionLabels: {
+        [deletedMain]: 'Deleted main',
+        [deletedChat]: 'Deleted chat',
+        [similarlyNamed]: 'Similar agent',
+        [survivingMain]: 'Main',
+      },
+      sessionLastActivity: {
+        [deletedMain]: 1,
+        [deletedChat]: 2,
+        [similarlyNamed]: 3,
+        [survivingMain]: 4,
+      },
+    });
+    useComposerDraftStore.getState().setDraft(deletedChat, 'unsent');
+    useSessionAttentionStore.setState({
+      bySessionKey: { [deletedChat]: { observedBusy: false, unread: true } },
+      visibleSessionKey: null,
+    });
+
+    useChatStore.getState().removeAgentSessions('test1');
+
+    expect(useChatStore.getState()).toMatchObject({
+      currentSessionKey: survivingMain,
+      currentAgentId: 'main',
+      sessions: [{ key: similarlyNamed }, { key: survivingMain }],
+      sessionLabels: {
+        [similarlyNamed]: 'Similar agent',
+        [survivingMain]: 'Main',
+      },
+      sessionLastActivity: {
+        [similarlyNamed]: 3,
+        [survivingMain]: 4,
+      },
+    });
+    expect(useComposerDraftStore.getState().drafts[deletedChat]).toBeUndefined();
+    expect(useSessionAttentionStore.getState().bySessionKey[deletedChat]).toBeUndefined();
+
+    useChatStore.getState().handleSessionsChanged({
+      sessionKey: deletedChat,
+      session: { key: deletedChat, derivedTitle: 'Delayed deleted-agent event' },
+      ts: 10,
+    });
+    expect(useChatStore.getState().sessions.some((session) => session.key === deletedChat)).toBe(false);
+
+    useChatStore.getState().reconcileAgentSessionTombstones(['test1']);
+    useChatStore.getState().handleSessionsChanged({
+      sessionKey: deletedChat,
+      session: { key: deletedChat, derivedTitle: 'Recreated agent conversation' },
+      ts: 11,
+    });
+    expect(useChatStore.getState().sessions).toContainEqual(expect.objectContaining({
+      key: deletedChat,
+      derivedTitle: 'Recreated agent conversation',
+    }));
+  });
+
+  it('creates a main-agent placeholder when deleting an agent leaves no sessions', async () => {
+    const deletedChat = 'agent:test1:session-123';
+    const { useChatStore } = await import('@/stores/chat');
+    useChatStore.setState({
+      currentSessionKey: deletedChat,
+      currentAgentId: 'test1',
+      sessions: [{ key: deletedChat }],
+      sessionLabels: { [deletedChat]: 'Deleted chat' },
+      sessionLastActivity: { [deletedChat]: 1 },
+    });
+
+    useChatStore.getState().removeAgentSessions('test1');
+
+    const state = useChatStore.getState();
+    expect(state.currentAgentId).toBe('main');
+    expect(state.currentSessionKey).toMatch(/^agent:main:session-\d+$/);
+    expect(state.sessions).toEqual([
+      expect.objectContaining({ key: state.currentSessionKey, createdLocally: true }),
+    ]);
   });
 
   it('keeps sessions whose hard delete fails', async () => {
