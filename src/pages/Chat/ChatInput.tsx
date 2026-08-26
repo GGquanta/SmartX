@@ -124,9 +124,9 @@ function ContextUsageIndicator({
           aria-valuemax={100}
           aria-valuenow={roundedPercent}
           aria-valuetext={label}
-          className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg px-1.5 text-muted-foreground transition-colors hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:hover:bg-white/5"
+          className="inline-flex shrink-0 items-center gap-1 rounded-md px-0.5 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
         >
-          <svg viewBox="0 0 20 20" className="h-4 w-4 text-primary" aria-hidden="true">
+          <svg viewBox="0 0 20 20" className="h-3 w-3 text-primary" aria-hidden="true">
             <circle cx="10" cy="10" r={radius} fill="none" stroke="currentColor" strokeWidth="2" className="text-black/10 dark:text-white/15" />
             <circle
               cx="10"
@@ -141,7 +141,7 @@ function ContextUsageIndicator({
               transform="rotate(-90 10 10)"
             />
           </svg>
-          <span aria-hidden="true" className="text-2xs font-medium tabular-nums">
+          <span aria-hidden="true" className="text-tiny font-medium tabular-nums">
             {percentageLabel}
           </span>
         </span>
@@ -363,7 +363,7 @@ export function ChatInput({
   const effectiveModelRef = optimisticModelRef || configuredModelRef;
   const currentModelLabel = useMemo(() => {
     const matchedOption = modelOptions.find((option) => option.modelRef === effectiveModelRef);
-    return matchedOption?.label || formatModelRefLabel(effectiveModelRef);
+    return matchedOption?.modelId || formatModelRefLabel(effectiveModelRef);
   }, [effectiveModelRef, modelOptions]);
   const mentionableAgents = useMemo(
     () => (agents ?? []).filter((agent) => agent.id !== currentAgentId),
@@ -1048,7 +1048,10 @@ export function ChatInput({
         )}
 
         {/* Input Container */}
-        <div className={`relative bg-surface-modal rounded-2xl shadow-sm border px-3 pt-2.5 pb-1.5 transition-all ${dragOver ? 'border-primary ring-1 ring-primary' : 'border-black/10 dark:border-white/10'}`}>
+        <div
+          data-testid="chat-composer-box"
+          className={`relative bg-surface-modal rounded-2xl shadow-sm border px-3 pt-2.5 pb-1.5 transition-all ${dragOver ? 'border-primary ring-1 ring-primary' : 'border-black/10 dark:border-white/10'}`}
+        >
           {selectedTarget && (
             <div className="flex flex-wrap gap-2 pb-1.5">
               <button
@@ -1290,7 +1293,15 @@ export function ChatInput({
                           )}
                           data-testid={`chat-model-picker-option-${option.label}`}
                         >
-                          <span className="truncate">{option.label}</span>
+                          <span className="min-w-0 truncate">
+                            <span>{option.modelId}</span>
+                            {option.providerName ? (
+                              <>
+                                {' '}
+                                <span className="font-normal text-muted-foreground">{option.providerName}</span>
+                              </>
+                            ) : null}
+                          </span>
                           {option.modelRef === effectiveModelRef && (
                             <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                           )}
@@ -1300,14 +1311,6 @@ export function ChatInput({
                   </div>
                 )}
               </div>
-            )}
-
-            {activeContextUsage && contextUsageLabel && contextUsagePercentage && (
-              <ContextUsageIndicator
-                usage={activeContextUsage}
-                label={contextUsageLabel}
-                percentageLabel={contextUsagePercentage}
-              />
             )}
 
             {/* Send Button — pushed to the right */}
@@ -1332,7 +1335,10 @@ export function ChatInput({
             </Button>
           </div>
         </div>
-        <div className="mt-2.5 flex min-w-0 items-center justify-between gap-2 text-tiny text-muted-foreground/60">
+        <div
+          data-testid="chat-composer-footer"
+          className="mt-2.5 flex min-w-0 items-center justify-between gap-2 text-tiny text-muted-foreground/60"
+        >
           <div className="flex min-w-0 flex-1 items-center gap-1.5">
             {workspaceLabel && workspacePath && (
               <div ref={workspaceMenuRef} className="relative min-w-0 shrink" onKeyDown={handleWorkspaceKeyDown}>
@@ -1419,23 +1425,35 @@ export function ChatInput({
           </div>
 
           <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-2 overflow-hidden text-right">
-            <div className="flex min-w-0 items-center justify-end gap-1.5 overflow-hidden">
-              <div className={cn(
-                'h-1.5 w-1.5 shrink-0 rounded-full',
-                isGatewayUsable ? 'bg-green-500/80' : 'bg-red-500/80',
-              )} />
-              <span className="min-w-0 truncate">
-                {t('composer.gatewayStatus', {
-                  state: isGatewayUsable
-                    ? t('composer.gatewayConnected')
-                    : gatewayStatus.state === 'running'
-                      ? t('composer.gatewayStarting')
-                      : gatewayStatus.state,
-                })}
-              </span>
-              {chatComposerStatusComponents.map((Component, index) => (
-                <Component key={`${index}`} gatewayStatus={gatewayStatus} />
-              ))}
+            <div className="flex min-w-0 items-center justify-end gap-2 overflow-hidden">
+              {activeContextUsage && contextUsageLabel && contextUsagePercentage && (
+                <ContextUsageIndicator
+                  usage={activeContextUsage}
+                  label={contextUsageLabel}
+                  percentageLabel={contextUsagePercentage}
+                />
+              )}
+              <div
+                data-testid="chat-composer-gateway-status"
+                className="flex min-w-0 items-center justify-end gap-1.5 overflow-hidden"
+              >
+                <div className={cn(
+                  'h-1.5 w-1.5 shrink-0 rounded-full',
+                  isGatewayUsable ? 'bg-green-500/80' : 'bg-red-500/80',
+                )} />
+                <span className="min-w-0 truncate">
+                  {t('composer.gatewayStatus', {
+                    state: isGatewayUsable
+                      ? t('composer.gatewayConnected')
+                      : gatewayStatus.state === 'running'
+                        ? t('composer.gatewayStarting')
+                        : gatewayStatus.state,
+                  })}
+                </span>
+                {chatComposerStatusComponents.map((Component, index) => (
+                  <Component key={`${index}`} gatewayStatus={gatewayStatus} />
+                ))}
+              </div>
             </div>
             {hasFailedAttachments && (
               <Button
