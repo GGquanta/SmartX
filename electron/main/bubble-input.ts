@@ -41,9 +41,17 @@ export function attachBubbleInputHandlers(
         return;
       }
 
+      const globalX = input.globalX;
+      const globalY = input.globalY;
+      if (typeof globalX !== 'number' || typeof globalY !== 'number') {
+        dragAnchor = null;
+        dragging = false;
+        return;
+      }
+
       const [winX, winY] = win.getPosition();
       dragAnchor = {
-        startGlobal: { x: input.globalX, y: input.globalY },
+        startGlobal: { x: globalX, y: globalY },
         startWin: { x: winX, y: winY },
       };
       dragging = false;
@@ -51,15 +59,20 @@ export function attachBubbleInputHandlers(
     }
 
     if (input.type === 'mouseMove' && dragAnchor) {
-      const dx = input.globalX - dragAnchor.startGlobal.x;
-      const dy = input.globalY - dragAnchor.startGlobal.y;
+      const globalX = input.globalX;
+      const globalY = input.globalY;
+      if (typeof globalX !== 'number' || typeof globalY !== 'number') {
+        return;
+      }
+      const dx = globalX - dragAnchor.startGlobal.x;
+      const dy = globalY - dragAnchor.startGlobal.y;
 
       if (!dragging && (Math.abs(dx) > CLICK_SLOP_PX || Math.abs(dy) > CLICK_SLOP_PX)) {
         dragging = true;
       }
 
       if (dragging && !win.isDestroyed()) {
-        const next = computeWindowDragPosition(dragAnchor, input.globalX, input.globalY);
+        const next = computeWindowDragPosition(dragAnchor, globalX, globalY);
         win.setPosition(next.x, next.y);
       }
       return;

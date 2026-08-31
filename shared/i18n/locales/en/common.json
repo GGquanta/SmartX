@@ -15,7 +15,6 @@
         "companyKnowledge": "Company Knowledge",
         "deleteSessionConfirm": "Delete \"{{label}}\"?",
         "openClawPage": "OpenClaw Page",
-        "openClawDreams": "Dreams",
         "renameSession": "Rename",
         "deleteSession": "Delete",
         "renameSessionPlaceholder": "Session title",
@@ -55,6 +54,9 @@
         "show": "Show",
         "hide": "Hide",
         "clear": "Clear"
+    },
+    "markdown": {
+        "copyCode": "Copy code"
     },
     "status": {
         "running": "Running",

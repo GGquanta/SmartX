@@ -16,32 +16,6 @@ import {
 } from '@electron/utils/provider-registry';
 
 describe('provider metadata', () => {
-  it('includes bailian in the frontend and backend provider registries', () => {
-    expect(PROVIDER_TYPES).toContain('bailian');
-    expect(BUILTIN_PROVIDER_TYPES).toContain('bailian');
-    expect(getProviderEnvVar('bailian')).toBe('DASHSCOPE_API_KEY');
-    expect(getProviderConfig('bailian')).toEqual({
-      baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-      api: 'openai-completions',
-      apiKeyEnv: 'DASHSCOPE_API_KEY',
-    });
-    expect(PROVIDER_TYPE_INFO).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: 'bailian',
-          name: '阿里云百炼',
-          requiresApiKey: true,
-          defaultBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-          showBaseUrl: true,
-          showModelId: true,
-          defaultModelId: 'qwen3.7-max',
-          modelIdPlaceholder: 'qwen3.7-max',
-          apiKeyUrl: 'https://bailian.console.aliyun.com/',
-        }),
-      ]),
-    );
-  });
-
   it('includes ark in the frontend provider registry', () => {
     expect(PROVIDER_TYPES).toContain('ark');
 
@@ -72,6 +46,55 @@ describe('provider metadata', () => {
     });
   });
 
+  it('includes Z.AI CN and Global with OpenClaw-aligned endpoints and glm-5.2 default', () => {
+    expect(PROVIDER_TYPES).toEqual(expect.arrayContaining(['zai', 'zai-global']));
+    expect(BUILTIN_PROVIDER_TYPES).toEqual(expect.arrayContaining(['zai', 'zai-global']));
+
+    expect(PROVIDER_TYPE_INFO).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'zai',
+          name: 'Z.AI (CN)',
+          defaultBaseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+          defaultModelId: 'glm-5.2',
+          showBaseUrl: true,
+          showModelId: true,
+          codePlanPresetBaseUrl: 'https://open.bigmodel.cn/api/coding/paas/v4',
+          codePlanPresetModelId: 'glm-5.2',
+          codePlanDocsUrl: 'https://docs.bigmodel.cn/cn/coding-plan/quick-start',
+        }),
+        expect.objectContaining({
+          id: 'zai-global',
+          name: 'Z.AI (Global)',
+          defaultBaseUrl: 'https://api.z.ai/api/paas/v4',
+          defaultModelId: 'glm-5.2',
+          showBaseUrl: true,
+          showModelId: true,
+          codePlanPresetBaseUrl: 'https://api.z.ai/api/coding/paas/v4',
+          codePlanPresetModelId: 'glm-5.2',
+          codePlanDocsUrl: 'https://docs.z.ai/devpack/quick-start',
+        }),
+      ]),
+    );
+
+    expect(getProviderEnvVar('zai')).toBe('ZAI_API_KEY');
+    expect(getProviderEnvVar('zai-global')).toBe('ZAI_API_KEY');
+    expect(getProviderConfig('zai')).toEqual(
+      expect.objectContaining({
+        baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+        api: 'openai-completions',
+        apiKeyEnv: 'ZAI_API_KEY',
+      }),
+    );
+    expect(getProviderConfig('zai-global')).toEqual(
+      expect.objectContaining({
+        baseUrl: 'https://api.z.ai/api/paas/v4',
+        api: 'openai-completions',
+        apiKeyEnv: 'ZAI_API_KEY',
+      }),
+    );
+  });
+
   it('uses a single canonical env key for moonshot provider', () => {
     expect(getProviderEnvVar('moonshot')).toBe('MOONSHOT_API_KEY');
     expect(getProviderEnvVars('moonshot')).toEqual(['MOONSHOT_API_KEY']);
@@ -85,7 +108,7 @@ describe('provider metadata', () => {
 
   it('keeps builtin provider sources in sync', () => {
     expect(BUILTIN_PROVIDER_TYPES).toEqual(
-      expect.arrayContaining(['anthropic', 'openai', 'google', 'openrouter', 'ark', 'moonshot', 'siliconflow', 'minimax-portal', 'minimax-portal-cn', 'bailian', 'modelstudio', 'ollama'])
+      expect.arrayContaining(['anthropic', 'openai', 'google', 'openrouter', 'ark', 'moonshot', 'siliconflow', 'minimax-portal', 'minimax-portal-cn', 'zai', 'zai-global', 'modelstudio', 'ollama'])
     );
   });
 
@@ -110,6 +133,7 @@ describe('provider metadata', () => {
     const siliconflow = PROVIDER_TYPE_INFO.find((provider) => provider.id === 'siliconflow');
     const ark = PROVIDER_TYPE_INFO.find((provider) => provider.id === 'ark');
     const custom = PROVIDER_TYPE_INFO.find((provider) => provider.id === 'custom');
+    const ollama = PROVIDER_TYPE_INFO.find((provider) => provider.id === 'ollama');
 
     expect(anthropic).toMatchObject({
       docsUrl: 'https://platform.claude.com/docs/en/api/overview',
@@ -125,6 +149,12 @@ describe('provider metadata', () => {
     expect(getProviderDocsUrl(custom, 'zh-CN')).toBe(
       'https://icnnp7d0dymg.feishu.cn/wiki/BmiLwGBcEiloZDkdYnGc8RWnn6d#IWQCdfe5fobGU3xf3UGcgbLynGh'
     );
+    expect(getProviderDocsUrl(ollama, 'en')).toBe(
+      'https://icnnp7d0dymg.feishu.cn/wiki/FuPewJKmii7Gpmkx2W7cI3uxnRf'
+    );
+    expect(getProviderDocsUrl(ollama, 'zh-CN')).toBe(
+      'https://icnnp7d0dymg.feishu.cn/wiki/FuPewJKmii7Gpmkx2W7cI3uxnRf'
+    );
   });
 
   it('exposes editable model id with default for built-in providers, mirroring OpenRouter', () => {
@@ -137,12 +167,12 @@ describe('provider metadata', () => {
 
     expect(anthropic).toMatchObject({
       showModelId: true,
-      defaultModelId: 'claude-opus-4-6',
-      modelIdPlaceholder: 'claude-opus-4-6',
+      defaultModelId: 'claude-opus-4-8',
+      modelIdPlaceholder: 'claude-opus-4-8',
     });
     expect(openrouter).toMatchObject({
       showModelId: true,
-      defaultModelId: 'openai/gpt-5.5',
+      defaultModelId: 'openai/gpt-5.6-sol',
     });
     expect(siliconflow).toMatchObject({
       showModelId: true,
@@ -178,7 +208,7 @@ describe('provider metadata', () => {
 
     expect(openai).toMatchObject({
       showModelId: true,
-      defaultModelId: 'gpt-5.5',
+      defaultModelId: 'gpt-5.6-sol',
       isOAuth: true,
       supportsApiKey: true,
     });
@@ -193,7 +223,7 @@ describe('provider metadata', () => {
       expect(shouldShowProviderModelId(provider, true)).toBe(true);
     }
 
-    expect(resolveProviderModelForSave(openai, '   ', false)).toBe('gpt-5.5');
+    expect(resolveProviderModelForSave(openai, '   ', false)).toBe('gpt-5.6-sol');
     expect(resolveProviderModelForSave(google, '   ', false)).toBe('gemini-3.1-pro-preview');
     expect(resolveProviderModelForSave(minimax, '   ', false)).toBe('MiniMax-M3');
     expect(resolveProviderModelForSave(minimaxCn, '   ', false)).toBe('MiniMax-M3');
@@ -223,9 +253,9 @@ describe('provider metadata', () => {
       .toBe('Qwen/Qwen3-Coder-480B-A35B-Instruct');
     expect(resolveProviderModelForSave(anthropic, 'claude-sonnet-4-5', false)).toBe('claude-sonnet-4-5');
 
-    expect(resolveProviderModelForSave(openrouter, '   ', false)).toBe('openai/gpt-5.5');
+    expect(resolveProviderModelForSave(openrouter, '   ', false)).toBe('openai/gpt-5.6-sol');
     expect(resolveProviderModelForSave(siliconflow, '   ', false)).toBe('deepseek-ai/DeepSeek-V3');
-    expect(resolveProviderModelForSave(anthropic, '   ', false)).toBe('claude-opus-4-6');
+    expect(resolveProviderModelForSave(anthropic, '   ', false)).toBe('claude-opus-4-8');
     expect(resolveProviderModelForSave(ark, '  ep-custom-model  ', false)).toBe('ep-custom-model');
   });
 

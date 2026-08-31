@@ -11,6 +11,8 @@ export const PROVIDER_TYPES = [
   'bailian',
   'minimax-portal',
   'minimax-portal-cn',
+  'zai',
+  'zai-global',
   'modelstudio',
   'ollama',
   'custom',
@@ -29,6 +31,8 @@ export const BUILTIN_PROVIDER_TYPES = [
   'bailian',
   'minimax-portal',
   'minimax-portal-cn',
+  'zai',
+  'zai-global',
   'modelstudio',
   'ollama',
 ] as const;

@@ -30,7 +30,7 @@ import { listAgentsSnapshot } from '../../utils/agent-config';
 
 /** OpenClaw Codex OAuth hooks only apply to the canonical `openai` provider id. */
 const OPENAI_OAUTH_RUNTIME_PROVIDER = 'openai';
-const OPENAI_OAUTH_DEFAULT_MODEL_REF = `${OPENAI_OAUTH_RUNTIME_PROVIDER}/gpt-5.5`;
+const OPENAI_OAUTH_DEFAULT_MODEL_REF = `${OPENAI_OAUTH_RUNTIME_PROVIDER}/gpt-5.6-sol`;
 
 /**
  * Provider types that are not in the built-in provider registry (no `providerConfig.api`).
@@ -97,6 +97,10 @@ export function getOpenClawProviderKey(type: string, providerId: string): string
   }
   if (type === 'minimax-portal-cn') {
     return 'minimax-portal';
+  }
+  // OpenClaw Z.AI provider key is always `zai` (Global UI vendor aliases here).
+  if (type === 'zai-global') {
+    return 'zai';
   }
   return type;
 }
@@ -179,29 +183,6 @@ export async function getProviderFallbackModelRefs(config: ProviderConfig): Prom
   }
 
   return results;
-}
-
-type GatewayRefreshMode = 'reload' | 'restart';
-
-function scheduleGatewayRefresh(
-  gatewayManager: GatewayManager | undefined,
-  message: string,
-  options?: { delayMs?: number; onlyIfRunning?: boolean; mode?: GatewayRefreshMode },
-): void {
-  if (!gatewayManager) {
-    return;
-  }
-
-  if (options?.onlyIfRunning && gatewayManager.getStatus().state === 'stopped') {
-    return;
-  }
-
-  logger.info(message);
-  if (options?.mode === 'restart') {
-    gatewayManager.debouncedRestart(options?.delayMs);
-    return;
-  }
-  gatewayManager.debouncedReload(options?.delayMs);
 }
 
 export async function syncProviderApiKeyToRuntime(
@@ -317,7 +298,8 @@ async function syncRuntimeProviderConfig(
   config: ProviderConfig,
   context: RuntimeProviderSyncContext,
 ): Promise<void> {
-  await syncProviderConfigToOpenClaw(context.runtimeProviderKey, config.model, {
+  const modelId = normalizeRuntimeModelId(context.runtimeProviderKey, config.model);
+  await syncProviderConfigToOpenClaw(context.runtimeProviderKey, modelId, {
     baseUrl: normalizeProviderBaseUrl(config, config.baseUrl || context.meta?.baseUrl, context.api),
     api: context.api,
     apiKeyEnv: context.meta?.apiKeyEnv,
@@ -339,7 +321,7 @@ async function syncCustomProviderAgentModel(
     return;
   }
 
-  const modelId = config.model;
+  const modelId = normalizeRuntimeModelId(runtimeProviderKey, config.model);
   await updateAgentModelProvider(runtimeProviderKey, {
     baseUrl: normalizeProviderBaseUrl(config, config.baseUrl, config.apiProtocol || 'openai-completions'),
     api: config.apiProtocol || 'openai-completions',
@@ -412,6 +394,16 @@ function parseModelRef(modelRef: string): { providerKey: string; modelId: string
     providerKey: trimmed.slice(0, separatorIndex),
     modelId: trimmed.slice(separatorIndex + 1),
   };
+}
+
+function normalizeRuntimeModelId(
+  runtimeProviderKey: string,
+  modelId: string | undefined,
+): string | undefined {
+  const value = modelId?.trim();
+  if (!value) return undefined;
+  const prefix = `${runtimeProviderKey}/`;
+  return value.startsWith(prefix) ? value.slice(prefix.length) : value;
 }
 
 async function buildRuntimeProviderConfigMap(): Promise<Map<string, ProviderConfig>> {
@@ -507,29 +499,21 @@ export async function syncAgentModelOverrideToRuntime(agentId: string): Promise<
 export async function syncSavedProviderToRuntime(
   config: ProviderConfig,
   apiKey: string | undefined,
-  gatewayManager?: GatewayManager,
+  _gatewayManager?: GatewayManager,
 ): Promise<void> {
   const context = await syncProviderToRuntime(config, apiKey);
   if (!context) {
     return;
   }
 
-  try {
-    await syncAgentModelsToRuntime();
-  } catch (err) {
-    logger.warn('[provider-runtime] Failed to sync per-agent model registries after provider save:', err);
-  }
+  await syncAgentModelsToRuntime();
 
-  scheduleGatewayRefresh(
-    gatewayManager,
-    `Scheduling Gateway reload after saving provider "${context.runtimeProviderKey}" config`,
-  );
 }
 
 export async function syncUpdatedProviderToRuntime(
   config: ProviderConfig,
   apiKey: string | undefined,
-  gatewayManager?: GatewayManager,
+  _gatewayManager?: GatewayManager,
 ): Promise<void> {
   const context = await syncProviderToRuntime(config, apiKey);
   if (!context) {
@@ -542,7 +526,8 @@ export async function syncUpdatedProviderToRuntime(
   const defaultProviderId = await getDefaultProvider();
   const isDefaultProvider = defaultProviderId === config.id;
   if (isDefaultProvider) {
-    const modelOverride = config.model ? `${ock}/${config.model}` : undefined;
+    const selectedModelId = normalizeRuntimeModelId(ock, config.model);
+    const modelOverride = selectedModelId ? `${ock}/${selectedModelId}` : undefined;
     if (!isUnregisteredProviderType(config.type)) {
       if (shouldUseExplicitDefaultOverride(config, ock)) {
         await setOpenClawDefaultModelWithOverride(ock, modelOverride, {
@@ -563,22 +548,14 @@ export async function syncUpdatedProviderToRuntime(
     }
   }
 
-  try {
-    await syncAgentModelsToRuntime();
-  } catch (err) {
-    logger.warn('[provider-runtime] Failed to sync per-agent model registries after provider update:', err);
-  }
+  await syncAgentModelsToRuntime();
 
-  scheduleGatewayRefresh(
-    gatewayManager,
-    `Scheduling Gateway reload after updating provider "${ock}" config`,
-  );
 }
 
 export async function syncDeletedProviderToRuntime(
   provider: ProviderConfig | null,
   providerId: string,
-  gatewayManager?: GatewayManager,
+  _gatewayManager?: GatewayManager,
   runtimeProviderKey?: string,
 ): Promise<void> {
   if (!provider?.type) {
@@ -588,11 +565,6 @@ export async function syncDeletedProviderToRuntime(
   const ock = runtimeProviderKey ?? await resolveRuntimeProviderKey({ ...provider, id: providerId });
   await removeDeletedProviderFromOpenClaw(provider, providerId, ock);
 
-  scheduleGatewayRefresh(
-    gatewayManager,
-    `Scheduling Gateway restart after deleting provider "${ock}"`,
-    { mode: 'restart' },
-  );
 }
 
 export async function syncDeletedProviderApiKeyToRuntime(
@@ -610,7 +582,7 @@ export async function syncDeletedProviderApiKeyToRuntime(
 
 export async function syncDefaultProviderToRuntime(
   providerId: string,
-  gatewayManager?: GatewayManager,
+  _gatewayManager?: GatewayManager,
 ): Promise<void> {
   const provider = await getProvider(providerId);
   if (!provider) {
@@ -726,15 +698,7 @@ export async function syncDefaultProviderToRuntime(
         fallbackModels.map((fallback) => fallback.replace(/^openai-codex\//, `${browserOAuthRuntimeProvider}/`)),
       );
       logger.info(`Configured openclaw.json for browser OAuth provider "${provider.id}"`);
-      try {
-        await syncAgentModelsToRuntime();
-      } catch (err) {
-        logger.warn('[provider-runtime] Failed to sync per-agent model registries after browser OAuth switch:', err);
-      }
-      scheduleGatewayRefresh(
-        gatewayManager,
-        `Scheduling Gateway reload after provider switch to "${browserOAuthRuntimeProvider}"`,
-      );
+      await syncAgentModelsToRuntime();
       return;
     }
 
@@ -759,18 +723,14 @@ export async function syncDefaultProviderToRuntime(
 
     logger.info(`Configured openclaw.json for OAuth provider "${provider.type}"`);
 
-    try {
-      const defaultModelId = provider.model?.split('/').pop();
-      await updateAgentModelProvider(targetProviderKey, {
-        baseUrl,
-        api,
-        authHeader: targetProviderKey === 'minimax-portal' ? true : undefined,
-        apiKey: targetProviderKey === 'minimax-portal' ? 'minimax-oauth' : 'qwen-oauth',
-        models: defaultModelId ? [piAiModelsJsonModelEntry(defaultModelId)] : [],
-      });
-    } catch (err) {
-      logger.warn(`Failed to update models.json for OAuth provider "${targetProviderKey}":`, err);
-    }
+    const defaultModelId = provider.model?.split('/').pop();
+    await updateAgentModelProvider(targetProviderKey, {
+      baseUrl,
+      api,
+      authHeader: targetProviderKey === 'minimax-portal' ? true : undefined,
+      apiKey: targetProviderKey === 'minimax-portal' ? 'minimax-oauth' : 'qwen-oauth',
+      models: defaultModelId ? [piAiModelsJsonModelEntry(defaultModelId)] : [],
+    });
   }
 
   if (
@@ -787,15 +747,6 @@ export async function syncDefaultProviderToRuntime(
     });
   }
 
-  try {
-    await syncAgentModelsToRuntime();
-  } catch (err) {
-    logger.warn('[provider-runtime] Failed to sync per-agent model registries after default provider switch:', err);
-  }
+  await syncAgentModelsToRuntime();
 
-  scheduleGatewayRefresh(
-    gatewayManager,
-    `Scheduling Gateway reload after provider switch to "${ock}"`,
-    { onlyIfRunning: true },
-  );
 }

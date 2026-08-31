@@ -3,8 +3,7 @@
     "gatewayRequired": "OpenClaw 网关需要运行才能使用聊天。它将自动启动，或者您可以从设置中启动。",
     "welcome": {
         "title": "SmartX 聊天",
-        "brandAlt": "小光",
-        "subtitle": "你好，我是国光量子智能办公助理 · 小光，需要我做些什么？",
+        "subtitle": "我能为你做些什么？",
         "askQuestions": "处理任务",
         "askQuestionsDesc": "处理面向任务的请求",
         "creativeTasks": "持续执行",
@@ -13,26 +12,97 @@
     },
     "noLogs": "（暂无日志）",
     "scrollToLatest": "回到底部",
-    "loadMoreHistory": "加载更早的消息",
-    "loadingMoreHistory": "加载更多中…",
     "toolbar": {
         "refresh": "刷新聊天",
-        "showThinking": "显示思考过程",
-        "hideThinking": "隐藏思考过程",
-        "showExecutionInfo": "显示对话执行信息",
-        "hideExecutionInfo": "隐藏对话执行信息",
-        "currentAgent": "当前对话对象：{{agent}}",
+        "currentAgent": "{{agent}}",
         "workspace": "工作空间"
     },
     "generatedFiles": {
-        "title": "文件变更（{{count}} 个）",
-        "created": "新增",
-        "modified": "修改",
-        "openFolder": "打开文件夹",
-        "viewAll": "查看文件变更"
+        "openFolder": "打开文件夹"
+    },
+    "fileActivity": {
+        "created": "已创建",
+        "modified": "已修改",
+        "deleted": "已删除",
+        "fileButton": "{{action}} {{path}}",
+        "changeRecord": "查看 {{path}} 的变更",
+        "fileUnavailable": "文件不可用",
+        "outsideWorkspace": "文件位于工作空间之外"
+    },
+    "fileCard": {
+        "openWith": "打开方式",
+        "openWithFile": "选择打开 {{name}} 的应用",
+        "openInBuiltInBrowser": "在 SmartX 预览中打开",
+        "openInSystemBrowser": "在系统浏览器中打开",
+        "searchingApplications": "正在查找应用",
+        "showInFinder": "在访达中显示",
+        "showInExplorer": "在文件资源管理器中显示",
+        "showInFileManager": "在文件管理器中显示",
+        "openWithFailed": "无法使用所选应用打开文件",
+        "revealFailed": "无法在文件夹中显示文件"
     },
     "runError": {
         "title": "模型调用失败"
+    },
+    "acp": {
+        "thought": "思考",
+        "tool": "工具",
+        "toolName": {
+            "updatePlan": "更新计划",
+            "webFetch": "读取网页",
+            "browser": "操作浏览器",
+            "execCommand": "执行命令",
+            "read": "读取",
+            "write": "写入",
+            "spawnSubagent": "派出子智能体",
+            "memorySearch": "查询记忆"
+        },
+        "expandTool": "展开工具结果",
+        "collapseTool": "折叠工具结果",
+        "expandToolGroup": "展开工具调用",
+        "collapseToolGroup": "折叠工具调用",
+        "toolGroupSummary": "{{count}} 个工具调用",
+        "permission": "权限",
+        "plan": "计划",
+        "running": "进行中",
+        "pending": "待处理",
+        "completed": "已完成",
+        "sessionPlan": {
+            "progress": "{{completed}} / {{total}}",
+            "expand": "展开计划",
+            "collapse": "折叠计划",
+            "tasks": "计划任务"
+        },
+        "failed": "失败",
+        "cancelled": "已取消",
+        "loadFailed": "会话加载失败",
+        "promptFailed": "发送提示失败",
+        "unsupportedContent": "不支持的内容",
+        "dismiss": "关闭",
+        "image": "图片",
+        "copyImage": "复制图片",
+        "imageCopied": "图片已复制",
+        "saveImage": "另存为图片",
+        "imageSaved": "图片已保存",
+        "copy": "复制回复",
+        "copied": "已复制",
+        "turnDuration": "用时 {{duration}}",
+        "turnElapsed": "已处理 {{duration}}",
+        "compaction": {
+            "inProgress": "正在压缩上下文",
+            "completed": "已压缩历史上下文",
+            "continuing": "上下文已压缩，正在继续",
+            "failed": "上下文压缩失败",
+            "cancelled": "上下文压缩已取消",
+            "reason": "原因：{{reason}}"
+        },
+        "attachment": {
+            "loading": "正在加载附件",
+            "unavailable": "附件不可用",
+            "open": "打开 {{name}}",
+            "preview": "预览 {{name}}",
+            "openFailed": "无法打开附件"
+        }
     },
     "artifactPanel": {
         "tabs": {
@@ -45,20 +115,21 @@
         },
         "changes": {
             "heading": "文件变更（{{count}} 个）",
-            "empty": "本会话尚无文件变更",
-            "selectFileHint": "请点击对话中的文件卡片，或「查看文件变更」打开 diff。"
+            "empty": "此会话尚无文件变更。",
+            "selectFileHint": "请点击对话中的文件卡片，或「查看文件变更」打开 diff。",
+            "changeRecord": "变更 {{number}}",
+            "diffUnavailable": "此变更无法显示差异。"
         },
         "preview": {
             "emptyTitle": "尚未选择文件",
-            "emptyHint": "请先点击对话里的文件卡片，侧栏会选中该文件后在此预览。"
+            "emptyHint": "请先点击对话里的文件卡片，侧栏会选中该文件后在此预览。",
+            "fullscreenLabel": "全屏文件预览"
         }
     },
     "filePreview": {
         "tabs": {
             "source": "源码",
-            "preview": "预览",
-            "changes": "变更",
-            "info": "信息"
+            "preview": "预览"
         },
         "actions": {
             "save": "保存",
@@ -66,12 +137,11 @@
             "revert": "撤销",
             "openInFinder": "在文件管理器中显示",
             "openDirectly": "直接打开",
-            "close": "关闭"
-        },
-        "info": {
-            "path": "路径",
-            "size": "大小",
-            "type": "类型"
+            "close": "关闭",
+            "enterFullscreen": "全屏预览",
+            "exitFullscreen": "退出全屏",
+            "openHtmlExternally": "在系统浏览器中打开 HTML",
+            "retry": "重试"
         },
         "toast": {
             "saved": "已保存到磁盘",
@@ -87,19 +157,17 @@
             "notFound": "文件不存在",
             "loadFailed": "加载失败：{{error}}",
             "noPreview": "该文件没有预览",
-            "unsupportedFormatTitle": "此文件格式暂不支持内置预览或变更",
-            "unsupportedFormatHint": "当前仅支持文本/Markdown 等可直接读取的文件进行内置预览与变更对比。请在文件管理器中打开该文件。",
+            "unsupportedFormatTitle": "此文件格式暂不支持内置预览",
+            "unsupportedFormatHint": "当前仅支持文本/Markdown 等可直接读取的文件进行内置预览。请在文件管理器中打开该文件。",
             "largeBinaryOpenTitle": "该文件较大，暂不支持内置预览",
             "largeBinaryOpenHint": "当前文件为 {{size}}，SmartX 不提供内置预览。你可以确认后直接使用系统默认应用打开。",
             "openInFinderFailed": "无法在文件管理器中显示",
-            "openFailed": "打开失败：{{error}}"
+            "openFailed": "打开失败：{{error}}",
+            "htmlLoadFailed": "无法加载 HTML 预览",
+            "openHtmlExternallyFailed": "无法在系统浏览器中打开 HTML"
         },
-        "diff": {
-            "noChanges": "没有可显示的变更",
-            "newFile": "这是新增文件，无对比内容",
-            "tooLarge": "文件过大，已禁用 diff 视图，请到「源码」标签查看完整内容",
-            "unavailable": "本会话没有抓到这个文件的精确变更基线，无法生成 diff。",
-            "unavailableHint": "可点击顶部「预览」查看当前文件内容；若需精确差异，请在 Git 等工具中对比版本。"
+        "html": {
+            "crashed": "HTML 预览已停止运行"
         },
         "confirmOpen": {
             "title": "打开文件",
@@ -118,6 +186,15 @@
             "pageInputAria": "当前页",
             "singlePageHint": "使用工具栏在 {{total}} 页之间切换"
         },
+        "docx": {
+            "loadFailed": "Word 文档加载失败"
+        },
+        "pptx": {
+            "loadFailed": "演示文稿加载失败",
+            "previous": "上一张幻灯片",
+            "next": "下一张幻灯片",
+            "slidePosition": "{{current}} / {{total}}"
+        },
         "sheet": {
             "loadFailed": "表格加载失败：{{error}}",
             "empty": "该文件没有可展示的工作表",
@@ -130,48 +207,28 @@
     },
     "workspace": {
         "title": "工作空间",
+        "defaultLabel": "默认工作空间",
+        "header": "Agent：{{agent}} · 目录：{{directory}}",
         "freshBadge": "本轮新增",
         "pickFile": "从左侧选择一个文件预览",
         "empty": "工作空间为空或无法访问",
         "truncated": "目录过大，已截断显示前 5000 个节点",
+        "unavailable": {
+            "title": "工作空间不可用",
+            "description": "此文件夹可能已被移动或删除。请选择一个现有文件夹以继续：{{path}}",
+            "boundDescription": "此对话的工作空间可能已被移动或删除，当前无法访问：{{path}}",
+            "chooseAction": "选择工作空间"
+        },
         "actions": {
             "refresh": "刷新",
-            "openRootInFinder": "在文件管理器中显示根目录",
-            "toggleHidden": "显示/隐藏隐藏文件",
-            "showHidden": "显示隐藏文件",
-            "hideHidden": "隐藏隐藏文件"
+            "openRootInFinder": "在文件管理器中显示根目录"
         }
-    },
-    "taskPanel": {
-        "eyebrow": "运行视图",
-        "title": "任务脉络",
-        "emptyTitle": "还没有结构化步骤",
-        "emptyBody": "当一次运行开始后，SmartX 会在这里展示思考、工具调用和收尾状态。",
-        "status": {
-            "idle": "空闲",
-            "running_one": "1 个活动步骤",
-            "running_other": "{{count}} 个活动步骤"
-        },
-        "stepStatus": {
-            "running": "进行中",
-            "completed": "完成",
-            "error": "错误"
-        }
-    },
-    "executionGraph": {
-        "title": "执行关系图",
-        "branchLabel": "分支",
-        "thinkingLabel": "思考中",
-        "errorLabel": "模型调用失败",
-        "imageGenerateLabel": "图片生成",
-        "agentRun": "{{agent}} 执行",
-        "collapsedSummary": "{{toolCount}} 个工具调用，{{processCount}} 条过程消息",
-        "collapseAction": "收起执行关系图"
     },
     "imageGeneration": {
         "generating": "图片生成中，请稍候…",
-        "previewLoading": "正在载入图片预览…",
-        "previewUnavailable": "图片预览暂时不可用"
+        "previewUnavailable": "图片生成已完成，但无法加载预览。",
+        "generatedReady": "生成的图片已准备好。",
+        "generatedReadyWithMissing": "生成的图片已准备好，但有部分图片无法加载。"
     },
     "composer": {
         "attachFiles": "添加文件",
@@ -191,13 +248,77 @@
         "gatewayDisconnectedPlaceholder": "网关未连接...",
         "send": "发送",
         "stop": "停止",
+        "thinking": "思考中…",
         "gatewayConnected": "已连接",
-        "gatewayStatus": "gateway {{state}} | port: {{port}} {{pid}}",
+        "gatewayStarting": "启动中",
+        "gatewayStatus": "网关{{state}}",
         "retryFailedAttachments": "重试失败的附件",
+        "workspacePrefix": "{{workspace}}",
+        "workspacePickerTitle": "选择工作空间文件夹",
+        "workspacePickerButton": "使用此工作空间",
+        "workspacePickerFailed": "无法打开工作空间选择器",
+        "defaultWorkspaceOption": "默认工作空间",
+        "chooseOtherWorkspaceOption": "选择其他目录…",
         "folderDropUnsupported": "无法添加此文件夹。请重新拖入，或在消息中粘贴文件夹路径。",
         "folderAttachment": "文件夹",
         "skillPreviewTooltip": "预览 SKILL.md",
-        "skillPreviewNotFound": "找不到该技能。请打开技能列表以刷新。"
+        "skillPreviewNotFound": "找不到该技能。请打开技能列表以刷新。",
+        "contextUsage": "已使用 {{percentage}} 上下文：{{used}} / {{total}} 个 token"
+    },
+    "talk": {
+        "start": "开始语音对话",
+        "stop": "停止语音对话",
+        "inputLevel": "麦克风输入音量",
+        "status": {
+            "idle": "语音对话已就绪",
+            "connecting": "正在连接语音对话",
+            "listening": "正在聆听",
+            "thinking": "正在思考",
+            "speaking": "正在讲话",
+            "disconnected": "语音对话已断开",
+            "error": "语音对话出错"
+        },
+        "unavailable": {
+            "gateway": "语音对话需要已连接的网关",
+            "sending": "发送消息时无法使用语音对话",
+            "session": "请先新建对话后再开始语音对话",
+            "configuration": "语音对话不可用：{{reason}}",
+            "loading": "正在检查语音对话可用性",
+            "default": "语音对话不可用"
+        },
+        "consultRefresh": {
+            "failed": "无法刷新咨询回复。",
+            "retry": "重试刷新",
+            "retrying": "正在重试刷新..."
+        },
+        "transcript": {
+            "label": "实时语音转写",
+            "microphone": "麦克风",
+            "voiceInput": "语音输入",
+            "voiceResponse": "语音回答"
+        }
+    },
+    "sessionList": {
+        "title": "会话列表",
+        "collapseAll": "一键折叠",
+        "expandAll": "一键展开",
+        "loadMore": "加载更多",
+        "aiReplying": "AI 正在回复",
+        "unreadReply": "未读回复",
+        "subagent": "子 Agent",
+        "loadMoreForWorkspace": "在 {{workspace}} 中再加载 {{count}} 个会话",
+        "workspaceToggle": "展开或折叠工作空间 {{workspace}}",
+        "renameWorkspace": "重命名工作空间 {{workspace}}",
+        "workspaceUnavailableBadge": "不可用",
+        "deleteWorkspace": "删除不可用的工作空间 {{workspace}}",
+        "deleteWorkspaceTitle": "删除不可用的工作空间？",
+        "deleteWorkspaceConfirm": "永久删除“{{workspace}}”及其中的全部 {{count}} 个会话？此操作无法撤销。",
+        "deleteWorkspaceConfirmAction": "删除工作空间和会话",
+        "deleteWorkspacePartialFailure": "有 {{count}} 个会话无法删除，已保留在该工作空间中。",
+        "deleteWorkspaceCleanupFailed": "会话已删除，但无法清理保存的工作空间记录。",
+        "workspaceName": "工作空间名称",
+        "saveWorkspaceRename": "保存工作空间名称",
+        "cancelWorkspaceRename": "取消重命名工作空间"
     },
     "historyBuckets": {
         "today": "今天",

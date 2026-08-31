@@ -1,10 +1,10 @@
 /**
  * Chat Toolbar
- * Session selector, new session, refresh, and the workspace browser
+ * Session selector, question directory, and the workspace browser
  * entry point.  Rendered in the Header when on the Chat page.
  */
 import { useMemo } from 'react';
-import { RefreshCw, Bot, Brain, FolderTree, GitBranch, ListTree } from 'lucide-react';
+import { Bot, FolderTree, ListTree } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useChatStore } from '@/stores/chat';
@@ -14,23 +14,19 @@ import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import { WORKSPACE_BROWSER_ENABLED } from '@/components/file-preview/workspace-browser-config';
 
-type ChatToolbarProps = {
+export type ChatToolbarProps = {
   questionDirectoryOpen?: boolean;
   questionDirectoryCount?: number;
   onToggleQuestionDirectory?: () => void;
+  workspaceAvailable?: boolean;
 };
 
 export function ChatToolbar({
   questionDirectoryOpen = false,
   questionDirectoryCount = 0,
   onToggleQuestionDirectory,
+  workspaceAvailable = false,
 }: ChatToolbarProps = {}) {
-  const refresh = useChatStore((s) => s.refresh);
-  const loading = useChatStore((s) => s.loading);
-  const showThinking = useChatStore((s) => s.showThinking);
-  const toggleThinking = useChatStore((s) => s.toggleThinking);
-  const showExecutionInfo = useChatStore((s) => s.showExecutionInfo);
-  const toggleExecutionInfo = useChatStore((s) => s.toggleExecutionInfo);
   const currentAgentId = useChatStore((s) => s.currentAgentId);
   const agents = useAgentsStore((s) => s.agents);
   const openBrowser = useArtifactPanel((s) => s.openBrowser);
@@ -57,6 +53,7 @@ export function ChatToolbar({
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
+              data-testid="chat-toolbar-workspace"
               variant="ghost"
               size="icon"
               className={cn(
@@ -64,7 +61,7 @@ export function ChatToolbar({
                 browserActive && 'bg-foreground/10 text-foreground',
               )}
               onClick={() => (browserActive ? closePanel() : openBrowser())}
-              disabled={!currentAgent?.workspace}
+              disabled={!workspaceAvailable}
               aria-label={t('toolbar.workspace')}
             >
               <FolderTree className="h-4 w-4" />
@@ -88,72 +85,14 @@ export function ChatToolbar({
             onClick={onToggleQuestionDirectory}
             disabled={!questionDirectoryAvailable}
             aria-label={t('questionDirectory.title')}
+            aria-controls="chat-question-directory"
+            aria-expanded={questionDirectoryOpen}
           >
             <ListTree className="h-4 w-4" />
           </Button>
         </TooltipTrigger>
         <TooltipContent>
           <p>{t('questionDirectory.title')}</p>
-        </TooltipContent>
-      </Tooltip>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            data-testid="chat-toggle-thinking"
-            variant="ghost"
-            size="icon"
-            className={cn(
-              'h-8 w-8 hover:bg-black/5 hover:text-foreground dark:hover:bg-white/10',
-              showThinking && 'bg-primary/10 text-primary',
-            )}
-            onClick={toggleThinking}
-            aria-label={showThinking ? t('toolbar.hideThinking') : t('toolbar.showThinking')}
-          >
-            <Brain className="h-4 w-4" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>{showThinking ? t('toolbar.hideThinking') : t('toolbar.showThinking')}</p>
-        </TooltipContent>
-      </Tooltip>
-
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            data-testid="chat-toggle-execution-info"
-            variant="ghost"
-            size="icon"
-            className={cn(
-              'h-8 w-8 hover:bg-black/5 hover:text-foreground dark:hover:bg-white/10',
-              showExecutionInfo && 'bg-primary/10 text-primary',
-            )}
-            onClick={toggleExecutionInfo}
-            aria-label={showExecutionInfo ? t('toolbar.hideExecutionInfo') : t('toolbar.showExecutionInfo')}
-          >
-            <GitBranch className="h-4 w-4" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>{showExecutionInfo ? t('toolbar.hideExecutionInfo') : t('toolbar.showExecutionInfo')}</p>
-        </TooltipContent>
-      </Tooltip>
-
-      {/* Refresh */}
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 hover:bg-black/5 hover:text-foreground dark:hover:bg-white/10"
-            onClick={() => refresh()}
-            disabled={loading}
-            aria-label={t('toolbar.refresh')}
-          >
-            <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>{t('toolbar.refresh')}</p>
         </TooltipContent>
       </Tooltip>
     </div>

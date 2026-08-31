@@ -15,7 +15,6 @@
         "companyKnowledge": "企业知识库",
         "deleteSessionConfirm": "删除「{{label}}」？",
         "openClawPage": "OpenClaw 页面",
-        "openClawDreams": "梦境",
         "renameSession": "重命名",
         "deleteSession": "删除",
         "renameSessionPlaceholder": "会话标题",
@@ -56,6 +55,9 @@
         "hide": "隐藏",
         "clear": "清空"
     },
+    "markdown": {
+        "copyCode": "复制代码"
+    },
     "status": {
         "running": "运行中",
         "stopped": "已停止",
@@ -73,7 +75,7 @@
     "gateway": {
         "notRunning": "网关未运行",
         "notRunningDesc": "OpenClaw 网关需要运行才能使用此功能。它将自动启动，或者您可以从设置中启动。",
-        "restarting": "Gateway 重启中",
+        "restarting": "网关重启中",
         "warning": "网关未运行。"
     }
 }

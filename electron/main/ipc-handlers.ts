@@ -2,7 +2,7 @@
  * IPC Handlers
  * Registers all IPC handlers for main-renderer communication
  */
-import { ipcMain, BrowserWindow, shell, dialog, app } from 'electron';
+import { ipcMain, BrowserWindow, shell, dialog, app, type Session } from 'electron';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, extname, basename, resolve, sep, relative } from 'node:path';
@@ -26,8 +26,6 @@ import { resolveAccountIdFromSessionHistory } from '../utils/session-util';
 import { bindCompanyKnowledgeFromWebview } from '../utils/skill-config';
 import { whatsAppLoginManager } from '../utils/whatsapp-login';
 import { getProviderConfig } from '../utils/provider-registry';
-import { deviceOAuthManager } from '../utils/device-oauth';
-import { browserOAuthManager } from '../utils/browser-oauth';
 import { applyProxySettings } from './proxy';
 import { syncLaunchAtStartupSettingFromStore } from './launch-at-startup';
 import { getRecentTokenUsageHistory } from '../utils/token-usage';
@@ -43,7 +41,6 @@ import {
 } from '../services/providers/provider-runtime-sync';
 import { validateApiKeyWithProvider } from '../services/providers/provider-validation';
 import { appUpdater } from './updater';
-import { GatewayRpcBackpressure } from '../gateway/rpc-backpressure';
 import { HostApiRegistry, registerHostInvokeHandler } from './ipc/host-invoke';
 import { createAppApi } from '../services/app-api';
 import { createOpenClawApi } from '../services/openclaw-api';
@@ -59,6 +56,9 @@ import { createBubbleApi } from '../services/bubble-api';
 import { createChannelsApi } from '../services/channels-api';
 import { createAgentsApi } from '../services/agents-api';
 import { createChatApi } from '../services/chat-api';
+import { AcpSessionAccessRegistry } from '../services/acp-session-access-registry';
+import { createAttachmentAccess, StagedAttachmentRegistry } from '../services/attachment-access';
+import { createAttachmentOpenWithService } from '../services/attachment-open-with';
 import { createCronApi } from '../services/cron-api';
 import { createFilesApi } from '../services/files-api';
 import { createMediaApi } from '../services/media-api';
@@ -66,6 +66,9 @@ import { createProvidersApi } from '../services/providers-api';
 import { createSessionsApi } from '../services/sessions-api';
 import { createSkillsApi } from '../services/skills-api';
 import { createUsageApi } from '../services/usage-api';
+import { createWebBrowserApi } from '../services/web-browser-api';
+import { createTalkApi, createTalkRelayOwnership, type TalkRelayOwnership } from '../services/talk-api';
+import type { WebBrowserGuestRegistry } from './web-browser-policy';
 import {
   isLaunchAtStartupKey,
   isProxyKey,
@@ -75,8 +78,6 @@ import {
 } from './ipc/request-helpers';
 import { createMenu } from './menu';
 
-const gatewayRpcBackpressure = new GatewayRpcBackpressure();
-
 /**
  * Register all IPC handlers
  */
@@ -85,13 +86,23 @@ export function registerIpcHandlers(
   clawHubService: ClawHubService,
   mainWindow: BrowserWindow,
   hostApiRegistry: HostApiRegistry,
+  browserSession: Session,
+  registry: WebBrowserGuestRegistry,
   focusMainWindow: () => void,
-): void {
+): TalkRelayOwnership {
   // Unified request protocol (non-breaking: legacy channels remain available)
   registerUnifiedRequestHandlers(gatewayManager);
 
   // Typed host invoke handlers (new renderer facade; legacy channels remain available)
-  registerTypedHostHandlers(gatewayManager, clawHubService, mainWindow, hostApiRegistry, focusMainWindow);
+  const talkRelayOwnership = registerTypedHostHandlers(
+    gatewayManager,
+    clawHubService,
+    mainWindow,
+    hostApiRegistry,
+    browserSession,
+    registry,
+    focusMainWindow,
+  );
 
   // Gateway handlers
   registerGatewayHandlers(gatewayManager);
@@ -128,6 +139,8 @@ export function registerIpcHandlers(
 
   // File preview handlers (sandboxed read/write/list for inline viewer)
   registerFilePreviewHandlers();
+
+  return talkRelayOwnership;
 }
 
 function registerTypedHostHandlers(
@@ -135,32 +148,50 @@ function registerTypedHostHandlers(
   clawHubService: ClawHubService,
   mainWindow: BrowserWindow,
   hostApiRegistry: HostApiRegistry,
+  browserSession: Session,
+  registry: WebBrowserGuestRegistry,
   focusMainWindow: () => void,
-): void {
+): TalkRelayOwnership {
+  const acpSessionAccessRegistry = new AcpSessionAccessRegistry();
+  const stagedAttachments = new StagedAttachmentRegistry();
+  const attachmentOpenWith = createAttachmentOpenWithService();
+  const attachmentAccess = createAttachmentAccess({
+    sessionAccessRegistry: acpSessionAccessRegistry,
+    stagedAttachments,
+    openWith: attachmentOpenWith,
+  });
+  const talkRelayOwnership = createTalkRelayOwnership();
   hostApiRegistry.registerCoreServices({
     app: createAppApi(),
     openclaw: createOpenClawApi(),
     shell: createShellApi(),
+    webBrowser: createWebBrowserApi({ browserSession, registry }),
     dialog: createDialogApi(),
     window: createWindowApi(mainWindow),
     updates: createUpdatesApi(appUpdater),
     uv: createUvApi(),
     settings: createSettingsApi(gatewayManager),
     bubble: createBubbleApi({ focusMainWindow }),
-    gateway: createGatewayApi(gatewayManager, gatewayRpcBackpressure),
+    gateway: createGatewayApi(gatewayManager),
+    talk: createTalkApi(gatewayManager, talkRelayOwnership),
     logs: createLogsApi(),
     channels: createChannelsApi({ gatewayManager, mainWindow }),
     agents: createAgentsApi({ gatewayManager }),
     providers: createProvidersApi({ gatewayManager, mainWindow }),
-    files: createFilesApi(),
-    media: createMediaApi(),
+    files: createFilesApi({
+      attachmentAccess,
+      openWith: attachmentOpenWith,
+      stagedAttachments,
+    }),
+    media: createMediaApi({ attachmentAccess }),
     sessions: createSessionsApi(),
-    chat: createChatApi({ gatewayManager }),
+    chat: createChatApi({ gatewayManager, mainWindow, acpSessionAccessRegistry }),
     cron: createCronApi({ gatewayManager }),
     skills: createSkillsApi({ clawHubService, gatewayManager }),
     usage: createUsageApi(),
   });
   registerHostInvokeHandler(hostApiRegistry);
+  return talkRelayOwnership;
 }
 
 function registerUnifiedRequestHandlers(gatewayManager: GatewayManager): void {
@@ -274,11 +305,7 @@ function registerUnifiedRequestHandlers(gatewayManager: GatewayManager): void {
                 }
               }
 
-              try {
-                await syncSavedProviderToRuntime(config, apiKey, gatewayManager);
-              } catch (err) {
-                console.warn('Failed to sync openclaw provider config:', err);
-              }
+              await syncSavedProviderToRuntime(config, apiKey, gatewayManager);
 
               data = { success: true };
             } catch (error) {
@@ -293,14 +320,10 @@ function registerUnifiedRequestHandlers(gatewayManager: GatewayManager): void {
 
             try {
               const existing = await providerService.getLegacyProvider(providerId);
-              await providerService.deleteLegacyProvider(providerId);
               if (existing?.type) {
-                try {
-                  await syncDeletedProviderToRuntime(existing, providerId, gatewayManager);
-                } catch (err) {
-                  console.warn('Failed to completely remove provider from OpenClaw:', err);
-                }
+                await syncDeletedProviderToRuntime(existing, providerId, gatewayManager);
               }
+              await providerService.deleteLegacyProvider(providerId);
               data = { success: true };
             } catch (error) {
               data = { success: false, error: String(error) };
@@ -321,11 +344,7 @@ function registerUnifiedRequestHandlers(gatewayManager: GatewayManager): void {
               const provider = await providerService.getLegacyProvider(providerId);
               const providerType = provider?.type || providerId;
               const ock = getOpenClawProviderKey(providerType, providerId);
-              try {
-                await saveProviderKeyToOpenClaw(ock, apiKey);
-              } catch (err) {
-                console.warn('Failed to save key to OpenClaw auth-profiles:', err);
-              }
+              await saveProviderKeyToOpenClaw(ock, apiKey);
               data = { success: true };
             } catch (error) {
               data = { success: false, error: String(error) };
@@ -371,11 +390,7 @@ function registerUnifiedRequestHandlers(gatewayManager: GatewayManager): void {
                 }
               }
 
-              try {
-                await syncUpdatedProviderToRuntime(nextConfig, apiKey, gatewayManager);
-              } catch (err) {
-                console.warn('Failed to sync openclaw config after provider update:', err);
-              }
+              await syncUpdatedProviderToRuntime(nextConfig, apiKey, gatewayManager);
 
               data = { success: true };
             } catch (error) {
@@ -405,12 +420,8 @@ function registerUnifiedRequestHandlers(gatewayManager: GatewayManager): void {
               const provider = await providerService.getLegacyProvider(providerId);
               const providerType = provider?.type || providerId;
               const ock = getOpenClawProviderKey(providerType, providerId);
-              try {
-                if (ock) {
-                  await removeProviderFromOpenClaw(ock);
-                }
-              } catch (err) {
-                console.warn('Failed to completely remove provider from OpenClaw:', err);
+              if (ock) {
+                await removeProviderFromOpenClaw(ock);
               }
               data = { success: true };
             } catch (error) {
@@ -427,11 +438,7 @@ function registerUnifiedRequestHandlers(gatewayManager: GatewayManager): void {
               await providerService.setDefaultLegacyProvider(providerId);
               const provider = await providerService.getLegacyProvider(providerId);
               if (provider) {
-                try {
-                  await syncDefaultProviderToRuntime(providerId, gatewayManager);
-                } catch (err) {
-                  console.warn('Failed to set OpenClaw default model:', err);
-                }
+                await syncDefaultProviderToRuntime(providerId, gatewayManager);
               }
 
               data = { success: true };
@@ -700,12 +707,7 @@ function registerGatewayHandlers(gatewayManager: GatewayManager): void {
   // Gateway RPC call
   ipcMain.handle('gateway:rpc', async (_, method: string, params?: unknown, timeoutMs?: number) => {
     try {
-      const result = await gatewayRpcBackpressure.run(
-        method,
-        params,
-        timeoutMs,
-        (rpcMethod, rpcParams, rpcTimeoutMs) => gatewayManager.rpc(rpcMethod, rpcParams, rpcTimeoutMs),
-      );
+      const result = await gatewayManager.rpc(method, params, timeoutMs);
       return { success: true, result };
     } catch (error) {
       logger.warn(`[gateway:rpc] ${method} failed (timeoutMs=${timeoutMs ?? 30000}): ${String(error)}`);
@@ -794,18 +796,6 @@ function registerProviderHandlers(gatewayManager: GatewayManager): void {
     );
   };
 
-  // Listen for OAuth success to automatically restart the Gateway with new tokens/configs.
-  // Keep a longer debounce (8s) so provider config writes and OAuth token persistence
-  // can settle before applying the process-level refresh.
-  deviceOAuthManager.on('oauth:success', ({ provider, accountId }) => {
-    logger.info(`[IPC] Scheduling Gateway restart after ${provider} OAuth success for ${accountId}...`);
-    gatewayManager.debouncedRestart(8000);
-  });
-  browserOAuthManager.on('oauth:success', ({ provider, accountId }) => {
-    logger.info(`[IPC] Scheduling Gateway restart after ${provider} OAuth success for ${accountId}...`);
-    gatewayManager.debouncedRestart(8000);
-  });
-
   // Get all providers with key info
   ipcMain.handle('provider:list', async () => {
     logLegacyProviderChannel('provider:list');
@@ -832,20 +822,12 @@ function registerProviderHandlers(gatewayManager: GatewayManager): void {
           await providerService.setLegacyProviderApiKey(config.id, trimmedKey);
 
           // Also write to OpenClaw auth-profiles.json so the gateway can use it
-          try {
-            await syncProviderApiKeyToRuntime(config.type, config.id, trimmedKey);
-          } catch (err) {
-            console.warn('Failed to save key to OpenClaw auth-profiles:', err);
-          }
+          await syncProviderApiKeyToRuntime(config.type, config.id, trimmedKey);
         }
       }
 
       // Sync the provider configuration to openclaw.json so Gateway knows about it
-      try {
-        await syncSavedProviderToRuntime(config, apiKey, gatewayManager);
-      } catch (err) {
-        console.warn('Failed to sync openclaw provider config:', err);
-      }
+      await syncSavedProviderToRuntime(config, apiKey, gatewayManager);
 
       return { success: true };
     } catch (error) {
@@ -858,16 +840,10 @@ function registerProviderHandlers(gatewayManager: GatewayManager): void {
     logLegacyProviderChannel('provider:delete');
     try {
       const existing = await providerService.getLegacyProvider(providerId);
-      await providerService.deleteLegacyProvider(providerId);
-
-      // Best-effort cleanup in OpenClaw auth profiles & openclaw.json config
       if (existing?.type) {
-        try {
-          await syncDeletedProviderToRuntime(existing, providerId, gatewayManager);
-        } catch (err) {
-          console.warn('Failed to completely remove provider from OpenClaw:', err);
-        }
+        await syncDeletedProviderToRuntime(existing, providerId, gatewayManager);
       }
+      await providerService.deleteLegacyProvider(providerId);
 
       return { success: true };
     } catch (error) {
@@ -884,11 +860,7 @@ function registerProviderHandlers(gatewayManager: GatewayManager): void {
       // Also write to OpenClaw auth-profiles.json
       const provider = await providerService.getLegacyProvider(providerId);
       const providerType = provider?.type || providerId;
-      try {
-        await syncProviderApiKeyToRuntime(providerType, providerId, apiKey);
-      } catch (err) {
-        console.warn('Failed to save key to OpenClaw auth-profiles:', err);
-      }
+      await syncProviderApiKeyToRuntime(providerType, providerId, apiKey);
 
       return { success: true };
     } catch (error) {
@@ -937,11 +909,7 @@ function registerProviderHandlers(gatewayManager: GatewayManager): void {
         }
 
         // Sync the provider configuration to openclaw.json so Gateway knows about it
-        try {
-          await syncUpdatedProviderToRuntime(nextConfig, apiKey, gatewayManager);
-        } catch (err) {
-          console.warn('Failed to sync openclaw config after provider update:', err);
-        }
+        await syncUpdatedProviderToRuntime(nextConfig, apiKey, gatewayManager);
 
         return { success: true };
       } catch (error) {
@@ -972,11 +940,7 @@ function registerProviderHandlers(gatewayManager: GatewayManager): void {
 
       // Keep OpenClaw auth-profiles.json in sync with local key storage
       const provider = await providerService.getLegacyProvider(providerId);
-      try {
-        await syncDeletedProviderApiKeyToRuntime(provider, providerId);
-      } catch (err) {
-        console.warn('Failed to completely remove provider from OpenClaw:', err);
-      }
+      await syncDeletedProviderApiKeyToRuntime(provider, providerId);
 
       return { success: true };
     } catch (error) {
@@ -1003,11 +967,7 @@ function registerProviderHandlers(gatewayManager: GatewayManager): void {
       await providerService.setDefaultLegacyProvider(providerId);
 
       // Update OpenClaw config to use this provider's default model
-      try {
-        await syncDefaultProviderToRuntime(providerId, gatewayManager);
-      } catch (err) {
-        console.warn('Failed to set OpenClaw default model:', err);
-      }
+      await syncDefaultProviderToRuntime(providerId, gatewayManager);
 
       return { success: true };
     } catch (error) {

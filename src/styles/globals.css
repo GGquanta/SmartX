@@ -20,7 +20,7 @@
  *      --surface-sidebar). Three light-mode "cream paper" layers added
  *      by SmartX. In dark mode each one is redirected to an existing
  *      shadcn token (--card / --muted / --background) so we don't have
- *      to maintain a second dark-cream palette.
+ *      to maintain a second dark surface palette.
  *
  * Usage:
  *   - Application code should always go through Tailwind utilities, e.g.
@@ -49,8 +49,8 @@
  *     bg-muted   (when used as a panel) →  bg-surface-input
  *     bg-[hsl(var(--xxx))] / arbitrary  →  bg-<named-token>
  *
- *     bg-surface-modal = raised cream  panels, popovers, inputs, cards
- *     bg-surface-input = recessed cream  code/log <pre>, segmented track
+ *     bg-surface-modal = raised neutral panels, popovers, inputs, cards
+ *     bg-surface-input = recessed neutral code/log <pre>, segmented track
  *
  *     Never write `dark:bg-card` / `dark:bg-muted` companion classes —
  *     the surface tokens already redirect in dark mode.
@@ -69,9 +69,6 @@
  *   ─────────────────────────────────────────────────────────────────────
  *     bg-black/30 dark:bg-black/60      (canonical: components/ui/sheet.tsx)
  *
- *     Image lightbox may use bg-black/80 when a darker scrim is intentional
- *     (see pages/Chat/ChatMessage.tsx).
- *
  *   STATUS COLOURS  (success / warning / error)
  *   ─────────────────────────────────────────────────────────────────────
  *     icon + inline text  :  text-{green|yellow|red}-700  dark:text-…-400
@@ -81,7 +78,7 @@
  *     status dot          :  bg-{green|yellow|red}-500    (no dark variant)
  *
  *     Avoid `text-X-400` alone — that shade is tuned for dark mode and
- *     washes out against the cream light theme. Same for `bg-red-900/20`
+ *     washes out against the light theme. Same for `bg-red-900/20`
  *     panel backgrounds (a dark-only relic).
  *
  *   NEUTRAL GREYS  (escape hatches → semantic tokens)
@@ -142,19 +139,13 @@
 
     /* ── SmartX cream surfaces (light) ────────────────────────────
      *
-     * Three stacked cream layers — think "a cream paper laid on top
-     * of a slightly paler cream paper". The contrast between layers
-     * is deliberately low so we can suggest hierarchy without using
-     * heavy shadows. Pixel values are extracted from the hex literals
-     * that used to be sprinkled across components.
+     * Three stacked neutral layers. The app shell stays white while
+     * recessed controls and the sidebar use subtle gray contrast.
      *
-     *   --surface-modal   = lifted cream   large rounded modal panels (top);
-     *                                      slightly lighter than --background
-     *                                      so dialogs feel raised
-     *   --surface-input   = recessed cream inputs / selects / code panes;
-     *                                      slightly darker than --background
-     *                                      so fields feel inset
-     *   --surface-sidebar = sidebar cream  left navigation rail (often /60)
+     *   --surface-modal   = lifted neutral panels, dialogs, popovers,
+     *                       composer, cards
+     *   --surface-input   = recessed neutral inputs / selects / code panes
+     *   --surface-sidebar = sidebar neutral navigation rail (often /60)
      * ─────────────────────────────────────────────────────────── */
     --surface-modal: 214 28% 98.5%;
     --surface-input: 214 22% 95%;
@@ -203,7 +194,7 @@
     --input: 240 3% 18%;
     --ring: 217.2 91.2% 59.8%;
 
-    /* In dark mode the three cream surfaces collapse onto existing
+    /* In dark mode the three neutral surfaces collapse onto existing
      * shadcn tokens:
      *     modal   → card
      *     input   → muted
@@ -240,6 +231,14 @@
     @apply text-sm font-normal leading-4;
   }
 
+  .smartx-skill-token-overlay {
+    background-color: color-mix(in srgb, #2f6bff 14%, hsl(var(--surface-modal)));
+  }
+
+  .dark .smartx-skill-token-overlay {
+    background-color: color-mix(in srgb, #2f6bff 18%, hsl(var(--surface-modal)));
+  }
+
   .smartx-dialog-overlay {
     @apply fixed inset-0 z-50 bg-black/30 dark:bg-black/60;
   }
@@ -272,6 +271,101 @@
     .smartx-dialog-content[data-state] {
       animation: none;
     }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .clawx-chat-thinking-dot-pulse-dot,
+    .clawx-chat-thinking-dot-pulse-inner::before,
+    .clawx-chat-thinking-dot-pulse-inner::after {
+      animation: none !important;
+      transform: scale(1) !important;
+    }
+  }
+
+  .clawx-chat-thinking-dot-pulse {
+    --uib-size: 28px;
+    --uib-color: hsl(var(--primary));
+    --uib-speed: 1.3s;
+    --uib-dot-size: calc(var(--uib-size) * 0.24);
+    align-items: center;
+    display: inline-flex;
+    flex-shrink: 0;
+    height: var(--uib-dot-size);
+    justify-content: center;
+    width: var(--uib-size);
+  }
+
+  .clawx-chat-thinking-dot-pulse-inner {
+    align-items: center;
+    display: flex;
+    justify-content: space-between;
+    height: 100%;
+    position: relative;
+    width: 100%;
+  }
+
+  .clawx-chat-thinking-dot-pulse-dot,
+  .clawx-chat-thinking-dot-pulse-inner::before,
+  .clawx-chat-thinking-dot-pulse-inner::after {
+    background-color: var(--uib-color);
+    border-radius: 50%;
+    content: '';
+    display: block;
+    height: var(--uib-dot-size);
+    transform: scale(0);
+    transition: background-color 0.3s ease;
+    width: var(--uib-dot-size);
+  }
+
+  .clawx-chat-thinking-dot-pulse-inner::before {
+    animation: clawx-chat-thinking-dot-pulse var(--uib-speed) ease-in-out calc(var(--uib-speed) * -0.375) infinite;
+  }
+
+  .clawx-chat-thinking-dot-pulse-dot {
+    animation: clawx-chat-thinking-dot-pulse var(--uib-speed) ease-in-out calc(var(--uib-speed) * -0.25) infinite both;
+  }
+
+  .clawx-chat-thinking-dot-pulse-inner::after {
+    animation: clawx-chat-thinking-dot-pulse var(--uib-speed) ease-in-out calc(var(--uib-speed) * -0.125) infinite;
+  }
+
+  .clawx-talk-listening-ring {
+    animation: clawx-talk-listening-ring var(--talk-ring-duration) ease-in-out infinite;
+    background: hsl(var(--muted-foreground) / var(--talk-ring-opacity));
+    box-shadow: 0 0 var(--talk-ring-shadow) hsl(var(--muted-foreground) / var(--talk-ring-opacity));
+    will-change: opacity, transform;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .clawx-talk-listening-ring {
+      animation: none;
+      opacity: var(--talk-ring-opacity);
+      transform: scale(var(--talk-ring-scale));
+    }
+  }
+}
+
+@keyframes clawx-chat-thinking-dot-pulse {
+  0%,
+  100% {
+    transform: scale(0);
+  }
+
+  50% {
+    transform: scale(1);
+  }
+}
+
+@keyframes clawx-talk-listening-ring {
+  0%,
+  100% {
+    opacity: var(--talk-ring-min-opacity);
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: var(--talk-ring-opacity);
+    transform: scale(var(--talk-ring-scale));
   }
 }
 
@@ -443,6 +537,45 @@
   margin: 0.6rem 0 0.35rem;
 }
 
+/* Streamdown's root `space-y-4` replaces both margins on sibling blocks. These
+ * scoped rules restore ClawX's prose rhythm while preserving edge resets. */
+.prose.clawx-markdown.clawx-streamdown > p {
+  margin: 0 0 0.75em;
+}
+
+.prose.clawx-streamdown > [data-streamdown='heading-1'] {
+  margin: 1rem 0 0.6rem;
+}
+
+.prose.clawx-streamdown > [data-streamdown='heading-2'] {
+  margin: 0.9rem 0 0.5rem;
+}
+
+.prose.clawx-streamdown > [data-streamdown='heading-3'] {
+  margin: 0.8rem 0 0.45rem;
+}
+
+.prose.clawx-streamdown > [data-streamdown='heading-4'] {
+  margin: 0.7rem 0 0.4rem;
+}
+
+.prose.clawx-streamdown > [data-streamdown='heading-5'],
+.prose.clawx-streamdown > [data-streamdown='heading-6'] {
+  margin: 0.6rem 0 0.35rem;
+}
+
+.prose.clawx-streamdown > [data-streamdown='horizontal-rule'] {
+  margin: 1rem 0;
+}
+
+.prose.clawx-markdown.clawx-streamdown > :first-child {
+  margin-top: 0;
+}
+
+.prose.clawx-markdown.clawx-streamdown > :last-child {
+  margin-bottom: 0;
+}
+
 .prose pre {
   margin-top: 0.5em;
   margin-bottom: 0.5em;
@@ -475,6 +608,86 @@
 
 .dark .prose th {
   background: hsl(var(--muted));
+}
+
+.clawx-streamdown [data-streamdown='code-block'] {
+  @apply relative my-2 gap-0 overflow-hidden rounded-lg border-0 bg-surface-input p-0;
+}
+
+.clawx-streamdown [data-streamdown='code-block-header'] {
+  @apply h-7 justify-end px-3 pr-10;
+}
+
+.clawx-streamdown [data-streamdown='code-block-header'] > span {
+  @apply ml-0;
+}
+
+.clawx-streamdown [data-streamdown='code-block'] > div:has(> [data-streamdown='code-block-actions']) {
+  @apply absolute right-0 top-0 mt-0 h-7 items-center pr-2;
+}
+
+.clawx-streamdown [data-streamdown='code-block-actions'] {
+  @apply border-0 bg-transparent p-0 shadow-none backdrop-blur-none;
+}
+
+.clawx-streamdown [data-streamdown='code-block-body'] {
+  @apply min-w-0 overflow-x-auto;
+}
+
+.clawx-streamdown [data-streamdown='code-block-body'] pre {
+  @apply max-w-full overflow-x-auto whitespace-pre-wrap bg-transparent;
+  overflow-wrap: break-word;
+}
+
+.clawx-streamdown [data-streamdown='code-block-body'] code {
+  @apply whitespace-pre-wrap bg-transparent font-mono text-sm;
+  overflow-wrap: break-word;
+}
+
+.clawx-streamdown [data-streamdown='code-block-body'] code > span {
+  @apply block;
+}
+
+.prose.clawx-markdown.clawx-streamdown [data-streamdown='unordered-list'],
+.prose.clawx-markdown.clawx-streamdown [data-streamdown='ordered-list'] {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.clawx-streamdown [data-streamdown='list-item'] {
+  @apply my-0 py-0.5;
+}
+
+.clawx-streamdown [data-streamdown='list-item'] > p {
+  @apply my-0;
+}
+
+.clawx-streamdown [data-streamdown='table-wrapper'],
+.clawx-streamdown [data-streamdown='table-wrapper'] > div,
+.clawx-streamdown [data-streamdown='table'] {
+  @apply border-0;
+}
+
+.clawx-streamdown [data-streamdown='table-wrapper'] {
+  @apply p-0;
+}
+
+.clawx-streamdown [data-streamdown='table-wrapper'] > div {
+  @apply rounded-none;
+}
+
+.clawx-streamdown [data-streamdown='table'] {
+  @apply my-0;
+}
+
+.clawx-streamdown [data-streamdown='table-header'],
+.clawx-streamdown [data-streamdown='table-header-cell'] {
+  @apply bg-transparent font-bold;
+}
+
+.dark .clawx-streamdown [data-streamdown='table-header'],
+.dark .clawx-streamdown [data-streamdown='table-header-cell'] {
+  @apply bg-muted;
 }
 
 /* Typing indicator animation */

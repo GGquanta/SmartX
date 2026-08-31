@@ -6,6 +6,7 @@
 import { randomBytes } from 'crypto';
 import { app } from 'electron';
 import { resolveSupportedLanguage } from '@shared/language';
+import { DEFAULT_WORKSPACE_CWD } from '@shared/workspace';
 
 // Lazy-load electron-store (ESM module)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -41,6 +42,7 @@ export interface AppSettings {
   proxyHttpsServer: string;
   proxyAllServer: string;
   proxyBypassRules: string;
+  memorySearchFtsMigrationVersion: number;
 
   // Update
   updateChannel: 'stable' | 'beta' | 'dev';
@@ -52,6 +54,9 @@ export interface AppSettings {
   sidebarCollapsed: boolean;
   devModeUnlocked: boolean;
   bubbleVisibility: 'always' | 'whenMinimized' | 'never';
+  chatWorkspacePath: string;
+  recentWorkspacePaths: string[];
+  workspaceLabels: Record<string, string>;
 
   // Presets
   selectedBundles: string[];
@@ -93,6 +98,7 @@ function createDefaultSettings(): AppSettings {
     proxyHttpsServer: '',
     proxyAllServer: '',
     proxyBypassRules: '<local>;localhost;127.0.0.1;::1',
+    memorySearchFtsMigrationVersion: 0,
 
     // Update
     updateChannel: 'stable',
@@ -104,6 +110,9 @@ function createDefaultSettings(): AppSettings {
     sidebarCollapsed: false,
     devModeUnlocked: false,
     bubbleVisibility: 'always',
+    chatWorkspacePath: DEFAULT_WORKSPACE_CWD,
+    recentWorkspacePaths: [DEFAULT_WORKSPACE_CWD],
+    workspaceLabels: {},
 
     // Presets
     selectedBundles: ['productivity', 'developer'],

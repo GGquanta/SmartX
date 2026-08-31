@@ -11,6 +11,7 @@ import ollama from './ollama.svg';
 import custom from './custom.svg';
 import deepseek from './deepseek.svg';
 import bailian from './bailian.svg';
+import zai from './zai.svg';
 
 export const providerIcons: Record<string, string> = {
     anthropic,
@@ -23,6 +24,8 @@ export const providerIcons: Record<string, string> = {
     siliconflow,
     'minimax-portal': minimaxPortal,
     'minimax-portal-cn': minimaxPortal,
+    zai,
+    'zai-global': zai,
     'modelstudio': qwenPortal,
     ollama,
     custom,

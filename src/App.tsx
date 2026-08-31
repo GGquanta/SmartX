@@ -17,7 +17,6 @@ import { Skills } from './pages/Skills';
 import { Cron } from './pages/Cron';
 import { ResearchTools } from './pages/ResearchTools';
 import { CompanyKnowledge } from './pages/CompanyKnowledge';
-import { Dreams } from './pages/Dreams';
 import { ImageGenerationPage } from './pages/ImageGeneration';
 import { Settings } from './pages/Settings';
 import { Setup } from './pages/Setup';
@@ -231,7 +230,6 @@ function MainApp({
             <Route path="/research-tools" element={<ResearchTools />} />
             <Route path="/company-knowledge" element={<CompanyKnowledge />} />
             <Route path="/image-generation" element={devModeUnlocked ? <ImageGenerationPage /> : <Navigate to="/" replace />} />
-            <Route path="/dreams" element={devModeUnlocked ? <Dreams /> : <Navigate to="/" replace />} />
             <Route path="/settings/*" element={<Settings />} />
             {extraRoutes.map((r) => (
               <Route key={r.path} path={r.path} element={<r.component />} />

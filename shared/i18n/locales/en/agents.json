@@ -21,8 +21,9 @@
         "inheritWorkspaceDescription": "Copy SOUL.md, AGENTS.md, etc. from the main agent"
     },
     "deleteDialog": {
-        "title": "Delete Agent",
-        "message": "Delete \"{{name}}\" from SmartX? This permanently deletes the agent and its SmartX-managed workspace, runtime, and session files from disk."
+        "title": "Permanently delete Agent?",
+        "message": "Permanently delete \"{{name}}\", its SmartX-managed workspace, and all associated chat history? This action cannot be undone.",
+        "confirm": "Permanently delete"
     },
     "settingsDialog": {
         "title": "{{name}} Settings",
@@ -37,7 +38,7 @@
         "modelIdLabel": "Model ID",
         "modelIdPlaceholder": "model-id",
         "modelPreview": "Preview",
-        "modelOverridePlaceholder": "provider/model (for example: openrouter/openai/gpt-5.5)",
+        "modelOverridePlaceholder": "provider/model (for example: openrouter/openai/gpt-5.6-sol)",
         "modelOverrideDescription": "Select provider and model ID for this agent.",
         "unsavedChangesTitle": "Unsaved changes",
         "unsavedChangesMessage": "You have unsaved changes. If you close now, your changes will be discarded.",

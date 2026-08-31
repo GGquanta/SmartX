@@ -15,7 +15,6 @@
         "companyKnowledge": "Корпоративная база знаний",
         "deleteSessionConfirm": "Удалить \"{{label}}\"?",
         "openClawPage": "Страница OpenClaw",
-        "openClawDreams": "Dreams",
         "renameSession": "Переименовать",
         "deleteSession": "Удалить",
         "renameSessionPlaceholder": "Название сессии",
@@ -55,6 +54,9 @@
         "show": "Показать",
         "hide": "Скрыть",
         "clear": "Очистить"
+    },
+    "markdown": {
+        "copyCode": "Копировать код"
     },
     "status": {
         "running": "Запущен",

@@ -63,10 +63,11 @@
       "replaceApiKeyHelp": "現在保存されている API キーをそのまま使う場合は、この欄を空のままにしてください。",
       "baseUrl": "ベース URL",
       "modelId": "モデル ID",
+      "modelIdEditDisabled": "モデル ID は作成後に変更できません。別のモデル ID を使用するには、このプロバイダーを削除して再度追加してください。",
       "codePlanPreset": "Code Plan プリセット",
       "codePlanMode": "Code Plan",
       "useCodePlanPreset": "Ark Code Plan プリセットを使用",
-      "codePlanPresetDesc": "Code Plan は https://ark.cn-beijing.volces.com/api/coding/v3 と model ark-code-latest を使います。Code Plan 通信に /api/v3 を使わないでください。",
+      "codePlanPresetDesc": "Code Plan は {{baseUrl}} と model {{modelId}} を使います。Code Plan 通信に一般 API エンドポイントを使わないでください。",
       "codePlanDoc": "Code Plan ドキュメント",
       "protocol": "プロトコル",
       "advancedConfig": "詳細設定",
@@ -114,7 +115,8 @@
       "failedUpdate": "プロバイダーの更新に失敗しました",
       "invalidKey": "無効な API キー",
       "modelRequired": "モデル ID が必要です",
-      "minimaxConflict": "MiniMax (Global) と MiniMax (CN) は同時に追加できません。"
+      "minimaxConflict": "MiniMax (Global) と MiniMax (CN) は同時に追加できません。",
+      "zaiConflict": "Z.AI (Global) と Z.AI (CN) は同時に追加できません。"
     },
     "oauth": {
       "loginMode": "OAuthログイン",
@@ -164,6 +166,28 @@
     "proxyRestartNote": "保存すると Electron のネットワーク設定を再適用し、Gateway をすぐ再起動します。プロキシ無効時の通常再起動では Telegram チャネルの既存プロキシ設定を保持し、無効状態で保存すると明示的に削除されます。",
     "proxySaved": "プロキシ設定を保存しました",
     "proxySaveFailed": "プロキシ設定の保存に失敗しました"
+  },
+  "talk": {
+    "title": "Talk",
+    "description": "OpenClaw Gateway Relay 経由でリアルタイム Talk を設定します。",
+    "refresh": "Talk の利用可否を更新",
+    "provider": "リアルタイムプロバイダー",
+    "model": "リアルタイムモデル",
+    "unavailable": "利用不可",
+    "providerHelp": "OpenClaw に登録されているすべてのリアルタイムプロバイダーを表示します。",
+    "providerUnavailable": "{{providers}} は OpenClaw で未設定のため無効です。",
+    "modelHelp": "モデルは選択したプロバイダーから提供されます。リストを有効にするにはプロバイダーを設定して選択してください。",
+    "openConfig": "OpenClaw 設定を開く",
+    "openConfigFailed": "OpenClaw 設定を開けませんでした",
+    "readiness": {
+      "ready": "Talk の準備ができました",
+      "unavailable": "Talk は利用できません"
+    },
+    "save": "Talk 設定を保存",
+    "saving": "Talk 設定を保存中...",
+    "saved": "Talk 設定を保存しました",
+    "loadFailed": "Talk 設定を読み込めませんでした",
+    "saveFailed": "Talk 設定を保存できませんでした"
   },
   "updates": {
     "title": "アップデート",
@@ -221,6 +245,9 @@
     "consoleNote": "ゲートウェイトークンを注入して Control UI を開きます",
     "gatewayToken": "ゲートウェイトークン",
     "gatewayTokenDesc": "Control UI の設定に求められた場合、これを貼り付けてください",
+    "compactionReserve": "コンパクション予約下限",
+    "compactionReserveDesc": "明示されたコンテキストウィンドウの25%を使用し、未設定の場合は50,000トークンを使用します。",
+    "compactionReserveUnavailable": "適用済みの予約値を取得できません",
     "tokenUnavailable": "トークンが利用できません",
     "tokenCopied": "ゲートウェイトークンをコピーしました",
     "cli": "OpenClaw CLI",
@@ -266,12 +293,54 @@
     "installMessage": "\"openclaw\" コマンドをインストールしますか？",
     "installDetail": "~/.local/bin/openclaw が作成されます。グローバルに実行するには ~/.local/bin が PATH に含まれていることを確認してください。"
   },
+  "support": {
+    "title": "サポート"
+  },
+  "issueReport": {
+    "actionTitle": "問題調査レポートをエクスポート",
+    "actionDescription": "トラブルシューティングとサポート用の診断 ZIP をデスクトップに作成します。",
+    "open": "会話を選択",
+    "dialogTitle": "問題調査レポートをエクスポート",
+    "dialogDescription": "含まれる内容を確認し、1つ以上の会話を選択してください。ZIP はデスクトップに保存されます。",
+    "contentsTitle": "ZIP に含まれる内容",
+    "contents": {
+      "transcripts": {
+        "title": "会話トランスクリプト",
+        "description": "選択した各会話の完全な JSONL ファイル。"
+      },
+      "config": {
+        "title": "OpenClaw 設定",
+        "description": "認証情報を除去した openclaw.json のコピー。"
+      },
+      "logs": {
+        "title": "診断ログ",
+        "description": "利用可能な SmartX と OpenClaw のログ。"
+      },
+      "manifest": {
+        "title": "マニフェスト",
+        "description": "含まれるファイルと取得できなかったファイルの一覧。"
+      }
+    },
+    "sessionsTitle": "会話を選択",
+    "selectAll": "すべて選択（{{count}}）",
+    "selectedCount": "{{count}} 件の会話を選択中",
+    "noSessions": "エクスポートできる会話がありません。",
+    "export": "ZIP を作成（{{count}}）",
+    "exporting": "ZIP を作成中...",
+    "exportSucceeded": "問題調査レポートをエクスポートしました",
+    "skippedSessions": "ローカル記録を利用できない {{count}} 件の会話をスキップし、残りの選択した会話をエクスポートしました。",
+    "exportFailed": "問題調査レポートをエクスポートできませんでした",
+    "completeTitle": "問題調査レポートの準備ができました",
+    "completeDescription": "ZIP は以下のパスに保存されました。",
+    "showInFolder": "フォルダーに表示",
+    "revealFailed": "問題調査レポートをフォルダーに表示できませんでした"
+  },
   "about": {
     "title": "バージョン情報",
     "appName": "小光",
     "tagline": "グラフィカル スマートオフィスアシスタント",
     "codename": "開発コードネーム：SmartX",
-    "basedOn": "OpenClaw & ClawX ベース",
+    "basedOn": "OpenClaw & SmartX ベース",
     "developer": "開発者：北京中科国光量子科技有限公司 · AI 研究チーム",
     "version": "バージョン {{version}}",
     "docs": "公式サイト",

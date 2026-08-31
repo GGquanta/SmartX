@@ -14,6 +14,10 @@ test.describe('SmartX chat model picker', () => {
         let currentModelRef = refs.alphaModelRef;
         const hostRequests: Array<{ path: string; method: string; body: unknown }> = [];
         const now = new Date().toISOString();
+        let releaseProviderAccounts: (() => void) | undefined;
+        const providerAccountsReady = new Promise<void>((resolve) => {
+          releaseProviderAccounts = resolve;
+        });
         const originalHostInvoke = (ipcMain as unknown as {
           _invokeHandlers?: Map<string, (event: unknown, request: unknown) => Promise<unknown>>;
         })._invokeHandlers?.get('host:invoke');
@@ -23,6 +27,27 @@ test.describe('SmartX chat model picker', () => {
           data,
         });
 
+        const workspacePath = '/tmp/clawx-model-picker-workspace';
+        const talkCatalog = {
+          realtime: {
+            ready: false,
+            reason: 'Configure a realtime provider',
+            activeProvider: 'openai',
+            providers: [{
+              id: 'openai',
+              label: 'OpenAI',
+              configured: true,
+              models: ['gpt-realtime', 'gpt-realtime-mini'],
+              voices: ['alloy', 'verse'],
+            }, {
+              id: 'google',
+              label: 'Google',
+              configured: true,
+              models: ['gemini-realtime'],
+              voices: ['puck'],
+            }],
+          },
+        };
         const agentsSnapshot = () => ({
           success: true,
           agents: [{
@@ -33,7 +58,7 @@ test.describe('SmartX chat model picker', () => {
             modelRef: currentModelRef,
             overrideModelRef: currentModelRef,
             inheritedModel: false,
-            workspace: '~/.openclaw/workspace',
+            workspace: workspacePath,
             agentDir: '~/.openclaw/agents/main/agent',
             mainSessionKey: 'agent:main:main',
             channelTypes: [],
@@ -53,9 +78,6 @@ test.describe('SmartX chat model picker', () => {
           hostRequests.push({ path: `gateway:${method}`, method: 'RPC', body: params ?? null });
           if (method === 'sessions.list') {
             return { success: true, result: { sessions: [{ key: 'agent:main:main', displayName: 'main' }] } };
-          }
-          if (method === 'chat.history') {
-            return { success: true, result: { messages: [] } };
           }
           return { success: true, result: {} };
         });
@@ -77,15 +99,37 @@ test.describe('SmartX chat model picker', () => {
           if (request?.module === 'gateway' && request.action === 'status') {
             return makeResponse(request.id, { state: 'running', port: 18789, pid: 12345, gatewayReady: true });
           }
+          if (request?.module === 'settings' && request.action === 'getAll') {
+            return makeResponse(request.id, {
+              language: 'en',
+              setupComplete: true,
+              chatWorkspacePath: workspacePath,
+              recentWorkspacePaths: [workspacePath],
+            });
+          }
+          if (request?.module === 'files' && request.action === 'resolveWorkspaceContext') {
+            const workspaceRoot = typeof body?.workspaceRoot === 'string' ? body.workspaceRoot.trim() : '';
+            const executionCwd = typeof body?.executionCwd === 'string' ? body.executionCwd.trim() : '';
+            if (!workspaceRoot || !executionCwd) {
+              return makeResponse(request.id, { ok: false, error: 'outsideSandbox' });
+            }
+            return makeResponse(request.id, { ok: true, workspaceRoot, executionCwd });
+          }
+          if (request?.module === 'chat' && request.action === 'loadAcpSession') {
+            return makeResponse(request.id, { success: true, generation: 1 });
+          }
+          if (request?.module === 'talk' && request.action === 'catalog') {
+            return makeResponse(request.id, talkCatalog);
+          }
+          if (request?.module === 'talk' && request.action === 'updateRealtimeSettings') {
+            return makeResponse(request.id, { ok: true });
+          }
           if (request?.module === 'gateway' && request.action === 'rpc') {
             const method = typeof body?.method === 'string' ? body.method : '';
             const params = body?.params ?? null;
             hostRequests.push({ path: `gateway:${method}`, method: 'RPC', body: params });
             if (method === 'sessions.list') {
               return makeResponse(request.id, { success: true, result: { sessions: [{ key: 'agent:main:main', displayName: 'main' }] } });
-            }
-            if (method === 'chat.history') {
-              return makeResponse(request.id, { success: true, result: { messages: [] } });
             }
             return makeResponse(request.id, { success: true, result: {} });
           }
@@ -102,6 +146,7 @@ test.describe('SmartX chat model picker', () => {
             return makeResponse(request.id, agentsSnapshot());
           }
           if (request?.module === 'providers' && request.action === 'accounts') {
+            await providerAccountsReady;
             return makeResponse(request.id, [
               {
                 id: 'alpha1234',
@@ -127,6 +172,30 @@ test.describe('SmartX chat model picker', () => {
                 createdAt: now,
                 updatedAt: now,
               },
+              {
+                id: 'openai-oauth',
+                vendorId: 'openai',
+                label: 'OpenAI',
+                authMode: 'oauth_browser',
+                model: 'openai/gpt-5.6',
+                metadata: { customModels: ['gpt-5.5', 'openai/gpt-5.6'] },
+                enabled: true,
+                isDefault: false,
+                createdAt: now,
+                updatedAt: now,
+              },
+              {
+                id: 'moonshot-api-key',
+                vendorId: 'moonshot',
+                label: 'Moonshot',
+                authMode: 'api_key',
+                model: 'moonshot/kimi-k2.7',
+                metadata: { customModels: ['kimi-k2.6', 'moonshot/kimi-k2.7'] },
+                enabled: true,
+                isDefault: false,
+                createdAt: now,
+                updatedAt: now,
+              },
             ]);
           }
           if (request?.module === 'providers' && request.action === 'list') {
@@ -139,10 +208,14 @@ test.describe('SmartX chat model picker', () => {
             return makeResponse(request.id, [
               { accountId: 'alpha1234', hasKey: true, keyMasked: 'sk-***' },
               { accountId: 'beta5678', hasKey: true, keyMasked: 'sk-***' },
+              { accountId: 'moonshot-api-key', hasKey: true, keyMasked: 'sk-***' },
             ]);
           }
           if (request?.module === 'providers' && request.action === 'vendors') {
-            return makeResponse(request.id, []);
+            return makeResponse(request.id, [
+              { id: 'openai', name: 'OpenAI', supportedAuthModes: ['api_key', 'oauth_browser'] },
+              { id: 'moonshot', name: 'Moonshot', supportedAuthModes: ['api_key'] },
+            ]);
           }
           if (request?.module === 'providers' && request.action === 'getDefaultAccount') {
             return makeResponse(request.id, { accountId: 'alpha1234' });
@@ -152,22 +225,50 @@ test.describe('SmartX chat model picker', () => {
         });
 
         (globalThis as typeof globalThis & { __chatModelPickerRequests?: typeof hostRequests }).__chatModelPickerRequests = hostRequests;
+        (globalThis as typeof globalThis & {
+          __releaseChatModelProviders?: () => void;
+        }).__releaseChatModelProviders = releaseProviderAccounts;
       }, { alphaModelRef, betaModelRef });
 
       const page = await getStableWindow(app);
       await page.reload();
       await expect(page.getByTestId('main-layout')).toBeVisible();
+      await expect.poll(async () => app.evaluate(() => (
+        (globalThis as typeof globalThis & {
+          __chatModelPickerRequests?: Array<{ path: string }>;
+        }).__chatModelPickerRequests?.some((request) => request.path === 'providers:accounts') ?? false
+      ))).toBe(true);
+      expect(await app.evaluate(() => (
+        (globalThis as typeof globalThis & {
+          __chatModelPickerRequests?: Array<{ path: string }>;
+        }).__chatModelPickerRequests?.some((request) => request.path === 'agents:updateModel') ?? false
+      ))).toBe(false);
+      await app.evaluate(() => {
+        (globalThis as typeof globalThis & {
+          __releaseChatModelProviders?: () => void;
+        }).__releaseChatModelProviders?.();
+      });
       await app.evaluate(({ BrowserWindow }) => {
         const win = BrowserWindow.getAllWindows()[0];
         win?.webContents.send('gateway:status-changed', { state: 'running', port: 18789, pid: 12345, gatewayReady: true });
       });
 
-      await expect(page.getByTestId('chat-model-picker-button')).toContainText('model-alpha (Alpha)');
+      await expect(page.getByTestId('chat-model-picker-button')).toHaveText(/model-alpha/);
+      await expect(page.getByTestId('chat-model-picker-button')).not.toContainText('Alpha');
       await page.getByTestId('chat-model-picker-button').click();
       await expect(page.getByTestId('chat-model-picker-menu')).toBeVisible();
-      await expect(page.getByTestId('chat-model-picker-menu')).toContainText('provider/model-beta (Beta)');
-      await page.getByTestId('chat-model-picker-menu').getByRole('button', { name: 'provider/model-beta (Beta)' }).click();
-      await expect(page.getByTestId('chat-model-picker-button')).toContainText('provider/model-beta (Beta)');
+      await expect(page.getByTestId('chat-model-picker-menu')).toContainText('provider/model-beta');
+      await expect(page.getByTestId('chat-model-picker-menu')).toContainText('Beta');
+      await expect(page.getByTestId('chat-model-picker-menu')).not.toContainText('provider/model-beta (Beta)');
+      await expect(page.getByTestId('chat-model-picker-menu')).toContainText('gpt-5.6');
+      await expect(page.getByTestId('chat-model-picker-menu')).not.toContainText('gpt-5.5');
+      await expect(page.getByTestId('chat-model-picker-menu')).not.toContainText('openai/gpt-5.6');
+      await expect(page.getByTestId('chat-model-picker-menu')).toContainText('kimi-k2.7');
+      await expect(page.getByTestId('chat-model-picker-menu')).not.toContainText('kimi-k2.6');
+      await expect(page.getByTestId('chat-model-picker-menu')).not.toContainText('moonshot/kimi-k2.7');
+      await page.getByTestId('chat-model-picker-menu').getByRole('button', { name: 'provider/model-beta Beta' }).click();
+      await expect(page.getByTestId('chat-model-picker-button')).toHaveText(/provider\/model-beta/);
+      await expect(page.getByTestId('chat-model-picker-button')).not.toContainText('Beta');
 
       const requests = await app.evaluate(() => (
         (globalThis as typeof globalThis & { __chatModelPickerRequests?: Array<{ path: string; method: string; body: unknown }> }).__chatModelPickerRequests ?? []
@@ -184,6 +285,36 @@ test.describe('SmartX chat model picker', () => {
         || request.path === 'gateway:start'
         || request.path === 'gateway:config.patch'
       )).toBe(false);
+
+      await page.getByTestId('sidebar-nav-settings').click();
+      await page.getByTestId('settings-dev-mode-switch').click();
+      await page.getByTestId('sidebar-nav-models').click();
+      await page.getByTestId('models-tab-realtime-talk').click();
+      await expect(page.getByTestId('talk-settings')).toBeVisible();
+      await expect(page.getByTestId('talk-settings-readiness')).toContainText('Talk is unavailable');
+      await expect(page.getByTestId('talk-settings-unavailable-reason')).toHaveText('Configure a realtime provider');
+      await page.getByTestId('talk-settings-provider').selectOption('google');
+      await expect(page.getByTestId('talk-settings-model')).toHaveValue('gemini-realtime');
+      await page.getByTestId('talk-settings-save').click();
+
+      await expect.poll(async () => app.evaluate(() => (
+        (globalThis as typeof globalThis & {
+          __chatModelPickerRequests?: Array<{ path: string; body: unknown }>;
+        }).__chatModelPickerRequests?.some((request) => (
+          request.path === 'talk:updateRealtimeSettings'
+          && JSON.stringify(request.body) === JSON.stringify({
+            provider: 'google',
+            model: 'gemini-realtime',
+          })
+        )) ?? false
+      ))).toBe(true);
+      expect(await app.evaluate(() => (
+        (globalThis as typeof globalThis & {
+          __chatModelPickerRequests?: Array<{ path: string }>;
+        }).__chatModelPickerRequests?.filter((request) => request.path === 'talk:catalog').length ?? 0
+      ))).toBeGreaterThanOrEqual(2);
+
+      await expect(page.getByTestId('settings-developer-section')).toHaveCount(0);
     } finally {
       await closeElectronApp(app);
     }

@@ -21,7 +21,7 @@
  *      ...) we add three SmartX-private groups:
  *        - brand        : Apple-system blue used for primary CTAs
  *        - skill        : highlight blue for inline /skill chips in chat
- *        - surface.{modal,input,sidebar}: a 3-layer cream-paper background
+ *        - surface.{modal,input,sidebar}: a 3-layer neutral background
  *                          system in light mode. In dark mode each layer
  *                          collapses to an existing shadcn token through
  *                          CSS variables, so callers don't need to write
@@ -44,6 +44,10 @@ module.exports = {
   content: [
     './index.html',
     './src/**/*.{js,ts,jsx,tsx}',
+    './node_modules/streamdown/dist/*.js',
+    './node_modules/@streamdown/code/dist/*.js',
+    './node_modules/@streamdown/math/dist/*.js',
+    './node_modules/@streamdown/cjk/dist/*.js',
   ],
   theme: {
     container: {
@@ -246,7 +250,7 @@ module.exports = {
         // `bg-surface-xxx/{alpha}` rules. Concrete pixel values live in
         // globals.css; in dark mode the same CSS variables redirect to
         // shadcn's existing dark tokens to avoid maintaining a second
-        // (dark) cream palette.
+        // dark surface palette.
         surface: {
           modal: 'hsl(var(--surface-modal) / <alpha-value>)',
           input: 'hsl(var(--surface-input) / <alpha-value>)',
