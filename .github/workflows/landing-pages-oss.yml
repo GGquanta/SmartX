@@ -56,13 +56,16 @@ jobs:
         with:
           node-version: '24'
           cache: 'pnpm'
-          cache-dependency-path: landing-pages/smartx-download/package.json
+          cache-dependency-path: landing-pages/smartx-download/pnpm-lock.yaml
 
       - name: Install landing page dependencies
         working-directory: landing-pages/smartx-download
         env:
           CI: 'true'
-        run: pnpm install
+        # --ignore-workspace: this site is not a workspace package. Without the
+        # flag, pnpm walks up to the Electron repo and tries to git-clone
+        # libsignal-node (git@github.com SSH), which fails on Actions.
+        run: pnpm install --ignore-workspace --frozen-lockfile
 
       - name: Build landing page
         working-directory: landing-pages/smartx-download
