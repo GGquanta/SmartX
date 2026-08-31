@@ -1,16 +1,16 @@
 
 <p align="center">
-  <img src="src/assets/logo.png" width="128" height="128" alt="SmartX Logo" />
+  <img src="src/assets/logo.png" width="128" height="128" alt="Xiaoguang Logo" />
 </p>
 
-<h1 align="center">SmartX</h1>
+<h1 align="center">小光 · Intelligent Assistant</h1>
 
 <p align="center">
-  <strong>The Desktop Interface for OpenClaw AI Agents</strong>
+  <strong>CAS Guoguang Quantum · Enterprise AI Desktop Client</strong>
 </p>
 
 <p align="center">
-  <a href="#why-smartx">Why SmartX</a> •
+  <a href="#core-capabilities">Core Capabilities</a> •
   <a href="#getting-started">Getting Started</a> •
   <a href="#architecture">Architecture</a> •
   <a href="#development">Development</a> •
@@ -21,10 +21,7 @@
   <img src="https://img.shields.io/badge/platform-MacOS%20%7C%20Windows%20%7C%20Linux-blue" alt="Platform" />
   <img src="https://img.shields.io/badge/electron-40+-47848F?logo=electron" alt="Electron" />
   <img src="https://img.shields.io/badge/react-19-61DAFB?logo=react" alt="React" />
-  <a href="https://discord.com/invite/84Kex3GGAh" target="_blank">
-  <img src="https://img.shields.io/discord/1399603591471435907?logo=discord&labelColor=%20%235462eb&logoColor=%20%23f5f5f5&color=%20%235462eb" alt="chat on Discord" />
-  </a>
-  <img src="https://img.shields.io/github/downloads/GGquanta-ai/SmartX/total?color=%23027DEB" alt="Downloads" />
+  <img src="https://img.shields.io/github/downloads/GGquanta/SmartX/total?color=%23027DEB" alt="Downloads" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
 </p>
 
@@ -36,13 +33,11 @@
 
 ## Overview
 
-**SmartX** bridges the gap between powerful AI agents and everyday users. Built on top of [OpenClaw](https://github.com/OpenClaw), it transforms command-line AI orchestration into an accessible, beautiful desktop experience - no terminal required.
+**Xiaoguang** (小光) is the enterprise AI desktop client from Beijing Zhongke Guoguang Quantum Technology Co., Ltd. It connects to mainstream large language models, supports multi-agent collaboration and visual orchestration, and lets you configure and schedule everything without a command line. Quantum experiment platforms, an enterprise knowledge base, and a rich Skills catalog bring AI into everyday office work.
 
-Whether you're automating workflows, managing AI-powered channels, or scheduling intelligent tasks, SmartX provides the interface you need to harness AI agents effectively.
+Available today on macOS · Windows · Linux. Mobile (iOS / Android / HarmonyOS) is in development.
 
-SmartX comes pre-configured with best-practice model providers and natively supports Windows as well as multi-language settings. Compaction reserves use 25% of an explicitly configured model context window, or a conservative 50000-token fallback when that metadata is absent; completed turns continue through the summary instead of being replayed verbatim after compaction. Developer Mode shows the applied reserve value. You can also fine-tune advanced configurations via **Settings -> Advanced -> Developer Mode**.
-
-<p align="center"><strong style="font-size:1.1em; text-decoration: underline;">For a full enterprise edition, dedicated service support, or tailored deployment guidance for your business scenario, contact us at <a href="mailto:public@ggquanta.ai">public@ggquanta.ai</a>.</strong></p>
+<p align="center"><strong style="font-size:1.1em; text-decoration: underline;">For a full enterprise edition, dedicated service support, or tailored deployment guidance, contact us at <a href="mailto:public@ggquanta.ai">public@ggquanta.ai</a>.</strong></p>
 
 ## Screenshots
 
@@ -61,71 +56,61 @@ SmartX comes pre-configured with best-practice model providers and natively supp
   </tr>
 </table>
 
-## Why SmartX
+## Core Capabilities
 
-Building AI agents shouldn't require mastering the command line. SmartX was designed with a simple philosophy: **powerful technology deserves an interface that respects your time.** SmartX is built directly upon the official **OpenClaw** core. Instead of requiring a separate installation, we embed the runtime within the application for a seamless, battery-included experience. We stay closely aligned with upstream OpenClaw so you can benefit from the latest official capabilities, stability improvements, and ecosystem compatibility.
+Four modules cover the workflow from quantum experiments to knowledge retrieval, skill expansion, and office automation.
 
-| Challenge | SmartX Solution |
-|-----------|----------------|
-| Complex CLI setup | One-click installation with a guided setup wizard |
-| Configuration files | Visual settings with real-time validation |
-| Process management | Automatic Gateway lifecycle management |
-| App updates | Startup update checks with a prompt before downloading or installing |
-| Multiple AI providers | Unified provider configuration panel |
-| Skill/plugin installation | Local-first skill management with an optional extension-provided marketplace |
+| Capability | Description |
+|------------|-------------|
+| Quantum experiment platform | Built-in research tools with one-click access to the Quafu quantum computing platform. Research and office work share the same desktop. |
+| Enterprise knowledge base | Embedded knowledge-base UI with semantic search and configuration binding. Company docs, project files, and meeting notes are a click away. |
+| Rich Skills catalog | Pre-installed PDF, Office, and search skills with visual browse, install, and management. Extend agents without a command line. |
+| Intelligent office | Multi-agent chat, channel management, scheduled tasks, and visual settings. Graphical setup from install to first AI conversation. |
 
-### Features
+### Highlights
 
-- **🎯 Zero Configuration Barrier**: Complete setup through an intuitive graphical interface - no terminal commands, YAML files, or environment-variable hunting.
-- **💬 Intelligent Chat Interface**: Multi-session context and history, streaming Markdown with syntax highlighting, CJK-aware parsing, tables, KaTeX math, direct `@agent` routing, inline `/skill` cards, workspace-first sessions, and read-only previews for Markdown, `.docx`, `.pptx`, and local HTML.
-- **🤖 Agent Lifecycle Management**: Create and manage specialized Agents from the desktop. Deleting a non-default Agent requires explicit confirmation and permanently removes its SmartX-managed workspace and associated chat history; its conversations and removed workspace entry disappear from Chat immediately and cannot be recovered.
-- **🧰 Issue Report Export**: Open Settings > Support to review the bundle contents, select one or more conversations (or select all), and create a ZIP on the desktop with their JSONL transcripts, sanitized OpenClaw configuration, and available diagnostic logs; SmartX shows the saved path when complete.
-- **📡 Multi-Channel Management**: Configure and monitor independent AI channels with multiple accounts, per-account agent binding, default-account switching, and the bundled official Tencent personal WeChat channel plugin.
-- **⏰ Cron-Based Automation**: Define recurring or one-time schedules, insert skills into scheduled prompts, and deliver results to external channels.
-- **🧩 Extensible Skill System**: Manage skills locally without depending on the Gateway, discover skills from multiple OpenClaw sources, and use bundled document-processing skills for `pdf`, `xlsx`, `docx`, and `pptx`.
-- **🔐 Secure Provider Integration**: Connect OpenAI, Anthropic, Z.AI / GLM, and other providers with credentials stored in the native system keychain; supports OAuth, custom providers, and compatibility fallbacks. In Developer Mode, configure image-generation endpoints in **Models -> Image Generation**.
-- **🌙 Adaptive Theming**: Choose light mode, dark mode, or system-synchronized themes.
-- **🚀 Startup Launch Control**: Enable **Launch at system startup** in **Settings -> General**.
-- **🔔 Update Prompts**: Check for new versions at startup and choose whether to download or install them.
+- **Multi-agent chat**: Multi-session context and history, streaming Markdown, direct `@agent` routing, and inline skill cards.
+- **Skill management**: Local-first skill directories with visual browse, install, and path management; bundled document skills for `pdf`, `xlsx`, `docx`, and `pptx`.
+- **Enterprise knowledge base**: Embedded search and config binding that connect office materials to conversations.
+- **Research tools**: Entry point to the quantum computing experiment platform.
+- **Channels and schedules**: Multi-account channels, recurring or one-time jobs, and delivery to external channels.
+- **Secure model access**: OpenAI, Anthropic, Z.AI / GLM, and more, with credentials stored in the native system keychain.
+- **Cross-platform desktop**: macOS, Windows, and Linux out of the box; light, dark, or system-synced themes.
 
 > For full feature details, see [docs/en-US/features.md](docs/en-US/features.md).
 
-### Realtime Talk
-
-Chat can start a realtime Talk session when the OpenClaw catalog reports a configured, ready realtime provider. Talk uses **Gateway Relay only**: Electron Main owns Gateway protocol and RPC routing, while the renderer has no direct Gateway or provider connection. Only one relay is active globally.
-
-Direct-provider audio and transcript bubbles are transient and clear when Talk stops, the session changes, a normal Chat reload occurs, or the app restarts. An Agent consult instead uses the selected OpenClaw session; after its provider-reported output boundary and queued playback finish, its durable result appears through normal **ACP** history replay without ending the active relay, and only the transient direct bubbles are cleared. SmartX does not create a separate Talk transcript store or synthetic ACP entries.
-
-Enable **Developer Mode** to show the Talk action at the end of the sidebar and the **Models -> Realtime Talk** configuration tab. Talk checks catalog readiness before it starts. The Realtime Talk tab lists every realtime provider and model declared by the Gateway catalog, disables unconfigured providers, and saves the selected provider/model through the OpenClaw configuration transaction. Provider credentials and provider-specific options such as speaker voice remain Gateway-owned in the OpenClaw config file, which the tab can open directly.
-
-Manual macOS validation still requires a configured realtime provider and microphone permission. Direct provider response, Agent consult response, barge-in, stop, and Gateway reconnect must be checked in that configured environment; automated coverage does not validate those provider-dependent cases.
-
 ### Typical Use Cases
 
-- **🤖 Personal AI Assistant**: Configure a general-purpose AI agent to answer questions, draft emails, summarize documents, and help with everyday tasks from a clean desktop interface.
-- **📊 Automated Monitoring**: Schedule agents to monitor news feeds, track prices, or watch for specific events, with results delivered to your preferred notification channel.
-- **💻 Developer Productivity**: Integrate AI into your development workflow for code review, documentation generation, and repetitive coding tasks.
-- **🔄 Workflow Automation**: Chain multiple skills into visual automation pipelines that process data, transform content, and trigger actions.
+- **Office assistant**: Draft email, summarize documents, and search internal knowledge from a desktop client.
+- **Research**: Open the quantum computing experiment platform without leaving the same workspace.
+- **Automation**: Schedule monitoring, summaries, and notifications delivered to WeChat and other channels.
+- **Documents and skills**: Process PDF / Office files with bundled skills, and install more as needed.
 
 ## Getting Started
 
 ### System Requirements
 
-- **Operating System**: macOS 11+, Windows 10+, or Linux (Ubuntu 20.04+)
-- **Memory**: 4GB RAM minimum (8GB recommended)
-- **Storage**: 1GB available disk space
+- **macOS**: 11 or later
+- **Windows**: 10 or later
+- **Linux**: Ubuntu 20.04+ or equivalent
+- **Memory**: 4 GB minimum (8 GB recommended)
+- **Disk**: about 1 GB free space
 
 ### Installation
 
 #### Pre-built Releases (Recommended)
 
-Download the latest release for your platform from the [Releases](https://github.com/GGquanta-ai/SmartX/releases) page.
+Download the installer that matches your OS and CPU architecture from the product site:
+
+**[https://smartx.qubitlab.cc](https://smartx.qubitlab.cc)**
+
+The same builds are also available from [GitHub Releases](https://github.com/GGquanta/SmartX/releases). Contact support if you need help choosing a package.
 
 #### Build from Source
 
 ```bash
 # Clone the repository
-git clone https://github.com/GGquanta-ai/SmartX.git
+git clone https://github.com/GGquanta/SmartX.git
 cd SmartX
 
 # Initialize the project
@@ -137,44 +122,38 @@ pnpm dev
 
 ### First Launch
 
-When you launch SmartX for the first time, the **Setup Wizard** will guide you through:
+The **Setup Wizard** guides you through:
 
-1. **Language & Region** - Configure your preferred locale
-2. **AI Provider** - Add providers with API keys or OAuth for providers that support browser or device login
-3. **Skill Bundles** - Select pre-configured skills for common use cases
-4. **Verification** - Test your configuration before entering the main interface
-
-The wizard preselects your system language when it is supported, and falls back to English otherwise.
-
-> Web search note: SmartX disables OpenClaw's general-purpose `web_search` tool at both the agent and Gateway policy layers. This includes Moonshot (Kimi) search; managed browser automation and `web_fetch` remain available.
->
-> Internal tool note: SmartX also disables `gateway`, `nodes`, `create_goal`, `get_goal`, and `update_goal` for agents at both policy layers. Application-owned Gateway RPCs remain available, as do messaging, session orchestration, and agent discovery tools.
+1. **Language & Region** — preferred locale
+2. **AI Provider** — API keys or OAuth where supported
+3. **Skill Bundles** — pre-configured skills for common tasks
+4. **Verification** — test the configuration before entering the main UI
 
 ### Proxy Settings
 
-SmartX includes built-in proxy settings for Electron, the OpenClaw Gateway, and channels such as Telegram that need to reach the internet through a local proxy client.
+For access through a local proxy, open **Settings → Gateway → Proxy** to set the default proxy, bypass rules, and optional developer-mode HTTP / HTTPS / SOCKS overrides. A local example is `http://127.0.0.1:7890`.
 
-Open **Settings -> Gateway -> Proxy** to configure the default proxy, bypass rules, and optional developer-mode overrides for HTTP, HTTPS, and `ALL_PROXY` / SOCKS. A local example is `http://127.0.0.1:7890`.
-
-> For proxy fallback behavior, Telegram synchronization, and **OpenClaw Doctor**, see [docs/en-US/proxy-settings.md](docs/en-US/proxy-settings.md).
+> See [docs/en-US/proxy-settings.md](docs/en-US/proxy-settings.md) for details.
 
 ## Architecture
 
-SmartX uses a **dual-process architecture with a unified Host API layer**: the React renderer calls one client abstraction, while Electron Main owns protocol selection, Gateway lifecycle, and the ACP Chat stdio bridge.
+Xiaoguang uses a dual-process desktop architecture: Electron Main owns the window and system integration, and the AI orchestration runtime is embedded in the app.
 
-- **Process model**: Electron Main owns the window, Gateway supervision, system integration, and updates; the OpenClaw Gateway provides AI orchestration, channel, and skill capabilities; the renderer does not access local endpoints directly.
-- **Configuration delivery**: Main uses `config.get`/`config.set` while the Gateway is running and updates the resolved JSON5 config while it is stopped or starting; ordinary provider, agent, skill, and model changes do not replace the process, and credentials are hot-reloaded through `secrets.reload`. After three minutes without verified Gateway activity, SmartX verifies the core RPC and restarts only an unavailable Gateway process it owns; externally managed Gateways are left for manual recovery.
-- **ACP Chat**: Chat UI talks to OpenClaw via [ACP (Agent Client Protocol)](https://agentclientprotocol.com), providing a relatively stable chat protocol surface in front of the rapidly iterating OpenClaw. ACP runs through a Main-owned stdio bridge, supporting authenticated history replay after config reloads, streaming across navigation, and Main-validated media, attachments, and file activity. When a guarded Gateway restart interrupts an accepted turn, the patched OpenClaw runtime explicitly links its recovery run to the original ACP prompt so subsequent text and tool activity continue in the same in-memory turn; later history replay restores persisted tool boundaries as native ACP updates. If another restart loses terminal delivery after the final response is persisted, run- and session-scoped reconciliation settles the pending prompt instead of leaving Chat executing.
-- **Design principles**: One frontend entry point, Main-owned transport, graceful recovery with reconnect/timeout/backoff, secure storage, and CORS-safe boundaries.
+- **OpenClaw built in**: Official core is embedded; no separate runtime install.
+- **Cross-platform desktop**: One client for macOS, Windows, and Linux.
+- **Keychain storage**: Provider credentials stay in the native OS keychain.
+- **Automatic Gateway management**: Gateway lifecycle is owned by the app.
 
-> For the process diagram, configuration coordination, ACP file activity semantics, and Gateway troubleshooting, see [docs/en-US/architecture.md](docs/en-US/architecture.md).
+> For the full architecture notes, see [docs/en-US/architecture.md](docs/en-US/architecture.md).
 
 ## Development
 
+The repository development codename is **SmartX**.
+
 ### Prerequisites
 
-- **Node.js**: 22.22.3+, 24.15.0+, or 25.9.0+ within the corresponding supported major line (Node 24 LTS recommended)
-- **Package Manager**: pnpm 9+ (npm is also supported)
+- **Node.js**: 22.22.3+, 24.15.0+, or 25.9.0+ (Node 24 LTS recommended)
+- **Package Manager**: pnpm 9+
 - **Linux (Ubuntu/Debian)**: Install required system libraries before running Electron; see [docs/en-US/development.md](docs/en-US/development.md)
 
 ### Common Commands
@@ -190,66 +169,34 @@ pnpm build           # Full production build
 pnpm package         # Package for the current platform (:mac / :win / :linux)
 ```
 
-> For the project structure, complete command list, E2E parallel policy, performance diagnostics, communication regression checks, and tech stack, see [docs/en-US/development.md](docs/en-US/development.md).
+> For project structure and the full command list, see [docs/en-US/development.md](docs/en-US/development.md).
 
 ## Contributing
 
-We welcome contributions from the community! Whether it's bug fixes, new features, documentation improvements, or translations, every contribution helps make SmartX better.
-
-### How to Contribute
+Bug fixes, features, docs, and translations are all welcome.
 
 1. **Fork** the repository
 2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Commit** your changes with clear messages
-4. **Push** to your branch
-5. **Open** a Pull Request
+3. **Commit** with clear messages and open a Pull Request
 
-### Guidelines
-
-- Follow the existing code style (ESLint + Prettier)
-- Write tests for new functionality
-- Update documentation as needed
-- Keep commits atomic and descriptive
+Follow the existing code style (ESLint + Prettier), add tests for new behavior, and update docs when needed.
 
 ## Acknowledgments
 
-SmartX is built on the shoulders of excellent open-source projects:
+Xiaoguang is built on excellent open-source projects:
 
-- [OpenClaw](https://github.com/OpenClaw) - The AI agent runtime
-- [LobsterAI](https://github.com/netease-youdao/lobsterai) - Inspiration for Gateway liveness evidence and recovery design
+- [OpenClaw](https://github.com/OpenClaw) - AI agent runtime
 - [Electron](https://www.electronjs.org/) - Cross-platform desktop framework
 - [React](https://react.dev/) - UI component library
 - [shadcn/ui](https://ui.shadcn.com/) - Beautifully designed components
 - [Zustand](https://github.com/pmndrs/zustand) - Lightweight state management
 
-## Community
-
-Join our community to connect with other users, get support, and share your experiences.
-
-| Enterprise WeChat | Feishu Group | Discord |
-| :---: | :---: | :---: |
-| <img src="src/assets/community/wecom-qr.png" width="150" alt="WeChat QR Code" /> | <img src="src/assets/community/feishu-qr.png" width="150" alt="Feishu QR Code" /> | <img src="src/assets/community/20260212-185822.png" width="150" alt="Discord QR Code" /> |
-
-### SmartX Partner Program
-
-We're launching the SmartX Partner Program and looking for partners who can help introduce SmartX to more clients, especially those with custom AI agent or automation needs.
-
-Partners help connect us with potential users and projects, while the SmartX team provides full technical support, customization, and integration. If you work with clients interested in AI tools or automation, we'd love to collaborate.
-
-DM us or email [public@ggquanta.ai](mailto:public@ggquanta.ai) to learn more.
-
-## Star History
-
-<p align="center">
-  <img src="https://star-history.dera.page/svg?repos=GGquanta-ai/SmartX&type=Date" alt="Star History Chart" />
-</p>
-
 ## License
 
-SmartX is released under the [MIT License](LICENSE). You're free to use, modify, and distribute this software.
+Released under the [MIT License](LICENSE). You are free to use, modify, and distribute this software.
 
 <hr>
 
 <p align="center">
-  <sub>Built with ❤️ by the GGquanta Team</sub>
+  <sub>Built with ❤️ by Beijing Zhongke Guoguang Quantum Technology Co., Ltd.</sub>
 </p>

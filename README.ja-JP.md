@@ -1,16 +1,16 @@
 
 <p align="center">
-  <img src="src/assets/logo.png" width="128" height="128" alt="SmartX Logo" />
+  <img src="src/assets/logo.png" width="128" height="128" alt="小光 Logo" />
 </p>
 
-<h1 align="center">SmartX</h1>
+<h1 align="center">小光 · スマートアシスタント</h1>
 
 <p align="center">
-  <strong>OpenClaw AIエージェントのためのデスクトップインターフェース</strong>
+  <strong>中科国光量子 · エンタープライズ向け AI デスクトップクライアント</strong>
 </p>
 
 <p align="center">
-  <a href="#smartxを選ぶ理由">SmartXを選ぶ理由</a> •
+  <a href="#主な機能">主な機能</a> •
   <a href="#はじめに">はじめに</a> •
   <a href="#アーキテクチャ">アーキテクチャ</a> •
   <a href="#開発">開発</a> •
@@ -21,10 +21,7 @@
   <img src="https://img.shields.io/badge/platform-MacOS%20%7C%20Windows%20%7C%20Linux-blue" alt="Platform" />
   <img src="https://img.shields.io/badge/electron-40+-47848F?logo=electron" alt="Electron" />
   <img src="https://img.shields.io/badge/react-19-61DAFB?logo=react" alt="React" />
-  <a href="https://discord.com/invite/84Kex3GGAh" target="_blank">
-  <img src="https://img.shields.io/discord/1399603591471435907?logo=discord&labelColor=%20%235462eb&logoColor=%20%23f5f5f5&color=%20%235462eb" alt="chat on Discord" />
-  </a>
-  <img src="https://img.shields.io/github/downloads/GGquanta-ai/SmartX/total?color=%23027DEB" alt="Downloads" />
+  <img src="https://img.shields.io/github/downloads/GGquanta/SmartX/total?color=%23027DEB" alt="Downloads" />
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
 </p>
 
@@ -36,11 +33,9 @@
 
 ## 概要
 
-**SmartX**は、強力なAIエージェントと日常のユーザーとの間のギャップを埋めます。[OpenClaw](https://github.com/OpenClaw)をベースに構築されており、コマンドラインによるAIオーケストレーションを、使いやすく美しいデスクトップ体験に変換します。ターミナルは必要ありません。
+**小光**は、北京中科国光量子科技有限公司が提供するエンタープライズ向け AI デスクトップクライアントです。主要な大規模言語モデルに接続し、マルチエージェント連携と可視化オーケストレーションに対応します。コマンドラインなしで設定とスケジューリングを完了できます。量子実験プラットフォーム、企業ナレッジベース、豊富な Skills により、AI アシスタントを日常のオフィス業務に組み込めます。
 
-ワークフローの自動化、AI搭載チャネルの管理、インテリジェントなタスクのスケジューリングなど、SmartXはAIエージェントを効果的に活用するために必要なインターフェースを提供します。
-
-SmartXにはベストプラクティスに基づくモデルプロバイダーがあらかじめ設定されており、Windowsと多言語設定をネイティブにサポートしています。コンパクション予約はモデルにコンテキストウィンドウが明示されている場合のみその25%を使用し、メタデータがない場合は保守的な既定値50000トークンを使用します。完了済みターンは圧縮後に逐語的に再生されず、要約を通じて引き継がれます。開発者モードでは適用された予約値を確認できます。高度な設定は **設定 → 詳細設定 → 開発者モード** から調整できます。
+macOS · Windows · Linux に対応し、すぐに利用できます。モバイル（iOS / Android / HarmonyOS）は開発中です。
 
 <p align="center"><strong style="font-size:1.1em; text-decoration: underline;">完全なエンタープライズ版、専用サービスサポート、またはビジネスシナリオに合わせた導入支援が必要な場合は、<a href="mailto:public@ggquanta.ai">public@ggquanta.ai</a> までお問い合わせください。</strong></p>
 
@@ -61,71 +56,61 @@ SmartXにはベストプラクティスに基づくモデルプロバイダー�
   </tr>
 </table>
 
-## SmartXを選ぶ理由
+## 主な機能
 
-AIエージェントの構築にコマンドラインの習得は不要であるべきです。SmartXはシンプルな哲学のもとに設計されました：**強力な技術には、あなたの時間を尊重するインターフェースがふさわしい。** SmartXは公式の **OpenClaw** コアを直接ベースに構築されています。別途インストールする必要はなく、ランタイムをアプリケーション内に組み込むことで、シームレスな「すべて込み」の体験を提供します。上流のOpenClawと緊密に連携し、公式の最新機能、安定性の改善、エコシステムとの互換性を利用できるようにしています。
+量子実験から知識検索、スキル拡張、オフィス自動化までをカバーする 4 つのモジュールです。
 
-| 課題 | SmartXのソリューション |
-|------|----------------------|
-| 複雑なCLIセットアップ | ガイド付きセットアップウィザードによるワンクリックインストール |
-| 設定ファイル | リアルタイム検証付きのビジュアル設定 |
-| プロセス管理 | Gatewayライフサイクルの自動管理 |
-| アプリの更新 | 起動時に更新を確認し、ダウンロードまたはインストール前に通知 |
-| 複数のAIプロバイダー | 統合プロバイダー設定パネル |
-| スキル/プラグインのインストール | オプションの拡張機能マーケットプレイスにも対応したローカル優先のスキル管理 |
+| 機能 | 説明 |
+|------|------|
+| 量子実験プラットフォーム | 研究ツールを内蔵し、Quafu 量子計算実験プラットフォームをワンクリックで開けます。研究とオフィス作業を同じデスクトップで完結できます。 |
+| 企業ナレッジベース | セマンティック検索と設定バインドに対応した Web 画面を内嵌します。社内文書、プロジェクト資料、議事録にすぐアクセスできます。 |
+| 豊富な Skills | PDF・Office・検索スキルをプリインストールし、可視化して閲覧・インストール・管理できます。コマンドラインは不要です。 |
+| スマートオフィス | マルチエージェント対話、チャネル管理、スケジュール、可視化設定。インストールから最初の AI 対話までグラフィカルです。 |
 
-### 機能
+### ハイライト
 
-- **🎯 ゼロ設定バリア**：直感的なグラフィカルインターフェースでセットアップを完了できます。ターミナルコマンド、YAMLファイル、環境変数の探索は不要です。
-- **💬 インテリジェントチャットインターフェース**：複数セッションのコンテキストと履歴、シンタックスハイライト付きストリーミングMarkdown、CJK対応解析、テーブル、KaTeX数式、`@agent` による直接ルーティング、インライン `/skill` カード、ワークスペース優先のセッション、Markdown・`.docx`・`.pptx`・ローカルHTMLの読み取り専用プレビューに対応します。
-- **🤖 Agentライフサイクル管理**：デスクトップから専用Agentを作成・管理できます。既定以外のAgentを削除するには明示的な確認が必要です。削除するとSmartX管理下のワークスペースと関連するすべてのチャット履歴が完全に消去され、該当する会話と削除済みワークスペース項目はチャット画面から直ちに消え、復元できません。
-- **🧰 問題調査レポートのエクスポート**：「設定 > サポート」で内容を確認し、1つ以上の会話（すべて選択も可能）を選ぶと、会話の JSONL、認証情報を除去した OpenClaw 設定、利用可能な診断ログを含む ZIP をデスクトップに作成し、完了後に保存先を表示します。
-- **📡 マルチチャネル管理**：複数アカウント、アカウント単位のAgent紐付け、既定アカウントの切り替え、Tencent公式個人WeChatチャネルプラグインを備えた独立したAIチャネルを設定・監視できます。
-- **⏰ Cronベースの自動化**：繰り返しまたは1回限りのスケジュールを定義し、スケジュール済みプロンプトにスキルを挿入し、結果を外部チャネルへ配信できます。
-- **🧩 拡張可能なスキルシステム**：Gatewayに依存せずスキルをローカルで管理できます。複数のOpenClawソースからスキルを検出し、`pdf`、`xlsx`、`docx`、`pptx` の文書処理スキルも利用できます。
-- **🔐 セキュアなプロバイダー統合**：OpenAI、Anthropic、Z.AI / GLMなどに接続し、認証情報をOSのネイティブキーチェーンに安全に保存できます。OAuth、カスタムプロバイダー、互換性フォールバックにも対応します。開発者モードでは **Models → Image Generation** で画像生成エンドポイントを設定できます。
-- **🌙 アダプティブテーマ**：ライト、ダーク、システム同期テーマを選択できます。
-- **🚀 自動起動設定**：**設定 → 一般** で **システム起動時に自動起動** を有効にできます。
-- **🔔 更新通知**：起動時に新しいバージョンを確認し、ダウンロードまたはインストールするかを選択できます。
+- **マルチエージェント対話**：複数セッションのコンテキストと履歴、ストリーミング Markdown、`@agent` による直接ルーティング、インラインスキルカード。
+- **スキル管理**：ローカル優先のスキルディレクトリ。`pdf`、`xlsx`、`docx`、`pptx` の文書処理スキルを同梱。
+- **企業ナレッジベース**：埋め込み検索と設定バインドで、資料と会話をつなぎます。
+- **研究ツール**：量子計算実験プラットフォームへの入口。
+- **チャネルとスケジュール**：複数アカウントのチャネル、繰り返しまたは 1 回限りのジョブ、外部チャネルへの配信。
+- **安全なモデル接続**：OpenAI、Anthropic、Z.AI / GLM などに対応。認証情報は OS のネイティブキーチェーンに保存します。
+- **クロスプラットフォーム**：macOS、Windows、Linux に対応。ライト / ダーク / システム同期テーマ。
 
 > 機能の詳細は [docs/ja-JP/features.md](docs/ja-JP/features.md) を参照してください。
 
-### リアルタイム Talk
-
-OpenClaw のカタログが設定済みで利用可能なリアルタイムプロバイダーを返すとき、チャットからリアルタイム Talk を開始できます。Talk は **Gateway Relay** のみを使用します。Electron Main が Gateway プロトコルと RPC ルーティングを所有し、Renderer が Gateway やプロバイダーへ直接接続することはありません。アクティブなリレーはグローバルで一つだけです。
-
-直接プロバイダーの音声と文字起こしバブルは一時的なもので、Talk の停止、セッション変更、通常のチャット再読み込み、アプリ再起動で消去されます。Agent 相談は選択中の OpenClaw セッションを使用します。プロバイダーが報告する出力境界とキュー済み再生が完了した後、アクティブなリレーを終了せずに通常の **ACP** 履歴リプレイで永続的な結果を表示し、一時的な直接バブルだけを消去します。SmartX は別個の Talk 文字起こしストアや合成 ACP エントリを作成しません。
-
-**開発者モード**を有効にすると、サイドバー末尾に Talk アクションが表示され、Talk は **Models → Realtime Talk** タブで設定できます。Talk は開始前にカタログの利用可否を確認します。このタブには Gateway catalog が宣言したすべてのリアルタイムプロバイダーとモデルが表示され、未設定のプロバイダーは無効化されます。選択したプロバイダーとモデルは OpenClaw 設定トランザクションで保存されます。認証情報や話者の音声などの provider-specific オプションは Gateway が OpenClaw 設定ファイルで管理し、このタブからそのファイルを直接開けます。
-
-手動の macOS 検証には、設定済みのリアルタイムプロバイダーとマイク権限が必要です。直接プロバイダー応答、Agent 相談応答、バージイン、停止、Gateway 再接続はその設定済み環境で確認する必要があります。自動テストはこれらのプロバイダー依存ケースを検証しません。
-
 ### 主なユースケース
 
-- **🤖 パーソナルAIアシスタント**：質問への回答、メールの下書き、ドキュメントの要約、日常タスクの支援を行う汎用AIエージェントを、クリーンなデスクトップインターフェースから設定できます。
-- **📊 自動モニタリング**：ニュースフィード、価格、特定のイベントを監視するスケジュールエージェントを設定し、結果を希望する通知チャネルへ届けられます。
-- **💻 開発者の生産性向上**：AIを開発ワークフローに統合し、コードレビュー、ドキュメント生成、繰り返しのコーディング作業を行えます。
-- **🔄 ワークフロー自動化**：複数のスキルをビジュアルな自動化パイプラインに組み合わせ、データ処理、コンテンツ変換、アクションの実行を行えます。
+- **オフィスアシスタント**：メール作成、文書要約、社内知識の検索をデスクトップから行えます。
+- **研究**：同じワークスペースから量子計算実験プラットフォームを開けます。
+- **自動化**：監視、要約、通知をスケジュールし、WeChat などのチャネルへ届けます。
+- **文書とスキル**：同梱 Skills で PDF / Office を処理し、必要に応じて追加インストールできます。
 
 ## はじめに
 
 ### システム要件
 
-- **オペレーティングシステム**：macOS 11以上、Windows 10以上、またはLinux（Ubuntu 20.04以上）
-- **メモリ**：最低4GB RAM（8GB推奨）
-- **ストレージ**：1GBの空きディスク容量
+- **macOS**：11 以上
+- **Windows**：10 以上
+- **Linux**：Ubuntu 20.04 以上、または同等のディストリビューション
+- **メモリ**：最低 4 GB（8 GB 推奨）
+- **ディスク**：約 1 GB の空き容量
 
 ### インストール
 
 #### ビルド済みリリース（推奨）
 
-[Releases](https://github.com/GGquanta-ai/SmartX/releases) ページから、お使いのプラットフォーム向けの最新リリースをダウンロードしてください。
+OS と CPU アーキテクチャに合ったインストーラーを製品サイトから入手してください。
+
+**[https://smartx.qubitlab.cc](https://smartx.qubitlab.cc)**
+
+同じビルドは [GitHub Releases](https://github.com/GGquanta/SmartX/releases) からも入手できます。パッケージ選びに迷った場合はサポートまでご連絡ください。
 
 #### ソースからビルド
 
 ```bash
 # リポジトリをクローン
-git clone https://github.com/GGquanta-ai/SmartX.git
+git clone https://github.com/GGquanta/SmartX.git
 cd SmartX
 
 # プロジェクトを初期化
@@ -137,119 +122,81 @@ pnpm dev
 
 ### 初回起動
 
-SmartXを初めて起動すると、**セットアップウィザード**が次の手順を案内します。
+**セットアップウィザード**が次の手順を案内します。
 
-1. **言語と地域**：使用するロケールを設定
-2. **AIプロバイダー**：ブラウザまたはデバイスログインに対応したプロバイダーでは、APIキーまたはOAuthで追加
-3. **スキルバンドル**：一般的なユースケース向けの事前設定スキルを選択
-4. **検証**：メインインターフェースに入る前に設定をテスト
-
-サポートされている場合、ウィザードはシステム言語を初期選択し、対応していない場合は英語にフォールバックします。
-
-> Web検索について：SmartXはAgentとGatewayの両方のポリシーレイヤーで、OpenClawの汎用 `web_search` ツールを無効にします。Moonshot（Kimi）検索も対象です。管理対象のブラウザ自動化と `web_fetch` は引き続き利用できます。
->
-> 内部ツールについて：SmartXは両方のポリシーレイヤーで、Agentに対して `gateway`、`nodes`、`create_goal`、`get_goal`、`update_goal` も無効にします。SmartXアプリケーション自身のGateway RPCに加え、メッセージング、セッションオーケストレーション、Agent検出ツールは引き続き利用できます。
+1. **言語と地域** — 使用するロケール
+2. **AI プロバイダー** — API キー、または対応プロバイダーでは OAuth
+3. **スキルバンドル** — 一般的な用途向けの事前設定スキル
+4. **検証** — メイン画面に入る前に設定をテスト
 
 ### プロキシ設定
 
-SmartXには、Electron、OpenClaw Gateway、Telegramなどのチャネルがローカルプロキシクライアント経由でインターネットにアクセスする必要がある環境向けの、組み込みプロキシ設定があります。
+ローカルプロキシ経由で接続する場合は、**設定 → Gateway → プロキシ**で既定プロキシ、バイパスルール、開発者モードでの HTTP / HTTPS / SOCKS 上書きを設定します。ローカル例：`http://127.0.0.1:7890`。
 
-**設定 → Gateway → プロキシ**を開き、既定のプロキシ、バイパスルール、開発者モードでのHTTP・HTTPS・`ALL_PROXY` / SOCKSの上書きを設定します。ローカル設定の例は `http://127.0.0.1:7890` です。
-
-> プロキシのフォールバック動作、Telegramとの同期、**OpenClaw Doctor**については [docs/ja-JP/proxy-settings.md](docs/ja-JP/proxy-settings.md) を参照してください。
+> 詳細は [docs/ja-JP/proxy-settings.md](docs/ja-JP/proxy-settings.md) を参照してください。
 
 ## アーキテクチャ
 
-SmartXは **Host API統一レイヤーを備えたデュアルプロセスアーキテクチャ**を採用しています。React Rendererは単一のクライアント抽象を呼び出し、Electron Mainがプロトコル選択、Gatewayのライフサイクル、ACP Chatのstdio bridgeを管理します。
+小光はデュアルプロセスのデスクトップアーキテクチャです。Electron Main がウィンドウとシステム統合を担当し、AI オーケストレーションランタイムはアプリ内に埋め込まれます。
 
-- **プロセスモデル**：Electron Mainがウィンドウ、Gateway監視、システム統合、更新を管理します。OpenClaw GatewayはAIオーケストレーション、チャネル、スキル機能を提供し、Rendererはローカルエンドポイントへ直接アクセスしません。
-- **設定の配信**：Gateway実行中は `config.get` / `config.set` を使い、停止中または起動中は解決済みJSON5設定を更新します。通常のプロバイダー、Agent、スキル、モデル変更ではプロセスを置き換えず、認証情報は `secrets.reload` でホットリロードされます。検証済みのGatewayアクティビティが3分間ない場合、SmartXはコアRPCを検証し、自身が所有する利用不能なGatewayプロセスだけを再起動します。外部管理のGatewayは手動で復旧します。
-- **ACP Chat**：Chat UIは [ACP（Agent Client Protocol）](https://agentclientprotocol.com) を介してOpenClawとやり取りし、頻繁に反復されるOpenClawの前に比較的安定したチャットプロトコル面を確保します。ACPはMainが所有するstdio bridge経由で動作し、設定リロード後の認証済み履歴リプレイ、ページ移動中のストリーミング、Mainが検証したメディア・添付ファイル・ファイルアクティビティに対応します。保護されたGateway再起動によって受理済みターンが中断された場合、パッチ済みOpenClawランタイムは復旧runを元のACP promptへ明示的に関連付け、後続のテキストとツールアクティビティを同じメモリ内ターンで継続します。その後の履歴リプレイでも、永続化されたツール境界をネイティブACP updateとして復元します。最終応答の永続化後に再起動して終端通知が失われた場合も、runとセッションに限定した照合によってpending promptを完了し、Chatが実行中のまま残ることを防ぎます。
-- **設計原則**：フロントエンドの単一入口、Mainによるトランスポート管理、再接続・タイムアウト・バックオフによるグレースフルリカバリ、安全なストレージ、CORSセーフな境界を採用しています。
+- **OpenClaw 内蔵**：公式コアを埋め込み、別途ランタイムを入れる必要はありません。
+- **クロスプラットフォーム**：macOS、Windows、Linux を 1 つのクライアントでカバーします。
+- **キーチェーン保存**：プロバイダー認証情報は OS ネイティブのキーチェーンに保存します。
+- **Gateway の自動管理**：Gateway のライフサイクルはアプリが管理します。
 
-> プロセス図、設定の調整、ACPファイルアクティビティのセマンティクス、Gatewayのトラブルシューティングについては [docs/ja-JP/architecture.md](docs/ja-JP/architecture.md) を参照してください。
+> 詳細は [docs/ja-JP/architecture.md](docs/ja-JP/architecture.md) を参照してください。
 
 ## 開発
 
+リポジトリの開発コードネームは **SmartX** です。
+
 ### 前提条件
 
-- **Node.js**：対応するメジャー系列の22.22.3以上、24.15.0以上、または25.9.0以上（Node 24 LTS推奨）
-- **パッケージマネージャー**：pnpm 9以上（npmも対応）
-- **Linux（Ubuntu/Debian）**：Electronの実行前に必要なシステムライブラリをインストールしてください。詳細は [docs/ja-JP/development.md](docs/ja-JP/development.md) を参照してください。
+- **Node.js**：22.22.3 以上、24.15.0 以上、または 25.9.0 以上（Node 24 LTS 推奨）
+- **パッケージマネージャー**：pnpm 9 以上
+- **Linux（Ubuntu/Debian）**：Electron 実行前に必要なシステムライブラリをインストールしてください。詳細は [docs/ja-JP/development.md](docs/ja-JP/development.md)。
 
 ### よく使うコマンド
 
 ```bash
 pnpm run init        # 依存関係をインストールし、バンドルランタイムをダウンロード
 pnpm dev             # ホットリロード付きで開発モードを起動
-pnpm lint            # ESLintを実行
-pnpm typecheck       # TypeScriptを検証
+pnpm lint            # ESLint を実行
+pnpm typecheck       # TypeScript を検証
 pnpm test            # ユニットテストを実行
-pnpm run test:e2e    # Electron E2Eスモークテストを実行
+pnpm run test:e2e    # Electron E2E スモークテストを実行
 pnpm build           # 本番ビルドを実行
 pnpm package         # 現在のプラットフォーム向けにパッケージ化（:mac / :win / :linux）
 ```
 
-> プロジェクト構成、完全なコマンド一覧、E2Eの並列実行ポリシー、パフォーマンス診断、通信回帰チェック、技術スタックについては [docs/ja-JP/development.md](docs/ja-JP/development.md) を参照してください。
+> プロジェクト構成と完全なコマンド一覧は [docs/ja-JP/development.md](docs/ja-JP/development.md) を参照してください。
 
 ## コントリビューション
 
-コミュニティからの貢献を歓迎します。バグ修正、新機能、ドキュメントの改善、翻訳など、あらゆる貢献がSmartXをより良くします。
-
-### 貢献方法
+バグ修正、新機能、ドキュメント、翻訳などの貢献を歓迎します。
 
 1. リポジトリを**フォーク**する
 2. フィーチャーブランチを**作成**する（`git checkout -b feature/amazing-feature`）
-3. 明確なメッセージで変更を**コミット**する
-4. ブランチに**プッシュ**する
-5. **Pull Request**を作成する
+3. 明確なメッセージで**コミット**し、Pull Request を作成する
 
-### ガイドライン
-
-- 既存のコードスタイル（ESLint + Prettier）に従う
-- 新機能にはテストを書く
-- 必要に応じてドキュメントを更新する
-- コミットはアトミックかつ説明的に保つ
+既存のコードスタイル（ESLint + Prettier）に従い、新機能にはテストを追加し、必要に応じてドキュメントを更新してください。
 
 ## 謝辞
 
-SmartXは次の優れたオープンソースプロジェクトの上に構築されています。
+小光は次のオープンソースプロジェクトの上に構築されています。
 
-- [OpenClaw](https://github.com/OpenClaw) - AIエージェントランタイム
-- [LobsterAI](https://github.com/netease-youdao/lobsterai) - Gatewayの存活信号と復旧設計の着想元
+- [OpenClaw](https://github.com/OpenClaw) - AI エージェントランタイム
 - [Electron](https://www.electronjs.org/) - クロスプラットフォームデスクトップフレームワーク
-- [React](https://react.dev/) - UIコンポーネントライブラリ
+- [React](https://react.dev/) - UI コンポーネントライブラリ
 - [shadcn/ui](https://ui.shadcn.com/) - 美しく設計されたコンポーネント
 - [Zustand](https://github.com/pmndrs/zustand) - 軽量な状態管理
 
-## コミュニティ
-
-コミュニティに参加して、他のユーザーと交流し、サポートを受け、体験を共有しましょう。
-
-| 企業WeChat | Feishuグループ | Discord |
-| :---: | :---: | :---: |
-| <img src="src/assets/community/wecom-qr.png" width="150" alt="WeChat QRコード" /> | <img src="src/assets/community/feishu-qr.png" width="150" alt="Feishu QRコード" /> | <img src="src/assets/community/20260212-185822.png" width="150" alt="Discord QRコード" /> |
-
-### SmartXパートナープログラム
-
-SmartXをより多くのお客様、特にカスタムAIエージェントや自動化のニーズを持つお客様に紹介してくださるパートナーを募集しています。
-
-パートナーは見込みユーザーやプロジェクトとの接点づくりを担い、SmartXチームは技術サポート、カスタマイズ、統合を全面的に提供します。AIツールや自動化に関心のあるお客様と仕事をされている方は、ぜひご一緒ください。
-
-詳細はDM、または [public@ggquanta.ai](mailto:public@ggquanta.ai) までお問い合わせください。
-
-## Star History
-
-<p align="center">
-  <img src="https://star-history.dera.page/svg?repos=GGquanta-ai/SmartX&type=Date" alt="Star History Chart" />
-</p>
-
 ## ライセンス
 
-SmartXは [MITライセンス](LICENSE) のもとで公開されています。本ソフトウェアは自由に使用、変更、配布できます。
+本ソフトウェアは [MIT ライセンス](LICENSE) のもとで公開されています。自由に使用、変更、配布できます。
 
 <hr>
 
 <p align="center">
-  <sub>GGquanta Teamが❤️を込めて開発</sub>
+  <sub>北京中科国光量子科技有限公司が ❤️ を込めて開発</sub>
 </p>
