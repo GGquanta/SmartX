@@ -45,6 +45,7 @@ import { hostApi } from '@/lib/host-api';
 import { hostEvents } from '@/lib/host-events';
 import type { AcpTimelineSnapshot, MessageSegmentItem, PermissionItem, RenderPart } from '@/lib/acp/timeline-types';
 import { isCronSessionKey } from './chat/cron-session-utils';
+import { stopActiveRealtimeTalk, useRealtimeTalkStore } from './realtime-talk';
 
 const EMPTY_SESSION_ID = '';
 const CANCEL_PERMISSION_OPTION_ID = '__cancelled__';
@@ -69,6 +70,11 @@ type ImageGenerationCompatSession = {
 
 const imageGenerationCompatSessions = new Map<string, ImageGenerationCompatSession>();
 const pendingLoadUpdates = new Map<number, AcpSessionUpdateEnvelope[]>();
+type SettledReplayLoad = {
+  sessionKey: string;
+  updates: Map<number, AcpSessionUpdateEnvelope[]>;
+};
+let activeSettledReplayLoad: SettledReplayLoad | null = null;
 type LiveSessionSnapshot = {
   sessionKey: string;
   workspaceRoot: string | null;
@@ -132,6 +138,13 @@ type ImageGenerationProjectionOptions = {
 };
 
 type PermissionOutcome = AcpChatRespondPermissionPayload['outcome'];
+type AcpChatLoadOptions = {
+  // Only the Talk consult controller may retain its live relay during ACP replay.
+  preserveRealtimeTalk?: true;
+  // Forces Main to obtain the logical Gateway session transcript through a fresh ACP session.
+  forceDurableReplay?: true;
+};
+type AcpChatLoadInput = AcpChatLoadPayload & AcpChatLoadOptions;
 
 export type AcpChatSessionState = {
   activeSessionKey: string | null;
@@ -146,7 +159,8 @@ export type AcpChatSessionState = {
   timeline: AcpTimelineSnapshot;
   turnTimingsByUserMessageId: Record<string, AcpTurnTiming>;
   prepareLocalSession: (input: AcpChatLoadPayload) => void;
-  loadSession: (input: AcpChatLoadPayload) => Promise<boolean>;
+  loadSession: (input: AcpChatLoadInput) => Promise<boolean>;
+  reloadActiveSession: (options?: AcpChatLoadOptions) => Promise<boolean>;
   sendPrompt: (input: AcpChatPromptPayload) => Promise<boolean>;
   cancel: () => Promise<void>;
   respondPermission: (requestId: string, optionId: string) => Promise<void>;
@@ -1002,6 +1016,38 @@ function applyOperationGeneration(
   };
 }
 
+function buildSettledReplayTimeline(
+  sessionKey: string,
+  result: AcpChatOperationResult,
+): AcpTimelineSnapshot | null {
+  const generation = result.generation;
+  if (
+    !result.success
+    || result.resumedActivePrompt
+    || generation == null
+    || !result.sessionUpdates?.length
+  ) return null;
+
+  const events = result.sessionUpdates.filter((event) => (
+    event.sessionKey === sessionKey && event.generation === generation
+  ));
+  if (events.length === 0) return null;
+
+  let timeline = createEmptyAcpTimeline(sessionKey, generation);
+  for (const event of events) {
+    timeline = applyAcpSessionUpdate(timeline, event.notification, { historical: !!event.historical });
+  }
+  return timeline.itemOrder.length > 0 ? timeline : null;
+}
+
+function latestUserMessageId(timeline: AcpTimelineSnapshot): string | null {
+  for (let index = timeline.itemOrder.length - 1; index >= 0; index -= 1) {
+    const item = timeline.itemsById[timeline.itemOrder[index]];
+    if (item?.kind === 'message-segment' && item.role === 'user') return item.messageId;
+  }
+  return null;
+}
+
 export const useAcpChatSessionStore = create<AcpChatSessionState>((set, get) => ({
   activeSessionKey: null,
   workspaceRoot: null,
@@ -1016,6 +1062,8 @@ export const useAcpChatSessionStore = create<AcpChatSessionState>((set, get) => 
   turnTimingsByUserMessageId: {},
 
   prepareLocalSession(input) {
+    void stopActiveRealtimeTalk();
+    useRealtimeTalkStore.getState().reset();
     captureLiveSession(get());
     loadRequestSeq += 1;
     pendingLoadUpdates.clear();
@@ -1038,6 +1086,7 @@ export const useAcpChatSessionStore = create<AcpChatSessionState>((set, get) => 
   },
 
   async loadSession(input) {
+    const { preserveRealtimeTalk, ...hostInput } = input;
     captureLiveSession(get());
     const requestId = loadRequestSeq + 1;
     loadRequestSeq = requestId;
@@ -1061,9 +1110,13 @@ export const useAcpChatSessionStore = create<AcpChatSessionState>((set, get) => 
       timeline: liveSnapshot?.timeline ?? createEmptyAcpTimeline(input.sessionKey, generation),
       turnTimingsByUserMessageId: liveSnapshot?.turnTimingsByUserMessageId ?? {},
     });
+    if (!preserveRealtimeTalk) {
+      await stopActiveRealtimeTalk();
+      useRealtimeTalkStore.getState().reset();
+    }
 
     try {
-      let result = await hostApi.chat.loadAcpSession(input);
+      let result = await hostApi.chat.loadAcpSession(hostInput);
       let state = get();
       if (
         loadRequestSeq !== requestId
@@ -1071,17 +1124,19 @@ export const useAcpChatSessionStore = create<AcpChatSessionState>((set, get) => 
         || state.workspaceRoot !== input.workspaceRoot
         || state.cwd !== input.cwd
       ) return false;
-      if (!result.success) {
-        pendingLoadUpdates.clear();
-        set({
-          activeSessionKey: null,
-          workspaceRoot: null,
-          cwd: null,
-          loading: false,
-          error: failedOperationMessage(result, 'ACP session load failed'),
-        });
-        return false;
-      }
+        if (!result.success) {
+          pendingLoadUpdates.clear();
+          set(preserveRealtimeTalk
+            ? { loading: false, error: failedOperationMessage(result, 'ACP session load failed') }
+            : {
+              activeSessionKey: null,
+              workspaceRoot: null,
+              cwd: null,
+              loading: false,
+              error: failedOperationMessage(result, 'ACP session load failed'),
+            });
+          return false;
+        }
 
       let resumedSnapshot = result.resumedActivePrompt
         ? liveSessionSnapshots.get(input.sessionKey)
@@ -1110,7 +1165,7 @@ export const useAcpChatSessionStore = create<AcpChatSessionState>((set, get) => 
           pendingLoadUpdates.clear();
           set({
             loading: false,
-            sending: false,
+            ...(preserveRealtimeTalk ? {} : { sending: false }),
             error: failedOperationMessage(result, 'ACP session load failed'),
           });
           return false;
@@ -1216,7 +1271,7 @@ export const useAcpChatSessionStore = create<AcpChatSessionState>((set, get) => 
       // A reactivated prompt already carries its original live timing. The transcript is
       // necessarily incomplete until that prompt settles, so treating it as historical
       // timing here would replace the running timer with a prematurely completed duration.
-      if (!input.createIfMissing && !currentResumedSnapshot) {
+      if (!input.createIfMissing && !currentResumedSnapshot && !input.forceDurableReplay) {
         startHistoricalTranscriptSupplement(input.sessionKey, generation);
       }
       return true;
@@ -1227,24 +1282,40 @@ export const useAcpChatSessionStore = create<AcpChatSessionState>((set, get) => 
           && state.activeSessionKey === input.sessionKey
           && state.workspaceRoot === input.workspaceRoot
           && state.cwd === input.cwd
-          ? {
-            activeSessionKey: null,
-            workspaceRoot: null,
-            cwd: null,
-            loading: false,
-            error: errorMessage(error, 'ACP session load failed'),
-          }
+          ? (preserveRealtimeTalk
+            ? { loading: false, error: errorMessage(error, 'ACP session load failed') }
+            : {
+              activeSessionKey: null,
+              workspaceRoot: null,
+              cwd: null,
+              loading: false,
+              error: errorMessage(error, 'ACP session load failed'),
+            })
           : {}
       ));
       return false;
     }
   },
 
+  async reloadActiveSession(options) {
+    const { activeSessionKey, workspaceRoot, cwd } = get();
+    if (!activeSessionKey || !workspaceRoot || !cwd) return false;
+    return await get().loadSession({
+      sessionKey: activeSessionKey,
+      workspaceRoot,
+      cwd,
+      ...options,
+      ...(options?.preserveRealtimeTalk ? { forceDurableReplay: true } : {}),
+    });
+  },
+
   async sendPrompt(input) {
     const startState = get();
     const sessionKey = input.sessionKey;
     const generation = startState.generation;
-    if (startState.activeSessionKey !== sessionKey) return false;
+    const loadRequestId = loadRequestSeq;
+    if (startState.activeSessionKey !== sessionKey || startState.sending) return false;
+    if (useRealtimeTalkStore.getState().isActive) return false;
 
     const messageId = input.messageId ?? createOptimisticMessageId();
     const payload = { ...input, messageId };
@@ -1274,32 +1345,95 @@ export const useAcpChatSessionStore = create<AcpChatSessionState>((set, get) => 
       );
     }
     try {
-      const result = await hostApi.chat.sendAcpPrompt(payload);
+      const promptResult = await hostApi.chat.sendAcpPrompt(payload);
+      let replayResult: AcpChatOperationResult | null = null;
+      let replayTimeline: AcpTimelineSnapshot | null = null;
+      const afterPrompt = get();
+      if (
+        promptResult.success
+        && startState.workspaceRoot
+        && isCurrentAction(afterPrompt, sessionKey, generation)
+        && loadRequestSeq === loadRequestId
+      ) {
+        const settledReplayLoad: SettledReplayLoad = { sessionKey, updates: new Map() };
+        activeSettledReplayLoad = settledReplayLoad;
+        try {
+          replayResult = await hostApi.chat.loadAcpSession({
+            sessionKey,
+            workspaceRoot: startState.workspaceRoot,
+            cwd: input.cwd,
+          });
+          const bufferedUpdates = replayResult.generation == null
+            ? []
+            : settledReplayLoad.updates.get(replayResult.generation) ?? [];
+          if (activeSettledReplayLoad === settledReplayLoad) activeSettledReplayLoad = null;
+          if (bufferedUpdates.length > 0) {
+            replayResult = {
+              ...replayResult,
+              sessionUpdates: [...(replayResult.sessionUpdates ?? []), ...bufferedUpdates],
+            };
+          }
+          const afterReplay = get();
+          if (
+            isCurrentAction(afterReplay, sessionKey, generation)
+            && loadRequestSeq === loadRequestId
+          ) {
+            replayTimeline = buildSettledReplayTimeline(sessionKey, replayResult);
+          } else {
+            replayResult = null;
+          }
+        } catch {
+          if (activeSettledReplayLoad === settledReplayLoad) activeSettledReplayLoad = null;
+          replayResult = null;
+        }
+      }
       const state = get();
       liveSessionSnapshots.delete(sessionKey);
-      if (!isCurrentAction(state, sessionKey, generation)) return result.success;
-      const failedTimeline = result.success
+      if (!isCurrentAction(state, sessionKey, generation)) return promptResult.success;
+      const failedTimeline = promptResult.success
         ? state.timeline
         : removePendingOptimisticUserSegment(state.timeline, messageId);
       const { [messageId]: _removedTiming, ...remainingTurnTimings } = state.turnTimingsByUserMessageId;
+      const settledResult = replayResult?.success ? replayResult : promptResult;
+      const settledGeneration = settledResult.generation ?? state.generation;
+      const settledTimeline = replayTimeline
+        ?? (settledGeneration === state.generation
+          ? state.timeline
+          : { ...state.timeline, loadGeneration: settledGeneration });
+      const pendingAttachments = replayTimeline ? collectPendingAttachments(replayTimeline) : [];
+      const settledUserMessageId = replayTimeline ? latestUserMessageId(replayTimeline) ?? messageId : messageId;
+      const nextTurnTimings = { ...state.turnTimingsByUserMessageId };
+      if (settledUserMessageId !== messageId) delete nextTurnTimings[messageId];
+      nextTurnTimings[settledUserMessageId] = {
+        source: 'live',
+        status: 'complete',
+        durationMs: Math.max(0, Date.now() - startedAtMs),
+      };
       set({
         sending: false,
-        turnTimingsByUserMessageId: result.success
-          ? {
-            ...state.turnTimingsByUserMessageId,
-            [messageId]: {
-              source: 'live',
-              status: 'complete',
-              durationMs: Math.max(0, Date.now() - startedAtMs),
-            },
-          }
+        turnTimingsByUserMessageId: promptResult.success
+          ? nextTurnTimings
           : remainingTurnTimings,
-        ...(result.success
-          ? applyOperationGeneration(state, result)
-          : { error: failedOperationMessage(result, 'ACP prompt failed'), timeline: failedTimeline }),
+        ...(promptResult.success
+          ? { generation: settledGeneration, timeline: settledTimeline }
+          : { error: failedOperationMessage(promptResult, 'ACP prompt failed'), timeline: failedTimeline }),
       });
-      if (result.success) {
+      if (replayTimeline) {
+        resolvePendingAttachments(sessionKey, settledGeneration, pendingAttachments);
+        for (const [eventIndex, event] of (replayResult?.sessionUpdates ?? []).entries()) {
+          get().recordImageGenerationStart(event);
+          const evidence = extractImageGenerationCompletionFromAcpEnvelope(event);
+          if (evidence) {
+            void get().projectImageGenerationCompletion(evidence, {
+              reservationOwner: `settled-replay:${settledGeneration}:${eventIndex}`,
+            });
+          }
+        }
+      }
+      if (promptResult.success) {
         const current = get();
+        transcriptOperation.generation = settledGeneration;
+        transcriptOperation.liveUserMessageId = settledUserMessageId;
         if (
           current.activeSessionKey === sessionKey
           && current.generation === transcriptOperation.generation
@@ -1312,7 +1446,7 @@ export const useAcpChatSessionStore = create<AcpChatSessionState>((set, get) => 
       } else if (activeTranscriptSupplement === transcriptOperation) {
         invalidateTranscriptSupplement();
       }
-      return result.success;
+      return promptResult.success;
     } catch (error) {
       liveSessionSnapshots.delete(sessionKey);
       if (activeTranscriptSupplement === transcriptOperation) invalidateTranscriptSupplement();
@@ -1769,6 +1903,14 @@ export const useAcpChatSessionStore = create<AcpChatSessionState>((set, get) => 
           }, event));
         }
       }
+      return;
+    }
+    if (
+      activeSettledReplayLoad?.sessionKey === event.sessionKey
+      && event.generation !== state.generation
+    ) {
+      const updates = activeSettledReplayLoad.updates.get(event.generation) ?? [];
+      activeSettledReplayLoad.updates.set(event.generation, [...updates, event]);
       return;
     }
     if (event.sessionKey !== state.activeSessionKey || event.generation !== state.generation) {

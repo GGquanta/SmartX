@@ -14,6 +14,8 @@ Skills inserted from the composer appear as `/skill-name` cards. Click a card to
 
 When an active OpenClaw ACP session reports context usage, the composer footer shows a compact meter with a ring and a visible localized percentage immediately to the left of the gateway connection status. Hover or focus it to see the used/total token counts. Used and total tokens normally come from the active ACP `usage_update`; after a model switch, the effective context window in the updated agent snapshot replaces that stale total until ACP reports fresh usage, so the limit and percentage update immediately. The meter stays hidden when usage metadata is missing or invalid.
 
+The ordered ACP process timeline also shows context compaction. A live marker moves in place from compacting to completed, continuing, failed, or cancelled; failed markers show a localized bounded reason when OpenClaw provides one. Historical completed markers are restored in order for compaction records included in OpenClaw's bounded ACP history response. Older records outside that response are not loaded by this view, and markers never display the compaction summary. Tool-heavy turns recover from aggregate prompt pressure by trimming older tool output to the measured budget while retaining bounded representations of the newest results and their tool-call pairing.
+
 When you target another agent with `@agent`, ClawX switches directly to that agent's own conversation context instead of relaying through the default agent. Agent workspaces stay separate by default, while stronger runtime isolation depends on OpenClaw sandbox settings.
 
 The session sidebar is workspace-first: the default workspace stays at the top, other workspaces sort naturally, and each workspace can collapse or load more sessions. A session row shows a spinner while the AI is replying, a blue dot when an unseen reply finishes, and its relative activity time after the conversation is opened; hovering still reveals row actions. Imported workspaces can be renamed from their sidebar header. The custom name is reflected in the chat composer, while hovering the header still reveals the filesystem path.
@@ -60,7 +62,7 @@ The Skills page can display skills discovered from multiple OpenClaw sources, in
 
 Connect to multiple AI providers, including OpenAI, Anthropic, and Z.AI / GLM, with credentials stored securely in the native system keychain. OpenAI supports both API keys and browser OAuth for Codex subscriptions.
 
-In Developer Mode, the dedicated Image Generation page supports an independent OpenAI-compatible image-generation endpoint with a Base URL, API key, and model name such as `gpt-image-2`. Image generation can therefore use a dedicated `/v1/images/generations` service while chat continues using the normal OpenAI provider.
+In Developer Mode, the Image Generation tab on the Models page supports an independent OpenAI-compatible image-generation endpoint with a Base URL, API key, and model name such as `gpt-image-2`. Image generation can therefore use a dedicated `/v1/images/generations` service while chat continues using the normal OpenAI provider.
 
 For **Custom** providers used with OpenAI-compatible gateways, you can set a custom `User-Agent` in **Settings -> AI Providers -> Edit Provider** for compatibility-sensitive endpoints.
 
