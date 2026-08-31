@@ -7,6 +7,10 @@
 #   APPLE_API_KEY_ID                     — App Store Connect API Key ID (10 chars)
 #   APPLE_API_ISSUER                     — App Store Connect Issuer ID (UUID)
 #   APPLE_API_KEY_P8                     — Full contents of AuthKey_<KEY_ID>.p8
+# Windows code signing (stable channel):
+#   SIGNPATH_API_TOKEN                   — SignPath REST submitter token
+# Stable Windows builds sign via scripts/signpath-sign-windows.mjs
+# (POST /SigningRequests/SubmitWithArtifact), not the GitHub connector action.
 # Fallback (legacy Apple ID notarization, used only if API key secrets are absent):
 #   APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID
 #
@@ -293,33 +297,21 @@ jobs:
           Write-Host "Found $unsignedCount unsigned .exe file(s):"
           $unsignedExeFiles | ForEach-Object { Write-Host " - $($_.Name)" }
 
-      - name: Upload unsigned Windows artifacts for SignPath
-        if: matrix.platform == 'win' && steps.release-channel.outputs.is_stable == 'true'
-        id: upload-unsigned-windows-artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: unsigned-win-exe-${{ github.run_id }}-${{ github.run_attempt }}
-          path: release/*.exe
-          retention-days: 1
-
-      - name: Sign Windows artifacts via SignPath
+      # Bypass GitHub connector (HTTP 503). Sign via SignPath REST SubmitWithArtifact.
+      - name: Sign Windows artifacts via SignPath REST API
         if: matrix.platform == 'win' && steps.release-channel.outputs.is_stable == 'true'
         id: signpath-sign-windows
-        uses: signpath/github-action-submit-signing-request@v2
-        with:
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: "05aeab6b-bde4-460b-90e0-808d9f83779b"
-          project-slug: "GGquanta"
-          signing-policy-slug: "GGquanta-sign"
-          github-artifact-id: ${{ steps.upload-unsigned-windows-artifact.outputs.artifact-id }}
-          wait-for-completion: true
-          output-artifact-directory: release/signed
+        env:
+          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          SIGNPATH_ORGANIZATION_ID: "05aeab6b-bde4-460b-90e0-808d9f83779b"
+          SIGNPATH_PROJECT_SLUG: "GGquanta"
+          SIGNPATH_SIGNING_POLICY_SLUG: "GGquanta-sign"
+        run: node scripts/signpath-sign-windows.mjs --input-dir release --output-dir release/signed --description "SmartX ${{ github.event.inputs.version || github.ref_name }}"
 
       - name: Replace unsigned executables with signed ones
         if: matrix.platform == 'win' && steps.release-channel.outputs.is_stable == 'true'
         shell: pwsh
         run: |
-          Write-Host "SignPath GitHub artifact ID: ${{ steps.upload-unsigned-windows-artifact.outputs.artifact-id }}"
           $signedExeFiles = Get-ChildItem -Path "release/signed" -Filter *.exe -File -Recurse
           if (-not $signedExeFiles) {
             throw "No signed .exe files found in release/signed"
