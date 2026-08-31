@@ -2,9 +2,10 @@
  * Electron Main Process Entry
  * Manages window creation, system tray, and IPC handlers
  */
-import { app, BrowserWindow, nativeImage, session, shell } from 'electron';
+import { app, BrowserWindow, nativeImage, session, shell, type Session } from 'electron';
 import { join } from 'path';
 import { GatewayManager } from '../gateway/manager';
+import { registerOpenClawConfigCoordinator } from '../gateway/config-delivery';
 import { registerIpcHandlers } from './ipc-handlers';
 import { HostApiRegistry } from './ipc/host-invoke';
 import { createTray } from './tray';
@@ -32,6 +33,8 @@ import { getMacTrafficLightPosition, syncMacTrafficLightPosition } from './traff
 import { getSetting } from '../utils/store';
 import { applyProxySettings } from './proxy';
 import { syncLaunchAtStartupSettingFromStore } from './launch-at-startup';
+import { WebBrowserGuestRegistry, installWebBrowserGuestPolicy } from './web-browser-policy';
+import { configureWebBrowserSession } from './web-browser-session';
 import {
   clearPendingSecondInstanceFocus,
   consumeMainWindowReady,
@@ -51,6 +54,7 @@ import { deviceOAuthManager } from '../utils/device-oauth';
 import { browserOAuthManager } from '../utils/browser-oauth';
 import { whatsAppLoginManager } from '../utils/whatsapp-login';
 import { syncAllProviderAuthToRuntime } from '../services/providers/provider-runtime-sync';
+import { closeWindowAfterActiveTalk, forwardActiveTalkEvent, type TalkRelayOwnership } from '../services/talk-api';
 
 const WINDOWS_APP_USER_MODEL_ID = 'app.clawx.desktop';
 const isE2EMode = process.env.CLAWX_E2E === '1';
@@ -64,22 +68,6 @@ if (requestedRemoteDebuggingPort) {
 if (isE2EMode && requestedUserDataDir) {
   app.setPath('userData', requestedUserDataDir);
 }
-
-// Disable GPU hardware acceleration globally for maximum stability across
-// all GPU configurations (no GPU, integrated, discrete).
-//
-// Rationale (following VS Code's philosophy):
-// - Page/file loading is async data fetching — zero GPU dependency.
-// - The original per-platform GPU branching was added to avoid CPU rendering
-//   competing with sync I/O on Windows, but all file I/O is now async
-//   (fs/promises), so that concern no longer applies.
-// - Software rendering is deterministic across all hardware; GPU compositing
-//   behaviour varies between vendors (Intel, AMD, NVIDIA, Apple Silicon) and
-//   driver versions, making it the #1 source of rendering bugs in Electron.
-//
-// Users who want GPU acceleration can pass `--enable-gpu` on the CLI or
-// set `"disable-hardware-acceleration": false` in the app config (future).
-app.disableHardwareAcceleration();
 
 // On Linux, set CHROME_DESKTOP so Chromium can find the correct .desktop file.
 // On Wayland this maps the running window to clawx.desktop (→ icon + app grouping);
@@ -132,7 +120,10 @@ const gotTheLock = gotElectronLock && gotFileLock;
 let mainWindow: BrowserWindow | null = null;
 let gatewayManager!: GatewayManager;
 let clawHubService!: ClawHubService;
+let talkRelayOwnership: TalkRelayOwnership | null = null;
 const hostApiRegistry = new HostApiRegistry();
+const webBrowserGuestRegistry = new WebBrowserGuestRegistry();
+let webBrowserSession!: Session;
 const mainWindowFocusState = createMainWindowFocusState();
 const quitLifecycleState = createQuitLifecycleState();
 
@@ -176,8 +167,6 @@ function createWindow(): BrowserWindow {
   const isMac = process.platform === 'darwin';
   const isWindows = process.platform === 'win32';
   const useCustomTitleBar = isWindows;
-  const shouldSkipSetupForE2E = process.env.CLAWX_E2E_SKIP_SETUP === '1';
-
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -199,6 +188,11 @@ function createWindow(): BrowserWindow {
     show: false,
   });
 
+  installWebBrowserGuestPolicy(win.webContents, {
+    browserSession: webBrowserSession,
+    registry: webBrowserGuestRegistry,
+  });
+
   registerZoomShortcuts(win);
 
   // Handle external links — only allow safe protocols to prevent arbitrary
@@ -217,7 +211,12 @@ function createWindow(): BrowserWindow {
     return { action: 'deny' };
   });
 
-  // Load the app
+  return win;
+}
+
+function loadMainWindow(win: BrowserWindow): void {
+  const shouldSkipSetupForE2E = process.env.CLAWX_E2E_SKIP_SETUP === '1';
+
   if (process.env.VITE_DEV_SERVER_URL) {
     const rendererUrl = new URL(process.env.VITE_DEV_SERVER_URL);
     if (shouldSkipSetupForE2E) {
@@ -234,8 +233,6 @@ function createWindow(): BrowserWindow {
         : undefined,
     });
   }
-
-  return win;
 }
 
 function focusWindow(win: BrowserWindow): void {
@@ -262,6 +259,7 @@ function focusMainWindow(): void {
 
 function createMainWindow(): BrowserWindow {
   const win = createWindow();
+  let hideAfterTalkCleanupInFlight = false;
 
   win.once('ready-to-show', () => {
     if (mainWindow !== win) {
@@ -286,7 +284,24 @@ function createMainWindow(): BrowserWindow {
   win.on('close', (event) => {
     if (!isQuitting() && !isE2EMode) {
       event.preventDefault();
-      win.hide();
+      if (hideAfterTalkCleanupInFlight) return;
+      hideAfterTalkCleanupInFlight = true;
+      const ownership = talkRelayOwnership;
+      if (!ownership) {
+        hideAfterTalkCleanupInFlight = false;
+        win.hide();
+        return;
+      }
+      closeWindowAfterActiveTalk({
+        ownership,
+        gatewayManager,
+        sendTalkEvent: (talkEvent) => sendMainWindowEvent('talk:event', talkEvent),
+        hide: () => {
+          hideAfterTalkCleanupInFlight = false;
+          if (!win.isDestroyed() && !isQuitting()) win.hide();
+        },
+        logWarn: (message, error) => logger.warn(message, error),
+      });
     }
   });
 
@@ -311,6 +326,11 @@ async function initialize(): Promise<void> {
     `Runtime: platform=${process.platform}/${process.arch}, electron=${process.versions.electron}, node=${process.versions.node}, packaged=${app.isPackaged}, pid=${process.pid}, ppid=${process.ppid}`
   );
 
+  webBrowserSession = configureWebBrowserSession({
+    registry: webBrowserGuestRegistry,
+    getMainWindow: () => mainWindow,
+  });
+
   if (!isE2EMode) {
     // Warm up network optimization (non-blocking)
     void warmupNetworkOptimization();
@@ -330,11 +350,6 @@ async function initialize(): Promise<void> {
 
   // Create the main window
   const window = createMainWindow();
-
-  // Create system tray
-  if (!isE2EMode) {
-    createTray(window);
-  }
 
   // Override security headers ONLY for the OpenClaw Gateway Control UI.
   // The URL filter ensures this callback only fires for gateway requests,
@@ -360,7 +375,21 @@ async function initialize(): Promise<void> {
   );
 
   // Register IPC handlers
-  registerIpcHandlers(gatewayManager, clawHubService, window, hostApiRegistry);
+  talkRelayOwnership = registerIpcHandlers(
+    gatewayManager,
+    clawHubService,
+    window,
+    hostApiRegistry,
+    webBrowserSession,
+    webBrowserGuestRegistry,
+  );
+
+  loadMainWindow(window);
+
+  // Create system tray
+  if (!isE2EMode) {
+    createTray(window);
+  }
 
   // Initialize extension system
   await extensionRegistry.initialize({
@@ -474,6 +503,13 @@ async function initialize(): Promise<void> {
     sendMainWindowEvent('chat:runtime-event', data);
   });
 
+  gatewayManager.on('talk:event', (data) => {
+    if (!talkRelayOwnership) return;
+    forwardActiveTalkEvent(talkRelayOwnership, data, (event) => {
+      sendMainWindowEvent('talk:event', event);
+    });
+  });
+
   gatewayManager.on('channel:status', (data) => {
     sendMainWindowEvent('gateway:channel-status', data);
   });
@@ -580,6 +616,7 @@ if (gotTheLock) {
   }
 
   gatewayManager = new GatewayManager();
+  registerOpenClawConfigCoordinator(gatewayManager);
   clawHubService = new ClawHubService();
 
   // Register builtin extensions and load manifest
@@ -607,16 +644,19 @@ if (gotTheLock) {
   });
 
   // Application lifecycle
-  app.whenReady().then(() => {
-    void initialize().catch((error) => {
+  app.whenReady().then(async () => {
+    try {
+      await initialize();
+    } catch (error) {
       logger.error('Application initialization failed:', error);
-    });
+      return;
+    }
 
-    // Register activate handler AFTER app is ready to prevent
-    // "Cannot create BrowserWindow before app is ready" on macOS.
+    // Register only after initialization so activation cannot race the initial
+    // window or claim the single browser guest before host handlers are ready.
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
-        createMainWindow();
+        loadMainWindow(createMainWindow());
       } else {
         focusMainWindow();
       }

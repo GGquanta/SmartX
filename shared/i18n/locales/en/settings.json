@@ -53,10 +53,11 @@
       "replaceApiKeyHelp": "Leave this field empty if you want to keep the currently stored API key.",
       "baseUrl": "Base URL",
       "modelId": "Model ID",
+      "modelIdEditDisabled": "The model ID cannot be changed after creation. Delete this provider and add it again to use a different model ID.",
       "codePlanPreset": "Code Plan Preset",
       "codePlanMode": "Code Plan",
       "useCodePlanPreset": "Use Ark Code Plan Preset",
-      "codePlanPresetDesc": "Code Plan uses https://ark.cn-beijing.volces.com/api/coding/v3 and model ark-code-latest. Do not use /api/v3 for Code Plan traffic.",
+      "codePlanPresetDesc": "Code Plan uses {{baseUrl}} and model {{modelId}}. Do not use the general API endpoint for Code Plan traffic.",
       "codePlanDoc": "Code Plan docs",
       "protocol": "Protocol",
       "advancedConfig": "Advanced configuration",
@@ -104,7 +105,8 @@
       "failedUpdate": "Failed to update provider",
       "invalidKey": "Invalid API key",
       "modelRequired": "Model ID is required",
-      "minimaxConflict": "Cannot add both MiniMax (Global) and MiniMax (CN) providers."
+      "minimaxConflict": "Cannot add both MiniMax (Global) and MiniMax (CN) providers.",
+      "zaiConflict": "Cannot add both Z.AI (Global) and Z.AI (CN) providers."
     },
     "oauth": {
       "loginMode": "OAuth Login",
@@ -154,6 +156,28 @@
     "proxyRestartNote": "Saving reapplies Electron networking and restarts the Gateway immediately. Regular Gateway restarts keep existing Telegram channel proxy values when proxy is disabled; save while disabled to clear them.",
     "proxySaved": "Proxy settings saved",
     "proxySaveFailed": "Failed to save proxy settings"
+  },
+  "talk": {
+    "title": "Talk",
+    "description": "Configure realtime Talk through the OpenClaw Gateway Relay.",
+    "refresh": "Refresh Talk availability",
+    "provider": "Realtime provider",
+    "model": "Realtime model",
+    "unavailable": "Unavailable",
+    "providerHelp": "All realtime providers registered by OpenClaw are listed.",
+    "providerUnavailable": "{{providers}} are disabled because they are not configured in OpenClaw.",
+    "modelHelp": "Models are supplied by the selected provider. Configure and select a provider to enable this list.",
+    "openConfig": "Open OpenClaw config",
+    "openConfigFailed": "Could not open OpenClaw config",
+    "readiness": {
+      "ready": "Talk is ready",
+      "unavailable": "Talk is unavailable"
+    },
+    "save": "Save Talk settings",
+    "saving": "Saving Talk settings...",
+    "saved": "Talk settings saved",
+    "loadFailed": "Could not load Talk settings",
+    "saveFailed": "Could not save Talk settings"
   },
   "updates": {
     "title": "Updates",
@@ -211,6 +235,9 @@
     "consoleNote": "Opens the Control UI with gateway token injected",
     "gatewayToken": "Gateway Token",
     "gatewayTokenDesc": "Paste this into Control UI settings if prompted",
+    "compactionReserve": "Compaction Reserve Floor",
+    "compactionReserveDesc": "Uses 25% of an explicitly configured context window, or 50,000 tokens when none is set.",
+    "compactionReserveUnavailable": "Applied reserve unavailable",
     "tokenUnavailable": "Token unavailable",
     "tokenCopied": "Gateway token copied",
     "cli": "OpenClaw CLI",
@@ -255,6 +282,49 @@
     "installTitle": "Install OpenClaw Command",
     "installMessage": "Install the \"openclaw\" command?",
     "installDetail": "This will create ~/.local/bin/openclaw. Ensure ~/.local/bin is on your PATH if you want to run it globally."
+  },
+  "support": {
+    "title": "Support"
+  },
+  "issueReport": {
+    "actionTitle": "Export issue report",
+    "actionDescription": "Create a diagnostic ZIP on your desktop for troubleshooting and support.",
+    "open": "Choose conversations",
+    "dialogTitle": "Export issue report",
+    "dialogDescription": "Review what will be included, then choose one or more conversations. The ZIP will be saved to your desktop.",
+    "contentsTitle": "Included in the ZIP",
+    "contents": {
+      "transcripts": {
+        "title": "Conversation transcripts",
+        "description": "The complete JSONL file for every selected conversation."
+      },
+      "config": {
+        "title": "OpenClaw configuration",
+        "description": "A copy of openclaw.json with credential values removed."
+      },
+      "logs": {
+        "title": "Diagnostic logs",
+        "description": "Available ClawX and OpenClaw logs."
+      },
+      "manifest": {
+        "title": "Manifest",
+        "description": "A list of included and unavailable files."
+      }
+    },
+    "sessionsTitle": "Choose conversations",
+    "selectAll": "Select all ({{count}})",
+    "selectedCount": "{{count}} conversation(s) selected",
+    "noSessions": "No conversations are available to export.",
+
+    "export": "Create ZIP ({{count}})",
+    "exporting": "Creating ZIP...",
+    "exportSucceeded": "Issue report exported",
+    "skippedSessions": "{{count}} unavailable conversation(s) could not be included. The remaining selected conversations were exported.",
+    "exportFailed": "Failed to export issue report",
+    "completeTitle": "Issue report ready",
+    "completeDescription": "The ZIP was saved to the path below.",
+    "showInFolder": "Show in Folder",
+    "revealFailed": "Failed to show the issue report in its folder"
   },
   "about": {
     "title": "About",

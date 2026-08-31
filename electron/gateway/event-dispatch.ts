@@ -6,6 +6,7 @@ import type {
   GatewayChatMessageEvent,
   GatewayRuntimePayload,
 } from '@shared/host-events/contract';
+import type { TalkRelayEvent } from '@shared/talk/types';
 
 type GatewayEventEmitter = {
   emit: (event: string, payload: unknown) => boolean;
@@ -27,7 +28,6 @@ export function dispatchProtocolEvent(
       if (normalized) {
         emitter.emit('chat:runtime-event', normalized);
       }
-      emitter.emit('notification', { method: event, params: payload });
       break;
     }
     case 'channel.status':
@@ -44,6 +44,9 @@ export function dispatchProtocolEvent(
     case 'presence':
       emitter.emit('gateway:presence', payload as GatewayRuntimePayload);
       break;
+    case 'talk.event':
+      emitter.emit('talk:event', payload as TalkRelayEvent);
+      break;
     default:
       emitter.emit('notification', { method: event, params: payload });
   }
@@ -53,14 +56,19 @@ export function dispatchJsonRpcNotification(
   emitter: GatewayEventEmitter,
   notification: JsonRpcNotification,
 ): void {
-  emitter.emit('notification', notification);
   if (notification.method === 'agent') {
     const normalized = normalizeGatewayChatRuntimeEvent(notification.params);
     if (normalized) {
       emitter.emit('chat:runtime-event', normalized);
     }
+  } else if (notification.method === 'talk.event') {
+    emitter.emit('talk:event', notification.params as TalkRelayEvent);
+  } else {
+    emitter.emit('notification', notification);
   }
   switch (notification.method) {
+    case 'agent':
+      break;
     case GatewayEventType.CHANNEL_STATUS_CHANGED:
       emitter.emit('channel:status', notification.params as GatewayChannelStatusEvent);
       break;

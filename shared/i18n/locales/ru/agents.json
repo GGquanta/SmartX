@@ -21,8 +21,9 @@
         "inheritWorkspaceDescription": "Копировать SOUL.md, AGENTS.md и т.д. из основного агента"
     },
     "deleteDialog": {
-        "title": "Удалить агента",
-        "message": "Удалить \"{{name}}\" из ClawX? Это навсегда удалит агента и его рабочую область, среду выполнения и файлы сессий с диска."
+        "title": "Удалить агента навсегда?",
+        "message": "Навсегда удалить \"{{name}}\", его рабочую область под управлением ClawX и всю связанную историю чатов? Это действие нельзя отменить.",
+        "confirm": "Удалить навсегда"
     },
     "settingsDialog": {
         "title": "Настройки {{name}}",
@@ -37,7 +38,7 @@
         "modelIdLabel": "ID модели",
         "modelIdPlaceholder": "model-id",
         "modelPreview": "Предпросмотр",
-        "modelOverridePlaceholder": "провайдер/модель (например: openrouter/openai/gpt-5.5)",
+        "modelOverridePlaceholder": "провайдер/модель (например: openrouter/openai/gpt-5.6-sol)",
         "modelOverrideDescription": "Выберите провайдера и ID модели для этого агента.",
         "unsavedChangesTitle": "Несохранённые изменения",
         "unsavedChangesMessage": "У вас есть несохранённые изменения. Если закроете сейчас, изменения будут потеряны.",

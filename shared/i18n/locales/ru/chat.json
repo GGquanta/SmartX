@@ -12,22 +12,97 @@
     },
     "noLogs": "(Журналы ещё недоступны)",
     "scrollToLatest": "Вернуться вниз",
-    "loadMoreHistory": "Загрузить предыдущие сообщения",
-    "loadingMoreHistory": "Загрузка…",
     "toolbar": {
         "refresh": "Обновить чат",
-        "currentAgent": "Общение с {{agent}}",
+        "currentAgent": "{{agent}}",
         "workspace": "Рабочая область"
     },
     "generatedFiles": {
-        "title": "Изменения файлов ({{count}})",
-        "created": "Создано",
-        "modified": "Изменено",
-        "openFolder": "Открыть папку",
-        "viewAll": "Все изменения"
+        "openFolder": "Открыть папку"
+    },
+    "fileActivity": {
+        "created": "Создан",
+        "modified": "Изменён",
+        "deleted": "Удалён",
+        "fileButton": "{{action}}: {{path}}",
+        "changeRecord": "Показать изменения {{path}}",
+        "fileUnavailable": "Файл недоступен",
+        "outsideWorkspace": "Файл находится вне рабочей области"
+    },
+    "fileCard": {
+        "openWith": "Открыть с помощью",
+        "openWithFile": "Открыть {{name}} с помощью",
+        "openInBuiltInBrowser": "Открыть в просмотре ClawX",
+        "openInSystemBrowser": "Открыть в системном браузере",
+        "searchingApplications": "Поиск приложений",
+        "showInFinder": "Показать в Finder",
+        "showInExplorer": "Показать в Проводнике",
+        "showInFileManager": "Показать в файловом менеджере",
+        "openWithFailed": "Не удалось открыть файл в выбранном приложении",
+        "revealFailed": "Не удалось показать файл в папке"
     },
     "runError": {
         "title": "Ошибка вызова модели"
+    },
+    "acp": {
+        "thought": "Размышление",
+        "tool": "Инструмент",
+        "toolName": {
+            "updatePlan": "Обновить план",
+            "webFetch": "Прочитать веб-страницу",
+            "browser": "Управлять браузером",
+            "execCommand": "Выполнить команду",
+            "read": "Прочитать",
+            "write": "Записать",
+            "spawnSubagent": "Запустить субагента",
+            "memorySearch": "Поиск в памяти"
+        },
+        "expandTool": "Развернуть результат инструмента",
+        "collapseTool": "Свернуть результат инструмента",
+        "expandToolGroup": "Развернуть вызовы инструментов",
+        "collapseToolGroup": "Свернуть вызовы инструментов",
+        "toolGroupSummary": "Вызовов инструментов: {{count}}",
+        "permission": "Разрешение",
+        "plan": "План",
+        "running": "Выполняется",
+        "pending": "Ожидает",
+        "completed": "Завершено",
+        "sessionPlan": {
+            "progress": "{{completed}} / {{total}}",
+            "expand": "Развернуть план",
+            "collapse": "Свернуть план",
+            "tasks": "Задачи плана"
+        },
+        "failed": "Ошибка",
+        "cancelled": "Отменено",
+        "loadFailed": "Не удалось загрузить сеанс",
+        "promptFailed": "Не удалось отправить запрос",
+        "unsupportedContent": "Неподдерживаемое содержимое",
+        "dismiss": "Закрыть",
+        "image": "Изображение",
+        "copyImage": "Копировать изображение",
+        "imageCopied": "Изображение скопировано",
+        "saveImage": "Сохранить изображение как",
+        "imageSaved": "Изображение сохранено",
+        "copy": "Копировать ответ",
+        "copied": "Скопировано",
+        "turnDuration": "Заняло {{duration}}",
+        "turnElapsed": "Прошло {{duration}}",
+        "compaction": {
+            "inProgress": "Сжатие контекста",
+            "completed": "История сжата",
+            "continuing": "Контекст сжат, работа продолжается",
+            "failed": "Не удалось сжать контекст",
+            "cancelled": "Сжатие контекста отменено",
+            "reason": "Причина: {{reason}}"
+        },
+        "attachment": {
+            "loading": "Загрузка вложения",
+            "unavailable": "Вложение недоступно",
+            "open": "Открыть {{name}}",
+            "preview": "Просмотреть {{name}}",
+            "openFailed": "Не удалось открыть вложение"
+        }
     },
     "artifactPanel": {
         "tabs": {
@@ -40,20 +115,21 @@
         },
         "changes": {
             "heading": "Изменения файлов ({{count}})",
-            "empty": "В этом разговоре пока нет изменений файлов",
-            "selectFileHint": "Нажмите на карточку файла в чате или «Просмотр изменений», чтобы открыть diff."
+            "empty": "В этом сеансе пока нет изменений файлов.",
+            "selectFileHint": "Нажмите на карточку файла в чате или «Просмотр изменений», чтобы открыть diff.",
+            "changeRecord": "Изменение {{number}}",
+            "diffUnavailable": "Diff для этого изменения недоступен."
         },
         "preview": {
             "emptyTitle": "Файл не выбран",
-            "emptyHint": "Сначала откройте файл через карточку в чате — выбранный файл появится в этом предпросмотре."
+            "emptyHint": "Сначала откройте файл через карточку в чате — выбранный файл появится в этом предпросмотре.",
+            "fullscreenLabel": "Полноэкранный предпросмотр файла"
         }
     },
     "filePreview": {
         "tabs": {
             "source": "Исходник",
-            "preview": "Предпросмотр",
-            "changes": "Изменения",
-            "info": "Информация"
+            "preview": "Предпросмотр"
         },
         "actions": {
             "save": "Сохранить",
@@ -61,12 +137,11 @@
             "revert": "Откатить",
             "openInFinder": "Показать в файловом менеджере",
             "openDirectly": "Открыть напрямую",
-            "close": "Закрыть"
-        },
-        "info": {
-            "path": "Путь",
-            "size": "Размер",
-            "type": "Тип"
+            "close": "Закрыть",
+            "enterFullscreen": "Полноэкранный просмотр",
+            "exitFullscreen": "Выйти из полноэкранного режима",
+            "openHtmlExternally": "Открыть HTML в системном браузере",
+            "retry": "Повторить"
         },
         "toast": {
             "saved": "Сохранено на диск",
@@ -82,19 +157,17 @@
             "notFound": "Файл не найден",
             "loadFailed": "Ошибка загрузки: {{error}}",
             "noPreview": "Для этого файла предпросмотр недоступен",
-            "unsupportedFormatTitle": "Этот формат файла не поддерживает встроенный предпросмотр или diff",
-            "unsupportedFormatHint": "Встроенный предпросмотр и diff сейчас поддерживают только напрямую читаемые текстовые/Markdown-файлы. Откройте файл через файловый менеджер.",
+            "unsupportedFormatTitle": "Этот формат файла не поддерживает встроенный предпросмотр",
+            "unsupportedFormatHint": "Встроенный предпросмотр сейчас поддерживает только напрямую читаемые текстовые/Markdown-файлы. Откройте файл через файловый менеджер.",
             "largeBinaryOpenTitle": "Этот файл слишком большой для встроенного предпросмотра",
             "largeBinaryOpenHint": "Размер файла — {{size}}. ClawX не может показать его встроенно, но вы можете подтвердить открытие в системном приложении по умолчанию.",
             "openInFinderFailed": "Не удалось показать файл",
-            "openFailed": "Не удалось открыть: {{error}}"
+            "openFailed": "Не удалось открыть: {{error}}",
+            "htmlLoadFailed": "Не удалось загрузить предпросмотр HTML",
+            "openHtmlExternallyFailed": "Не удалось открыть HTML в системном браузере"
         },
-        "diff": {
-            "noChanges": "Нет изменений для отображения",
-            "newFile": "Новый файл — нет оригинала для сравнения",
-            "tooLarge": "Файл слишком большой — режим diff отключён, откройте вкладку «Источник» для просмотра содержимого",
-            "unavailable": "В этом чате не удалось зафиксировать точную базовую версию этого файла, поэтому diff недоступен.",
-            "unavailableHint": "Откройте вкладку «Просмотр» для текущего содержимого; точное сравнение — в Git или другой системе."
+        "html": {
+            "crashed": "Предпросмотр HTML остановлен"
         },
         "confirmOpen": {
             "title": "Открыть файл",
@@ -113,6 +186,15 @@
             "pageInputAria": "Текущая страница",
             "singlePageHint": "Используйте панель инструментов для переключения между {{total}} страницами"
         },
+        "docx": {
+            "loadFailed": "Не удалось загрузить документ Word"
+        },
+        "pptx": {
+            "loadFailed": "Не удалось загрузить презентацию",
+            "previous": "Предыдущий слайд",
+            "next": "Следующий слайд",
+            "slidePosition": "{{current}} / {{total}}"
+        },
         "sheet": {
             "loadFailed": "Не удалось загрузить таблицу: {{error}}",
             "empty": "В файле нет отображаемых листов",
@@ -125,48 +207,28 @@
     },
     "workspace": {
         "title": "Рабочая область",
+        "defaultLabel": "Рабочая область по умолчанию",
+        "header": "Agent: {{agent}} · Каталог: {{directory}}",
         "freshBadge": "Обновлено в этот раз",
         "pickFile": "Выберите файл слева для предпросмотра",
         "empty": "Рабочая область пуста или недоступна",
         "truncated": "Каталог обрезан — показаны первые 5000 узлов",
+        "unavailable": {
+            "title": "Рабочая область недоступна",
+            "description": "Папка могла быть перемещена или удалена. Выберите существующую папку, чтобы продолжить: {{path}}",
+            "boundDescription": "Рабочая область этого чата могла быть перемещена или удалена и сейчас недоступна: {{path}}",
+            "chooseAction": "Выбрать рабочую область"
+        },
         "actions": {
             "refresh": "Обновить",
-            "openRootInFinder": "Показать корень в файловом менеджере",
-            "toggleHidden": "Скрытые файлы",
-            "showHidden": "Показать скрытые файлы",
-            "hideHidden": "Скрыть скрытые файлы"
+            "openRootInFinder": "Показать корень в файловом менеджере"
         }
-    },
-    "taskPanel": {
-        "eyebrow": "Вид выполнения",
-        "title": "Структура задачи",
-        "emptyTitle": "Пока нет структурированных шагов",
-        "emptyBody": "Когда начнётся выполнение, ClawX покажет размышления, вызовы инструментов и состояния передачи здесь.",
-        "status": {
-            "idle": "Бездействует",
-            "running_one": "1 активный шаг",
-            "running_other": "{{count}} активных шагов"
-        },
-        "stepStatus": {
-            "running": "Выполняется",
-            "completed": "Готово",
-            "error": "Ошибка"
-        }
-    },
-    "executionGraph": {
-        "title": "Граф выполнения",
-        "branchLabel": "ветвь",
-        "thinkingLabel": "Думаю",
-        "errorLabel": "Ошибка модели",
-        "imageGenerateLabel": "Генерация изображения",
-        "agentRun": "Выполнение {{agent}}",
-        "collapsedSummary": "Вызовов инструментов: {{toolCount}} · Промежуточных сообщений: {{processCount}}",
-        "collapseAction": "Свернуть граф выполнения"
     },
     "imageGeneration": {
         "generating": "Изображение генерируется, подождите…",
-        "previewLoading": "Загрузка предпросмотра изображения…",
-        "previewUnavailable": "Предпросмотр изображения временно недоступен"
+        "previewUnavailable": "Создание изображения завершено, но предпросмотр загрузить не удалось.",
+        "generatedReady": "Сгенерированное изображение готово.",
+        "generatedReadyWithMissing": "Сгенерированное изображение готово, но некоторые изображения не удалось загрузить."
     },
     "composer": {
         "attachFiles": "Прикрепить файлы",
@@ -186,13 +248,77 @@
         "gatewayDisconnectedPlaceholder": "Шлюз не подключён...",
         "send": "Отправить",
         "stop": "Остановить",
+        "thinking": "Думаю…",
         "gatewayConnected": "подключён",
-        "gatewayStatus": "шлюз {{state}} | порт: {{port}} {{pid}}",
+        "gatewayStarting": "запуск",
+        "gatewayStatus": "шлюз {{state}}",
         "retryFailedAttachments": "Повторить неудавшиеся вложения",
+        "workspacePrefix": "{{workspace}}",
+        "workspacePickerTitle": "Выберите папку рабочей области",
+        "workspacePickerButton": "Использовать рабочую область",
+        "workspacePickerFailed": "Не удалось открыть выбор рабочей области",
+        "defaultWorkspaceOption": "Рабочая область по умолчанию",
+        "chooseOtherWorkspaceOption": "Выбрать другой каталог…",
         "folderDropUnsupported": "Не удалось прикрепить эту папку. Перетащите её снова или вставьте путь к папке в сообщение.",
         "folderAttachment": "Папка",
         "skillPreviewTooltip": "Предпросмотр SKILL.md",
-        "skillPreviewNotFound": "Skill не найден. Откройте список Skill, чтобы обновить его."
+        "skillPreviewNotFound": "Skill не найден. Откройте список Skill, чтобы обновить его.",
+        "contextUsage": "Использовано контекста: {{percentage}} ({{used}} / {{total}} токенов)"
+    },
+    "talk": {
+        "start": "Начать Talk",
+        "stop": "Остановить Talk",
+        "inputLevel": "Уровень входного сигнала микрофона",
+        "status": {
+            "idle": "Talk готов",
+            "connecting": "Подключение Talk",
+            "listening": "Слушаю",
+            "thinking": "Думаю",
+            "speaking": "Говорю",
+            "disconnected": "Talk отключён",
+            "error": "Ошибка Talk"
+        },
+        "unavailable": {
+            "gateway": "Для Talk требуется подключённый шлюз",
+            "sending": "Talk недоступен во время отправки сообщения",
+            "session": "Создайте новый чат перед запуском Talk",
+            "configuration": "Talk недоступен: {{reason}}",
+            "loading": "Проверка доступности Talk",
+            "default": "Talk недоступен"
+        },
+        "consultRefresh": {
+            "failed": "Не удалось обновить ответ консультации.",
+            "retry": "Повторить обновление",
+            "retrying": "Повторное обновление..."
+        },
+        "transcript": {
+            "label": "Расшифровка Talk в реальном времени",
+            "microphone": "Микрофон",
+            "voiceInput": "Голосовой ввод",
+            "voiceResponse": "Голосовой ответ"
+        }
+    },
+    "sessionList": {
+        "title": "Список сессий",
+        "collapseAll": "Свернуть все",
+        "expandAll": "Развернуть все",
+        "loadMore": "Загрузить еще",
+        "aiReplying": "ИИ отвечает",
+        "unreadReply": "Непрочитанный ответ",
+        "subagent": "Субагент",
+        "loadMoreForWorkspace": "Загрузить еще {{count}} сессий в {{workspace}}",
+        "workspaceToggle": "Переключить рабочую область {{workspace}}",
+        "renameWorkspace": "Переименовать рабочую область {{workspace}}",
+        "workspaceUnavailableBadge": "Недоступна",
+        "deleteWorkspace": "Удалить недоступную рабочую область {{workspace}}",
+        "deleteWorkspaceTitle": "Удалить недоступную рабочую область?",
+        "deleteWorkspaceConfirm": "Навсегда удалить «{{workspace}}» и все сессии ({{count}}) в ней? Это действие нельзя отменить.",
+        "deleteWorkspaceConfirmAction": "Удалить область и сессии",
+        "deleteWorkspacePartialFailure": "Не удалось удалить сессии: {{count}}. Они остались в рабочей области.",
+        "deleteWorkspaceCleanupFailed": "Сессии удалены, но не удалось очистить сохранённую запись рабочей области.",
+        "workspaceName": "Название рабочей области",
+        "saveWorkspaceRename": "Сохранить название рабочей области",
+        "cancelWorkspaceRename": "Отменить переименование рабочей области"
     },
     "historyBuckets": {
         "today": "Сегодня",

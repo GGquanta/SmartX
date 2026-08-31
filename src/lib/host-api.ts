@@ -1,10 +1,12 @@
 import type {
   AgentCreatePayload,
   AgentUpdatePayload,
+  AcpTraceRecordPayload,
+  AttachmentFileRef,
+  AttachmentSourceRef,
   ChannelAccountsPayload,
   ChannelSaveConfigPayload,
   ChannelTargetsPayload,
-  ChatSendWithMediaPayload,
   ClawHubSearchPayload,
   CronSessionHistoryPayload,
   DialogMessagePayload,
@@ -12,14 +14,20 @@ import type {
   FilePreviewTreeOptions,
   FileReadBinaryOptions,
   ImageGenerationSettingsPayload,
+  IssueReportExportPayload,
   MediaThumbnailEntry,
+  OpenClawCompactionReserveResult,
   OpenClawDoctorMode,
   OpenClawDoctorResult,
+  OpenAttachmentWithPayload,
+  OpenWorkspaceWithPayload,
   ProviderAccount,
   ProviderConfig,
   ProviderOAuthRequestPayload,
   ProviderUpdateWithKeyPayload,
   ProviderValidationPayload,
+  ReadAttachmentBinaryPayload,
+  ResolveAttachmentPayload,
   SaveImagePayload,
   SettingsKey,
   SettingsSnapshot,
@@ -30,11 +38,36 @@ import type {
   SkillUpdateConfigPayload,
   SkillUpdatePayload,
   UpdateChannel,
+  WorkspaceContextInput,
+  WorkspaceFileRef,
 } from '@shared/host-api/contract';
+import type { WebBrowserNavigatePayload } from '@shared/web-browser';
+import type {
+  AcpChatCancelPayload,
+  AcpChatLoadPayload,
+  AcpChatPromptPayload,
+  AcpChatRespondPermissionPayload,
+} from '@shared/acp-chat/types';
 import type { CronJobCreateInput, CronJobUpdateInput } from '@shared/types/cron';
+import type {
+  TalkAcknowledgeMarkPayload,
+  TalkAppendAudioPayload,
+  TalkRelayIdPayload,
+  TalkRealtimeSettingsPayload,
+  TalkStartAgentConsultPayload,
+  TalkStartRelayPayload,
+  TalkSubmitToolResultPayload,
+} from '@shared/talk/types';
 import { invokeHost } from './host-api-client';
 
 export type {
+  AttachmentAccessError,
+  AttachmentFileRef,
+  AttachmentOpenHandler,
+  AttachmentOpenHandlersResult,
+  AttachmentRemoteRef,
+  AttachmentReadError,
+  AttachmentSourceRef,
   ChannelAccountsResult,
   ChannelCredentialValidationResult,
   ChannelFormValuesResult,
@@ -42,7 +75,6 @@ export type {
   ChannelSaveConfigResult,
   ChannelTargetOption,
   ChannelTargetsResult,
-  ChatSendWithMediaResult,
   ClawHubInstalledSkill,
   ClawHubListResult,
   ClawHubSearchResult,
@@ -50,18 +82,28 @@ export type {
   DeliveryChannelAccount,
   DeliveryChannelGroup,
   DeliveryTargetsResult,
+  DiagnosticsGatewaySnapshotGateway,
+  DiagnosticsGatewaySnapshotResult,
   GatewayHealthSummary,
+  GatewayRecoverySnapshot,
+  GatewayRecoveryState,
   ImageGenerationProvidersResult,
   ImageGenerationSettingsResult,
+  IssueReportExportResult,
   LocalSkillsResult,
   LogContentResult,
   LogDirResult,
   OpenClawCliCommandResult,
+  OpenClawCompactionReserveResult,
   OpenClawDoctorResult,
   OpenClawStatusResult,
+  OpenAttachmentResult,
   ProviderAccountKeyInfo,
   ProviderDefaultAccountResult,
   ProviderValidationResult,
+  ReadAttachmentBinaryResult,
+  ReadAttachmentTextResult,
+  ResolveAttachmentResult,
   SessionHistoryResult,
   SessionLabelSummary,
   SessionSummariesResult,
@@ -71,7 +113,19 @@ export type {
   SkillsStatusResult,
   StagedFileResult,
   UsageHistoryEntry,
+  WorkspaceContextInput,
+  WorkspaceFileRef,
+  WorkspaceNativeFileError,
+  WorkspaceNativeFileResult,
+  WorkspaceOpenHandlersResult,
 } from '@shared/host-api/contract';
+export type {
+  TalkAgentConsultResult,
+  TalkCatalog,
+  TalkOperationResult,
+  TalkRelayEvent,
+  TalkRelaySession,
+} from '@shared/talk/types';
 
 export const hostApi = {
   app: {
@@ -82,13 +136,23 @@ export const hostApi = {
   },
   openclaw: {
     status: () => invokeHost('openclaw', 'status'),
+    getConfigPath: () => invokeHost('openclaw', 'getConfigPath'),
     getSkillsDir: () => invokeHost('openclaw', 'getSkillsDir'),
     getCliCommand: () => invokeHost('openclaw', 'getCliCommand'),
+    getCompactionReserve: () => (
+      invokeHost('openclaw', 'getCompactionReserve') as Promise<OpenClawCompactionReserveResult>
+    ),
   },
   shell: {
     openExternal: (url: string) => invokeHost('shell', 'openExternal', { url } satisfies ShellOpenExternalPayload),
     showItemInFolder: (path: string) => invokeHost('shell', 'showItemInFolder', { path } satisfies ShellPathPayload),
     openPath: (path: string) => invokeHost('shell', 'openPath', { path } satisfies ShellPathPayload),
+  },
+  webBrowser: {
+    navigate: (url: string) => invokeHost('webBrowser', 'navigate', { url } satisfies WebBrowserNavigatePayload),
+    openExternal: (url: string) => (
+      invokeHost('webBrowser', 'openExternal', { url } satisfies WebBrowserNavigatePayload)
+    ),
   },
   dialog: {
     open: (input: DialogOpenPayload) => invokeHost('dialog', 'open', input),
@@ -131,10 +195,23 @@ export const hostApi = {
     stop: () => invokeHost('gateway', 'stop'),
     restart: () => invokeHost('gateway', 'restart'),
     health: (probe = false) => invokeHost('gateway', 'health', { probe }),
-    controlUi: (view?: 'dreams') => invokeHost('gateway', 'controlUi', { view }),
+    controlUi: () => invokeHost('gateway', 'controlUi'),
     rpc: <T = unknown>(method: string, params?: unknown, timeoutMs?: number) => (
       invokeHost('gateway', 'rpc', { method, params, timeoutMs }) as Promise<T>
     ),
+  },
+  talk: {
+    catalog: () => invokeHost('talk', 'catalog'),
+    updateRealtimeSettings: (input: TalkRealtimeSettingsPayload) => (
+      invokeHost('talk', 'updateRealtimeSettings', input)
+    ),
+    startRelay: (input: TalkStartRelayPayload) => invokeHost('talk', 'startRelay', input),
+    appendAudio: (input: TalkAppendAudioPayload) => invokeHost('talk', 'appendAudio', input),
+    cancelOutput: (input: TalkRelayIdPayload) => invokeHost('talk', 'cancelOutput', input),
+    submitToolResult: (input: TalkSubmitToolResultPayload) => invokeHost('talk', 'submitToolResult', input),
+    acknowledgeMark: (input: TalkAcknowledgeMarkPayload) => invokeHost('talk', 'acknowledgeMark', input),
+    stopRelay: (input: TalkRelayIdPayload) => invokeHost('talk', 'stopRelay', input),
+    startAgentConsult: (input: TalkStartAgentConsultPayload) => invokeHost('talk', 'startAgentConsult', input),
   },
   logs: {
     recent: (tailLines = 100) => invokeHost('logs', 'recent', { tailLines }),
@@ -197,6 +274,11 @@ export const hostApi = {
   },
   diagnostics: {
     gatewaySnapshot: () => invokeHost('diagnostics', 'gatewaySnapshot'),
+    acpTrace: () => invokeHost('diagnostics', 'acpTrace'),
+    recordAcpTrace: (input: AcpTraceRecordPayload) => invokeHost('diagnostics', 'recordAcpTrace', input),
+    exportIssueReport: (input: IssueReportExportPayload) => (
+      invokeHost('diagnostics', 'exportIssueReport', input)
+    ),
   },
   providers: {
     list: () => invokeHost('providers', 'list'),
@@ -270,6 +352,34 @@ export const hostApi = {
     listTree: (path: string, opts?: FilePreviewTreeOptions) => (
       invokeHost('files', 'listTree', { path, opts })
     ),
+    resolveWorkspaceContext: (input: WorkspaceContextInput) => (
+      invokeHost('files', 'resolveWorkspaceContext', input)
+    ),
+    readWorkspaceText: (ref: WorkspaceFileRef) => invokeHost('files', 'readWorkspaceText', ref),
+    readWorkspaceBinary: (input: WorkspaceFileRef & { maxBytes?: number }) => (
+      invokeHost('files', 'readWorkspaceBinary', input)
+    ),
+    statWorkspaceFile: (ref: WorkspaceFileRef) => invokeHost('files', 'statWorkspaceFile', ref),
+    listWorkspaceOpenHandlers: (ref: WorkspaceFileRef) => (
+      invokeHost('files', 'listWorkspaceOpenHandlers', ref)
+    ),
+    openWorkspaceWith: (input: OpenWorkspaceWithPayload) => (
+      invokeHost('files', 'openWorkspaceWith', input)
+    ),
+    revealWorkspaceFile: (ref: WorkspaceFileRef) => invokeHost('files', 'revealWorkspaceFile', ref),
+    resolveAttachment: (input: ResolveAttachmentPayload) => invokeHost('files', 'resolveAttachment', input),
+    readAttachmentText: (ref: AttachmentFileRef) => invokeHost('files', 'readAttachmentText', ref),
+    readAttachmentBinary: (input: ReadAttachmentBinaryPayload) => (
+      invokeHost('files', 'readAttachmentBinary', input)
+    ),
+    openAttachment: (ref: AttachmentSourceRef) => invokeHost('files', 'openAttachment', ref),
+    listAttachmentOpenHandlers: (ref: AttachmentFileRef) => (
+      invokeHost('files', 'listAttachmentOpenHandlers', ref)
+    ),
+    openAttachmentWith: (input: OpenAttachmentWithPayload) => (
+      invokeHost('files', 'openAttachmentWith', input)
+    ),
+    revealAttachment: (ref: AttachmentFileRef) => invokeHost('files', 'revealAttachment', ref),
   },
   media: {
     thumbnails: (input: { paths: MediaThumbnailEntry[] }) => invokeHost('media', 'thumbnails', input),
@@ -292,9 +402,17 @@ export const hostApi = {
     history: (input: { sessionKey?: string; agentId?: string; sessionId?: string; limit?: number }) => (
       invokeHost('sessions', 'history', input)
     ),
+    turnTimings: (input: { sessionKey: string; limit?: number }) => (
+      invokeHost('sessions', 'turnTimings', input)
+    ),
   },
   chat: {
-    sendWithMedia: (input: ChatSendWithMediaPayload) => invokeHost('chat', 'sendWithMedia', input),
+    loadAcpSession: (input: AcpChatLoadPayload) => invokeHost('chat', 'loadAcpSession', input),
+    sendAcpPrompt: (input: AcpChatPromptPayload) => invokeHost('chat', 'sendAcpPrompt', input),
+    cancelAcpSession: (input: AcpChatCancelPayload) => invokeHost('chat', 'cancelAcpSession', input),
+    respondAcpPermission: (input: AcpChatRespondPermissionPayload) => (
+      invokeHost('chat', 'respondAcpPermission', input)
+    ),
   },
   cron: {
     list: () => invokeHost('cron', 'list'),

@@ -1,8 +1,29 @@
+import type {
+  AcpChatCancelPayload,
+  AcpChatLoadPayload,
+  AcpChatOperationResult,
+  AcpChatPromptPayload,
+  AcpChatRespondPermissionPayload,
+} from '../acp-chat/types';
 import type { RawMessage } from '../chat/types';
 import type { AgentsSnapshot } from '../types/agent';
 import type { CronJob, CronJobCreateInput, CronJobUpdateInput } from '../types/cron';
 import type { GatewayHealth, GatewayStatus } from '../types/gateway';
 import type { MarketplaceSkill, QuickAccessSkill, Skill } from '../types/skill';
+import type { WebBrowserNavigatePayload } from '../web-browser';
+import type {
+  TalkAcknowledgeMarkPayload,
+  TalkAgentConsultResult,
+  TalkAppendAudioPayload,
+  TalkCatalog,
+  TalkOperationResult,
+  TalkRelayIdPayload,
+  TalkRelaySession,
+  TalkRealtimeSettingsPayload,
+  TalkStartAgentConsultPayload,
+  TalkStartRelayPayload,
+  TalkSubmitToolResultPayload,
+} from '../talk/types';
 
 export type JsonRecord = Record<string, unknown>;
 export type HostSuccess = { success: boolean; error?: string };
@@ -29,6 +50,9 @@ export type OpenClawStatusResult = {
   version?: string;
 };
 export type OpenClawCliCommandResult = HostSuccess & { command?: string };
+export type OpenClawCompactionReserveResult = {
+  reserveTokensFloor?: number;
+};
 
 export type ShellPathPayload = { path: string };
 export type ShellOpenExternalPayload = { url: string };
@@ -116,6 +140,9 @@ export type SettingsSnapshot = Partial<{
   sidebarWidth: number;
   devModeUnlocked: boolean;
   setupComplete: boolean;
+  chatWorkspacePath: string;
+  recentWorkspacePaths: string[];
+  workspaceLabels: Record<string, string>;
 }>;
 export type SettingsKey = keyof SettingsSnapshot & string;
 export type SettingsValue = SettingsSnapshot[SettingsKey];
@@ -124,7 +151,6 @@ export type SettingsSetPayload = { key: SettingsKey; value: SettingsValue };
 export type SettingsSetManyPayload = { patch: Partial<SettingsSnapshot> };
 export type SettingsResetResult = HostSuccess & { settings: SettingsSnapshot };
 
-export type GatewayControlUiPayload = { view?: 'dreams' };
 export type GatewayControlUiResult = HostSuccess & {
   url?: string;
   token?: string;
@@ -161,6 +187,24 @@ export type GatewayHealthSummary = {
   lastRpcFailureMethod?: string;
   lastChannelsStatusOkAt?: number;
   lastChannelsStatusFailureAt?: number;
+  recovery?: GatewayRecoverySnapshot;
+};
+
+export type GatewayRecoveryState =
+  | 'healthy'
+  | 'verifying'
+  | 'restart-pending'
+  | 'restart-executing'
+  | 'external-unavailable';
+export type GatewayRecoverySnapshot = {
+  state: GatewayRecoveryState;
+  lastAliveAt?: number;
+  deadlineAt?: number;
+  lastDeadlineProbeAt?: number;
+  lastDeadlineProbeResult?: 'succeeded' | 'failed';
+  lastDeadlineProbeError?: string;
+  escalationReason?: string;
+  externallyManaged: boolean;
 };
 
 export type ChannelRuntimeStatus = 'connected' | 'connecting' | 'degraded' | 'disconnected' | 'error';
@@ -233,18 +277,65 @@ export type ChannelSaveConfigPayload = ChannelTypePayload & {
 };
 export type ChannelSaveConfigResult = HostSuccess & {
   noChange?: boolean;
+  /** Configuration is committed; a guarded Gateway restart is continuing asynchronously. */
+  activationPending?: boolean;
   warning?: string;
 };
 export type ChannelConfiguredResult = HostSuccess & { channels?: Array<string | JsonRecord> };
 
 export type AgentSnapshotResult = AgentsSnapshot & OptionalHostSuccess;
+export type AgentDeleteResult = AgentSnapshotResult & {
+  /** Resolved path, present only when Main successfully removed a ClawX-managed workspace directory. */
+  removedWorkspacePath?: string;
+};
 export type AgentCreatePayload = { name: string; inheritWorkspace?: boolean };
 export type AgentUpdatePayload = { id: string; name: string };
 export type AgentUpdateModelPayload = { id: string; modelRef: string | null };
 export type AgentIdPayload = { id: string };
 export type AgentChannelPayload = { id: string; channelType: string };
 
-export type DiagnosticsGatewaySnapshotResult = JsonRecord;
+export type AcpTraceSource = 'main' | 'renderer';
+export type AcpTraceEntry = {
+  seq: number;
+  timestamp: string;
+  source: AcpTraceSource;
+  event: string;
+  direction?: string;
+  sessionKey?: string;
+  generation?: number;
+  details?: unknown;
+};
+export type AcpTraceRecordPayload = {
+  event: string;
+  direction?: string;
+  sessionKey?: string;
+  generation?: number;
+  details?: unknown;
+};
+export type AcpTraceSnapshot = {
+  capturedAt: number;
+  maxSize: number;
+  size: number;
+  entries: AcpTraceEntry[];
+};
+export type DiagnosticsGatewaySnapshotGateway = Omit<GatewayStatus, 'state'>
+  & GatewayHealthSummary
+  & { capabilities?: unknown };
+export type DiagnosticsGatewaySnapshotResult = {
+  capturedAt: number;
+  platform: string;
+  gateway: DiagnosticsGatewaySnapshotGateway;
+  channels: ChannelGroupItem[];
+  clawxLogTail: string;
+  gatewayLogTail: string;
+  gatewayErrLogTail: string;
+};
+export type IssueReportExportPayload = { sessionKeys: string[] };
+export type IssueReportExportResult = HostSuccess & {
+  path?: string;
+  includedFiles?: string[];
+  skippedSessionKeys?: string[];
+};
 
 export type ProviderType =
   | 'anthropic'
@@ -258,6 +349,8 @@ export type ProviderType =
   | 'deepseek'
   | 'minimax-portal'
   | 'minimax-portal-cn'
+  | 'zai'
+  | 'zai-global'
   | 'modelstudio'
   | 'ollama'
   | 'custom';
@@ -351,6 +444,7 @@ export type ProviderDefaultAccountResult = { accountId: string | null };
 export type ProviderValidationOptions = {
   baseUrl?: string;
   apiProtocol?: string;
+  modelId?: string;
 };
 export type ProviderValidationPayload = {
   accountId?: string;
@@ -395,7 +489,106 @@ export type StagedFileResult = {
 export type StagePathsPayload = { filePaths: string[] };
 export type StageBufferPayload = { base64: string; fileName: string; mimeType?: string };
 export type FilePathPayload = { path: string };
+export type WorkspaceFileRef = {
+  workspaceRoot: string;
+  relativePath: string;
+};
+export type WorkspaceContextInput = {
+  workspaceRoot: string;
+  executionCwd: string;
+};
 export type FileReadBinaryOptions = { maxBytes?: number };
+export type AttachmentSourceRef = {
+  sessionKey: string;
+  generation: number;
+  uri: string;
+  stagingId?: string;
+  transcriptMessageId?: string;
+};
+export type AttachmentFileRef = AttachmentSourceRef;
+export type AttachmentRemoteRef = AttachmentSourceRef;
+export type AttachmentAccessError =
+  | 'invalidReference'
+  | 'staleSession'
+  | 'unavailable'
+  | 'notFile'
+  | 'unsafeUrl'
+  | 'operationFailed';
+export type AttachmentReadError = AttachmentAccessError | 'tooLarge' | 'binary';
+export type ResolveAttachmentPayload = {
+  ref: AttachmentSourceRef;
+  name?: string;
+  mimeType?: string;
+  size?: number;
+};
+export type ResolveAttachmentResult =
+  | {
+      ok: true;
+      identity: string;
+      displayName: string;
+      displayPath?: string;
+      mimeType: string;
+      size: number;
+      target:
+        | {
+            kind: 'local';
+            scope: 'workspace' | 'openclaw-media' | 'staging';
+            entryKind: 'file' | 'directory';
+            ref: AttachmentFileRef;
+          }
+        | { kind: 'remote'; ref: AttachmentRemoteRef; url: string };
+    }
+  | { ok: false; displayName: string; error: AttachmentAccessError };
+export type ReadAttachmentTextResult =
+  | { ok: true; content: string; mimeType: string; size: number; readOnly: true }
+  | { ok: false; error: AttachmentReadError; size?: number };
+export type ReadAttachmentBinaryPayload = { ref: AttachmentFileRef; maxBytes?: number };
+export type ReadAttachmentBinaryResult =
+  | { ok: true; data: Uint8Array; mimeType: string; size: number; readOnly: true }
+  | { ok: false; error: AttachmentReadError; size?: number };
+export type OpenAttachmentResult =
+  | { ok: true }
+  | { ok: false; error: AttachmentAccessError };
+export type AttachmentOpenHandler = {
+  handlerId: string;
+  name: string;
+  iconDataUrl?: string;
+  isDefault: boolean;
+};
+export type AttachmentOpenHandlersResult =
+  | {
+      ok: true;
+      platform: 'darwin' | 'win32' | 'linux';
+      handlers: AttachmentOpenHandler[];
+    }
+  | {
+      ok: false;
+      error: AttachmentAccessError | 'unsupportedPlatform' | 'operationFailed';
+    };
+export type OpenAttachmentWithPayload = {
+  ref: AttachmentFileRef;
+  handlerId: string;
+};
+export type WorkspaceNativeFileError =
+  | 'outsideSandbox'
+  | 'notFound'
+  | 'notFile'
+  | 'unsupportedPlatform'
+  | 'operationFailed';
+export type WorkspaceOpenHandlersResult =
+  | {
+      ok: true;
+      platform: 'darwin' | 'win32' | 'linux';
+      handlers: AttachmentOpenHandler[];
+    }
+  | { ok: false; error: WorkspaceNativeFileError };
+export type OpenWorkspaceWithPayload = {
+  ref: WorkspaceFileRef;
+  handlerId: string;
+};
+export type WorkspaceNativeFileResult =
+  | { ok: true }
+  | { ok: false; error: WorkspaceNativeFileError };
 export type FilePreviewTreeOptions = {
   maxDepth?: number;
   maxNodes?: number;
@@ -412,6 +605,7 @@ export type FilePreviewError =
   | 'notFound'
   | 'notDirectory'
   | 'invalidContent'
+  | 'operationFailed'
   | (string & {});
 export type ReadTextFileResult = {
   ok: boolean;
@@ -472,6 +666,8 @@ export type FileListTreeResult = {
 export type MediaThumbnailEntry = {
   filePath?: string;
   gatewayUrl?: string;
+  attachmentFileRef?: AttachmentFileRef;
+  key?: string;
   mimeType?: string;
 };
 export type MediaThumbnailsPayload = { paths: MediaThumbnailEntry[] };
@@ -555,29 +751,28 @@ export type SessionHistoryPayload = {
 export type SessionHistoryResult = OptionalHostSuccess & {
   messages?: RawMessage[];
 };
+export type SessionTurnTimingsPayload = { sessionKey: string; limit?: number };
+export type SessionTurnTimingCandidate = {
+  normalizedUserText: string;
+  userOccurrenceFromTail: number;
+  durationMs: number;
+};
+export type SessionTurnTimingsResult = OptionalHostSuccess & {
+  timings?: SessionTurnTimingCandidate[];
+};
 export type SessionSummariesPayload = { sessionKeys?: string[]; limit?: number };
 export type SessionLabelSummary = {
   sessionKey: string;
   firstUserText: string | null;
   lastTimestamp: number | null;
+  workspacePath: string | null;
+  heartbeatOnly?: boolean;
 };
 export type SessionSummariesResult = HostSuccess & {
   summaries?: SessionLabelSummary[];
 };
 export type SessionDeletePayload = { id: string };
 export type SessionRenamePayload = { id: string; title: string };
-
-export type ChatMediaItem = { filePath: string; mimeType?: string; fileName?: string };
-export type ChatSendWithMediaPayload = {
-  sessionKey: string;
-  message?: string;
-  deliver?: boolean;
-  idempotencyKey: string;
-  media?: ChatMediaItem[];
-};
-export type ChatSendWithMediaResult = HostSuccess & {
-  result?: { runId?: string };
-};
 
 export type CronUpdatePayload = { id: string; input: CronJobUpdateInput };
 export type CronIdPayload = { id: string };
@@ -673,13 +868,19 @@ export type HostApiContract = {
   };
   openclaw: {
     status: () => OpenClawStatusResult;
+    getConfigPath: () => string;
     getSkillsDir: () => string;
     getCliCommand: () => OpenClawCliCommandResult;
+    getCompactionReserve: () => OpenClawCompactionReserveResult;
   };
   shell: {
     openExternal: (payload: ShellOpenExternalPayload) => void;
     showItemInFolder: (payload: ShellPathPayload) => void;
     openPath: (payload: ShellPathPayload) => string;
+  };
+  webBrowser: {
+    navigate: (payload: WebBrowserNavigatePayload) => void;
+    openExternal: (payload: WebBrowserNavigatePayload) => void;
   };
   dialog: {
     open: (payload: DialogOpenPayload) => DialogOpenResult;
@@ -718,8 +919,19 @@ export type HostApiContract = {
     stop: () => HostSuccess;
     restart: () => HostSuccess;
     health: (payload?: GatewayHealthPayload) => GatewayHealth;
-    controlUi: (payload?: GatewayControlUiPayload) => GatewayControlUiResult;
+    controlUi: () => GatewayControlUiResult;
     rpc: (payload: GatewayRpcPayload) => unknown;
+  };
+  talk: {
+    catalog: () => TalkCatalog;
+    updateRealtimeSettings: (payload: TalkRealtimeSettingsPayload) => TalkOperationResult;
+    startRelay: (payload: TalkStartRelayPayload) => TalkRelaySession;
+    appendAudio: (payload: TalkAppendAudioPayload) => TalkOperationResult;
+    cancelOutput: (payload: TalkRelayIdPayload) => TalkOperationResult;
+    submitToolResult: (payload: TalkSubmitToolResultPayload) => TalkOperationResult;
+    acknowledgeMark: (payload: TalkAcknowledgeMarkPayload) => TalkOperationResult;
+    stopRelay: (payload: TalkRelayIdPayload) => TalkOperationResult;
+    startAgentConsult: (payload: TalkStartAgentConsultPayload) => TalkAgentConsultResult;
   };
   logs: {
     recent: (payload?: LogRecentPayload) => LogContentResult;
@@ -750,12 +962,15 @@ export type HostApiContract = {
     create: (payload: AgentCreatePayload) => AgentSnapshotResult;
     update: (payload: AgentUpdatePayload) => AgentSnapshotResult;
     updateModel: (payload: AgentUpdateModelPayload) => AgentSnapshotResult;
-    delete: (payload: AgentIdPayload) => AgentSnapshotResult;
+    delete: (payload: AgentIdPayload) => AgentDeleteResult;
     assignChannel: (payload: AgentChannelPayload) => AgentSnapshotResult;
     removeChannel: (payload: AgentChannelPayload) => AgentSnapshotResult;
   };
   diagnostics: {
     gatewaySnapshot: () => DiagnosticsGatewaySnapshotResult;
+    acpTrace: () => AcpTraceSnapshot;
+    recordAcpTrace: (payload: AcpTraceRecordPayload) => HostSuccess;
+    exportIssueReport: (payload: IssueReportExportPayload) => IssueReportExportResult;
   };
   providers: {
     list: () => ProviderWithKeyInfo[];
@@ -795,6 +1010,25 @@ export type HostApiContract = {
     stat: (payload: FilePathPayload) => StatFileResult;
     listDir: (payload: FilePathPayload) => FileListDirResult;
     listTree: (payload: FileListTreePayload) => FileListTreeResult;
+    resolveWorkspaceContext: (input: WorkspaceContextInput) => Promise<{
+      ok: boolean;
+      workspaceRoot?: string;
+      executionCwd?: string;
+      error?: FilePreviewError;
+    }>;
+    readWorkspaceText: (ref: WorkspaceFileRef) => Promise<ReadTextFileResult>;
+    readWorkspaceBinary: (input: WorkspaceFileRef & { maxBytes?: number }) => Promise<ReadBinaryFileResult>;
+    statWorkspaceFile: (ref: WorkspaceFileRef) => Promise<StatFileResult>;
+    listWorkspaceOpenHandlers: (ref: WorkspaceFileRef) => Promise<WorkspaceOpenHandlersResult>;
+    openWorkspaceWith: (payload: OpenWorkspaceWithPayload) => Promise<WorkspaceNativeFileResult>;
+    revealWorkspaceFile: (ref: WorkspaceFileRef) => Promise<WorkspaceNativeFileResult>;
+    resolveAttachment: (payload: ResolveAttachmentPayload) => ResolveAttachmentResult;
+    readAttachmentText: (ref: AttachmentFileRef) => ReadAttachmentTextResult;
+    readAttachmentBinary: (payload: ReadAttachmentBinaryPayload) => ReadAttachmentBinaryResult;
+    openAttachment: (ref: AttachmentSourceRef) => OpenAttachmentResult;
+    listAttachmentOpenHandlers: (ref: AttachmentFileRef) => Promise<AttachmentOpenHandlersResult>;
+    openAttachmentWith: (payload: OpenAttachmentWithPayload) => Promise<OpenAttachmentResult>;
+    revealAttachment: (ref: AttachmentFileRef) => Promise<OpenAttachmentResult>;
   };
   media: {
     thumbnails: (payload: MediaThumbnailsPayload) => MediaThumbnailResult;
@@ -809,9 +1043,13 @@ export type HostApiContract = {
     rename: (payload: SessionRenamePayload) => HostSuccess;
     summaries: (payload?: SessionSummariesPayload) => SessionSummariesResult;
     history: (payload: SessionHistoryPayload) => SessionHistoryResult;
+    turnTimings: (payload: SessionTurnTimingsPayload) => SessionTurnTimingsResult;
   };
   chat: {
-    sendWithMedia: (payload: ChatSendWithMediaPayload) => ChatSendWithMediaResult;
+    loadAcpSession: (payload: AcpChatLoadPayload) => AcpChatOperationResult;
+    sendAcpPrompt: (payload: AcpChatPromptPayload) => AcpChatOperationResult;
+    cancelAcpSession: (payload: AcpChatCancelPayload) => AcpChatOperationResult;
+    respondAcpPermission: (payload: AcpChatRespondPermissionPayload) => AcpChatOperationResult;
   };
   cron: {
     list: () => CronJob[];

@@ -12,22 +12,97 @@
     },
     "noLogs": "（ログはまだありません）",
     "scrollToLatest": "最下部に戻る",
-    "loadMoreHistory": "以前のメッセージを読み込む",
-    "loadingMoreHistory": "読み込み中…",
     "toolbar": {
         "refresh": "チャットを更新",
-        "currentAgent": "現在の会話相手: {{agent}}",
+        "currentAgent": "{{agent}}",
         "workspace": "ワークスペース"
     },
     "generatedFiles": {
-        "title": "ファイルの変更（{{count}} 件）",
-        "created": "新規",
-        "modified": "更新",
-        "openFolder": "フォルダーを開く",
-        "viewAll": "ファイル変更を見る"
+        "openFolder": "フォルダーを開く"
+    },
+    "fileActivity": {
+        "created": "作成済み",
+        "modified": "変更済み",
+        "deleted": "削除済み",
+        "fileButton": "{{action}} {{path}}",
+        "changeRecord": "{{path}} の変更を表示",
+        "fileUnavailable": "ファイルを利用できません",
+        "outsideWorkspace": "ファイルはワークスペース外にあります"
+    },
+    "fileCard": {
+        "openWith": "アプリで開く",
+        "openWithFile": "{{name}} をアプリで開く",
+        "openInBuiltInBrowser": "ClawX プレビューで開く",
+        "openInSystemBrowser": "システムブラウザで開く",
+        "searchingApplications": "アプリを検索中",
+        "showInFinder": "Finder に表示",
+        "showInExplorer": "エクスプローラーに表示",
+        "showInFileManager": "ファイルマネージャーに表示",
+        "openWithFailed": "選択したアプリでファイルを開けませんでした",
+        "revealFailed": "ファイルをフォルダーに表示できませんでした"
     },
     "runError": {
         "title": "モデル呼び出しに失敗しました"
+    },
+    "acp": {
+        "thought": "思考",
+        "tool": "ツール",
+        "toolName": {
+            "updatePlan": "計画を更新",
+            "webFetch": "Webページを読む",
+            "browser": "ブラウザーを操作",
+            "execCommand": "コマンドを実行",
+            "read": "読み取り",
+            "write": "書き込み",
+            "spawnSubagent": "サブエージェントを起動",
+            "memorySearch": "メモリを検索"
+        },
+        "expandTool": "ツール結果を展開",
+        "collapseTool": "ツール結果を折りたたむ",
+        "expandToolGroup": "ツール呼び出しを展開",
+        "collapseToolGroup": "ツール呼び出しを折りたたむ",
+        "toolGroupSummary": "ツール呼び出し {{count}} 件",
+        "permission": "権限",
+        "plan": "計画",
+        "running": "実行中",
+        "pending": "保留中",
+        "completed": "完了",
+        "sessionPlan": {
+            "progress": "{{completed}} / {{total}}",
+            "expand": "計画を展開",
+            "collapse": "計画を折りたたむ",
+            "tasks": "計画のタスク"
+        },
+        "failed": "失敗",
+        "cancelled": "キャンセル済み",
+        "loadFailed": "セッションの読み込みに失敗しました",
+        "promptFailed": "プロンプトの送信に失敗しました",
+        "unsupportedContent": "未対応のコンテンツ",
+        "dismiss": "閉じる",
+        "image": "画像",
+        "copyImage": "画像をコピー",
+        "imageCopied": "画像をコピーしました",
+        "saveImage": "画像を別名で保存",
+        "imageSaved": "画像を保存しました",
+        "copy": "返信をコピー",
+        "copied": "コピーしました",
+        "turnDuration": "所要時間 {{duration}}",
+        "turnElapsed": "経過時間 {{duration}}",
+        "compaction": {
+            "inProgress": "コンテキストを圧縮中",
+            "completed": "履歴を圧縮しました",
+            "continuing": "コンテキストを圧縮して続行中",
+            "failed": "コンテキストの圧縮に失敗しました",
+            "cancelled": "コンテキストの圧縮をキャンセルしました",
+            "reason": "理由: {{reason}}"
+        },
+        "attachment": {
+            "loading": "添付ファイルを読み込み中",
+            "unavailable": "添付ファイルを利用できません",
+            "open": "{{name}} を開く",
+            "preview": "{{name}} をプレビュー",
+            "openFailed": "添付ファイルを開けませんでした"
+        }
     },
     "artifactPanel": {
         "tabs": {
@@ -40,20 +115,21 @@
         },
         "changes": {
             "heading": "ファイルの変更（{{count}} 件）",
-            "empty": "この会話にはまだファイルの変更がありません",
-            "selectFileHint": "会話内のファイルカード、または「変更を表示」をクリックして diff を開きます。"
+            "empty": "このセッションにはまだファイルの変更がありません。",
+            "selectFileHint": "会話内のファイルカード、または「変更を表示」をクリックして diff を開きます。",
+            "changeRecord": "変更 {{number}}",
+            "diffUnavailable": "この変更の差分は利用できません。"
         },
         "preview": {
             "emptyTitle": "ファイルが選択されていません",
-            "emptyHint": "まず会話内のファイルカードをクリックしてファイルを選択すると、ここにプレビューが表示されます。"
+            "emptyHint": "まず会話内のファイルカードをクリックしてファイルを選択すると、ここにプレビューが表示されます。",
+            "fullscreenLabel": "ファイルの全画面プレビュー"
         }
     },
     "filePreview": {
         "tabs": {
             "source": "ソース",
-            "preview": "プレビュー",
-            "changes": "変更",
-            "info": "情報"
+            "preview": "プレビュー"
         },
         "actions": {
             "save": "保存",
@@ -61,12 +137,11 @@
             "revert": "元に戻す",
             "openInFinder": "ファイルマネージャーで表示",
             "openDirectly": "直接開く",
-            "close": "閉じる"
-        },
-        "info": {
-            "path": "パス",
-            "size": "サイズ",
-            "type": "種類"
+            "close": "閉じる",
+            "enterFullscreen": "全画面表示",
+            "exitFullscreen": "全画面表示を終了",
+            "openHtmlExternally": "HTML をシステムブラウザで開く",
+            "retry": "再試行"
         },
         "toast": {
             "saved": "ディスクに保存しました",
@@ -82,19 +157,17 @@
             "notFound": "ファイルが見つかりません",
             "loadFailed": "読み込みに失敗しました: {{error}}",
             "noPreview": "このファイルにはプレビューがありません",
-            "unsupportedFormatTitle": "このファイル形式は内蔵プレビューまたは差分表示に未対応です",
-            "unsupportedFormatHint": "現在、内蔵プレビューと差分表示は直接読み取れるテキスト/Markdown 系ファイルのみ対応しています。ファイルマネージャーで開いてください。",
+            "unsupportedFormatTitle": "このファイル形式は内蔵プレビューに未対応です",
+            "unsupportedFormatHint": "現在、内蔵プレビューは直接読み取れるテキスト/Markdown 系ファイルのみ対応しています。ファイルマネージャーで開いてください。",
             "largeBinaryOpenTitle": "このファイルは大きいため内蔵プレビューできません",
             "largeBinaryOpenHint": "このファイルは {{size}} です。ClawX では内蔵プレビューできませんが、確認後にシステム既定のアプリで開けます。",
             "openInFinderFailed": "ファイルマネージャーで表示できません",
-            "openFailed": "開けませんでした: {{error}}"
+            "openFailed": "開けませんでした: {{error}}",
+            "htmlLoadFailed": "HTML プレビューを読み込めませんでした",
+            "openHtmlExternallyFailed": "HTML をシステムブラウザで開けませんでした"
         },
-        "diff": {
-            "noChanges": "表示する変更はありません",
-            "newFile": "新規ファイルのため比較対象がありません",
-            "tooLarge": "ファイルが大きすぎるため diff ビューは無効化されました。完全な内容は「ソース」タブで確認してください",
-            "unavailable": "この会話ではこのファイルの正確な変更ベースラインを取得できなかったため、差分を生成できません。", 
-            "unavailableHint": "「プレビュー」で現在の内容を確認するか、Git などで正確な差分を参照してください。"
+        "html": {
+            "crashed": "HTML プレビューが停止しました"
         },
         "confirmOpen": {
             "title": "ファイルを開く",
@@ -113,6 +186,15 @@
             "pageInputAria": "現在のページ",
             "singlePageHint": "ツールバーから {{total}} ページを切り替えできます"
         },
+        "docx": {
+            "loadFailed": "Word 文書の読み込みに失敗しました"
+        },
+        "pptx": {
+            "loadFailed": "プレゼンテーションの読み込みに失敗しました",
+            "previous": "前のスライド",
+            "next": "次のスライド",
+            "slidePosition": "{{current}} / {{total}}"
+        },
         "sheet": {
             "loadFailed": "スプレッドシートの読み込みに失敗しました: {{error}}",
             "empty": "表示できるワークシートがありません",
@@ -125,48 +207,28 @@
     },
     "workspace": {
         "title": "ワークスペース",
+        "defaultLabel": "既定のワークスペース",
+        "header": "Agent: {{agent}} · ディレクトリ: {{directory}}",
         "freshBadge": "今回の実行で更新",
         "pickFile": "左側のファイルを選択してプレビュー",
         "empty": "ワークスペースが空、またはアクセスできません",
         "truncated": "ディレクトリが大きいため、5000 件までで切り詰めました",
+        "unavailable": {
+            "title": "ワークスペースを利用できません",
+            "description": "このフォルダーは移動または削除された可能性があります。続行するには既存のフォルダーを選択してください: {{path}}",
+            "boundDescription": "このチャットのワークスペースは移動または削除された可能性があり、現在アクセスできません: {{path}}",
+            "chooseAction": "ワークスペースを選択"
+        },
         "actions": {
             "refresh": "更新",
-            "openRootInFinder": "ルートをファイルマネージャーで表示",
-            "toggleHidden": "隠しファイル表示切替",
-            "showHidden": "隠しファイルを表示",
-            "hideHidden": "隠しファイルを隠す"
+            "openRootInFinder": "ルートをファイルマネージャーで表示"
         }
-    },
-    "taskPanel": {
-        "eyebrow": "実行ビュー",
-        "title": "タスクの流れ",
-        "emptyTitle": "まだ構造化されたステップはありません",
-        "emptyBody": "実行が始まると、ClawX は思考・ツール呼び出し・最終化の状態をここに表示します。",
-        "status": {
-            "idle": "待機中",
-            "running_one": "進行中 1 件",
-            "running_other": "進行中 {{count}} 件"
-        },
-        "stepStatus": {
-            "running": "実行中",
-            "completed": "完了",
-            "error": "エラー"
-        }
-    },
-    "executionGraph": {
-        "title": "実行グラフ",
-        "branchLabel": "branch",
-        "thinkingLabel": "考え中",
-        "errorLabel": "エラー",
-        "imageGenerateLabel": "画像生成",
-        "agentRun": "{{agent}} の実行",
-        "collapsedSummary": "ツール呼び出し {{toolCount}} 件 · プロセスメッセージ {{processCount}} 件",
-        "collapseAction": "実行グラフを折りたたむ"
     },
     "imageGeneration": {
-        "generating": "画像を生成しています。少々お待ちください…",
-        "previewLoading": "画像プレビューを読み込んでいます…",
-        "previewUnavailable": "画像プレビューを一時的に表示できません"
+        "generating": "画像を生成しています。しばらくお待ちください…",
+        "previewUnavailable": "画像生成は完了しましたが、プレビューを読み込めませんでした。",
+        "generatedReady": "生成された画像の準備ができました。",
+        "generatedReadyWithMissing": "生成された画像の準備ができましたが、一部の画像を読み込めませんでした。"
     },
     "composer": {
         "attachFiles": "ファイルを添付",
@@ -186,13 +248,77 @@
         "gatewayDisconnectedPlaceholder": "ゲートウェイ未接続...",
         "send": "送信",
         "stop": "停止",
+        "thinking": "考え中…",
         "gatewayConnected": "接続済み",
-        "gatewayStatus": "ゲートウェイ {{state}} | ポート: {{port}} {{pid}}",
+        "gatewayStarting": "起動中",
+        "gatewayStatus": "ゲートウェイ {{state}}",
         "retryFailedAttachments": "失敗した添付を再試行",
+        "workspacePrefix": "{{workspace}}",
+        "workspacePickerTitle": "ワークスペースフォルダーを選択",
+        "workspacePickerButton": "このワークスペースを使用",
+        "workspacePickerFailed": "ワークスペース選択を開けませんでした",
+        "defaultWorkspaceOption": "既定のワークスペース",
+        "chooseOtherWorkspaceOption": "別のディレクトリを選択…",
         "folderDropUnsupported": "このフォルダを添付できませんでした。もう一度ドラッグするか、メッセージにフォルダパスを貼り付けてください。",
         "folderAttachment": "フォルダ",
         "skillPreviewTooltip": "SKILL.md をプレビュー",
-        "skillPreviewNotFound": "この Skill が見つかりません。Skill ピッカーを開いて一覧を更新してください。"
+        "skillPreviewNotFound": "この Skill が見つかりません。Skill ピッカーを開いて一覧を更新してください。",
+        "contextUsage": "コンテキスト使用量 {{percentage}}: {{used}} / {{total}} トークン"
+    },
+    "talk": {
+        "start": "Talk を開始",
+        "stop": "Talk を停止",
+        "inputLevel": "マイク入力レベル",
+        "status": {
+            "idle": "Talk の準備ができました",
+            "connecting": "Talk に接続中",
+            "listening": "聞いています",
+            "thinking": "考えています",
+            "speaking": "話しています",
+            "disconnected": "Talk が切断されました",
+            "error": "Talk エラー"
+        },
+        "unavailable": {
+            "gateway": "Talk には接続済みの Gateway が必要です",
+            "sending": "メッセージ送信中は Talk を利用できません",
+            "session": "Talk を開始する前に新しいチャットを作成してください",
+            "configuration": "Talk は利用できません: {{reason}}",
+            "loading": "Talk の利用可否を確認中",
+            "default": "Talk は利用できません"
+        },
+        "consultRefresh": {
+            "failed": "相談の返信を更新できませんでした。",
+            "retry": "更新を再試行",
+            "retrying": "更新を再試行中..."
+        },
+        "transcript": {
+            "label": "ライブ Talk の文字起こし",
+            "microphone": "マイク",
+            "voiceInput": "音声入力",
+            "voiceResponse": "音声応答"
+        }
+    },
+    "sessionList": {
+        "title": "セッション一覧",
+        "collapseAll": "すべて折りたたむ",
+        "expandAll": "すべて展開",
+        "loadMore": "もっと読み込む",
+        "aiReplying": "AI が返信中",
+        "unreadReply": "未読の返信",
+        "subagent": "サブエージェント",
+        "loadMoreForWorkspace": "{{workspace}} でさらに {{count}} 件のセッションを読み込む",
+        "workspaceToggle": "ワークスペース {{workspace}} を切り替え",
+        "renameWorkspace": "ワークスペース {{workspace}} の名前を変更",
+        "workspaceUnavailableBadge": "利用不可",
+        "deleteWorkspace": "利用できないワークスペース {{workspace}} を削除",
+        "deleteWorkspaceTitle": "利用できないワークスペースを削除しますか？",
+        "deleteWorkspaceConfirm": "「{{workspace}}」とその中の全 {{count}} セッションを完全に削除しますか？この操作は元に戻せません。",
+        "deleteWorkspaceConfirmAction": "ワークスペースとセッションを削除",
+        "deleteWorkspacePartialFailure": "{{count}} 件のセッションを削除できなかったため、ワークスペースに残しました。",
+        "deleteWorkspaceCleanupFailed": "セッションは削除されましたが、保存済みワークスペースの記録を消去できませんでした。",
+        "workspaceName": "ワークスペース名",
+        "saveWorkspaceRename": "ワークスペース名を保存",
+        "cancelWorkspaceRename": "ワークスペース名の変更をキャンセル"
     },
     "historyBuckets": {
         "today": "今日",
