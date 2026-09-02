@@ -1,7 +1,7 @@
 {
   "productName": "小光",
   "version": "0.5.5",
-  "updatedAt": "2026-08-31",
+  "updatedAt": "2026-09-02",
   "assetBaseUrl": "https://smartx.qubitlab.cc",
   "ossBaseUrl": "https://smartx-assets.oss-cn-hongkong.aliyuncs.com",
   "platforms": [
@@ -56,7 +56,7 @@
           "format": "安装包",
           "arch": "x64",
           "path": "/latest/SmartX-0.5.5-win-x64.exe",
-          "size": "252.7 MB",
+          "size": "252.8 MB",
           "recommended": true
         },
         {
@@ -65,7 +65,7 @@
           "format": "安装包",
           "arch": "arm64",
           "path": "/latest/SmartX-0.5.5-win-arm64.exe",
-          "size": "252.7 MB"
+          "size": "247.1 MB"
         }
       ]
     },
