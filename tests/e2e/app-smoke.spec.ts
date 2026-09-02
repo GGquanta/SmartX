@@ -1,10 +1,18 @@
 import { closeElectronApp, expect, test } from './fixtures/electron';
 
-test.describe('ClawX Electron smoke flows', () => {
+test.describe('SmartX Electron smoke flows', () => {
   test('shows the setup wizard on a fresh profile', async ({ page }) => {
     await expect(page.getByTestId('setup-page')).toBeVisible();
     await expect(page.getByTestId('setup-welcome-step')).toBeVisible();
     await expect(page.getByTestId('setup-skip-button')).toBeVisible();
+  });
+
+  test('shows chat welcome brand after skipping setup', async ({ page }) => {
+    await expect(page.getByTestId('setup-page')).toBeVisible();
+    await page.getByTestId('setup-skip-button').click();
+
+    await expect(page.getByTestId('main-layout')).toBeVisible();
+    await expect(page.getByTestId('chat-welcome-brand')).toBeVisible();
   });
 
   test('can skip setup and navigate to the models page', async ({ page }) => {

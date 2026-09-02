@@ -6,7 +6,7 @@ appliesTo:
   - gateway-backend-communication
 ---
 
-When ClawX rewrites an explicit `models.providers.*` entry, existing model rows
+When SmartX rewrites an explicit `models.providers.*` entry, existing model rows
 must be merged by exact model ID instead of reconstructed from only `id` and
 `name`.
 
@@ -23,6 +23,6 @@ rows missing both fields remain unset. Rows that already declare either field
 are user-owned and must never be modified. Compaction applies transport ceilings
 to explicit values and otherwise uses the 50000-token reserve fallback.
 
-Provider-level request settings are also preserved on rewrite. ClawX must not
+Provider-level request settings are also preserved on rewrite. SmartX must not
 inject a default `timeoutSeconds` into provider entries; absent values remain
 absent and explicit values remain user-owned.

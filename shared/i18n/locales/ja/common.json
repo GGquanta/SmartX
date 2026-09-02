@@ -1,5 +1,6 @@
 {
     "sidebar": {
+        "title": "SmartX",
         "chat": "チャット",
         "newChat": "新しいチャット",
         "cronTasks": "定期タスク",
@@ -10,6 +11,8 @@
         "settings": "設定",
         "devConsole": "開発者コンソール",
         "models": "モデル",
+        "researchTools": "研究ツール",
+        "companyKnowledge": "企業ナレッジ",
         "deleteSessionConfirm": "「{{label}}」を削除しますか？",
         "openClawPage": "OpenClaw ページ",
         "renameSession": "名前を変更",
@@ -18,6 +21,15 @@
         "saveSessionRename": "セッションタイトルを保存",
         "cancelSessionRename": "名前変更をキャンセル",
         "imageGeneration": "画像生成"
+    },
+    "researchToolsPage": {
+        "description": "文献検索・実験・分析などの研究支援機能を順次接続します。",
+        "quafuLoginButton": "量子計算実験プラットフォームを開く"
+    },
+    "companyKnowledgePage": {
+        "description": "社内ドキュメントとナレッジ検索を順次接続します。",
+        "bindSaved": "企業ナレッジの紐付けを OpenClaw 設定に保存しました。",
+        "bindFailed": "紐付けの保存に失敗しました: {{error}}"
     },
     "actions": {
         "save": "保存",

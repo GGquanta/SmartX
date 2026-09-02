@@ -1,4 +1,4 @@
-# ClawX開発ガイド
+# SmartX開発ガイド
 
 このドキュメントは、READMEの「開発」セクションの詳細版です。
 
@@ -15,7 +15,7 @@
 ### プロジェクト構成
 
 ```text
-ClawX/
+SmartX/
 ├── electron/                 # Electron Mainプロセス
 │   ├── services/            # 型付きHost API、プロバイダー、秘密情報、ランタイムサービス
 │   │   ├── providers/       # プロバイダー/アカウントのモデル同期ロジック
@@ -66,7 +66,7 @@ pnpm run build:vite       # フロントエンドのみをビルド
 pnpm build                # パッケージアセットを含む本番ビルド
 pnpm package              # 現在のプラットフォーム向けにパッケージ化（同梱スキルを含む）
 pnpm package:mac          # macOS向けにパッケージ化
-pnpm package:win          # Windows向けにパッケージ化
+pnpm package:win          # Windows向けにパッケージ化（x64 と ARM64 の NSIS）
 pnpm package:linux        # Linux向けにパッケージ化
 ```
 
@@ -84,7 +84,7 @@ CPUプロファイルはChrome DevToolsで開けます。アーティファク�
 
 実際のRendererを記録するには、`CLAWX_REMOTE_DEBUGGING_PORT=9223 pnpm dev`で開発環境を起動し、PlaywrightまたはChrome DevToolsを`localhost:9223`へ接続します。実際のElectron Mainを記録するには`pnpm run profile:main`を実行し、`chrome://inspect`で`localhost:9229`を設定してElectron Mainターゲットを選びます。WebSocket trace自体を測定する場合を除き、`CLAWX_GATEWAY_WS_TRACE`は設定しないでください。
 
-ClawXは既定でChromiumのハードウェアアクセラレーションを有効にし、長い文書、スクロール、レイアウトアニメーションでGPUコンポジットとラスタライズを利用します。グラフィックスドライバーに問題がある場合のトラブルシューティングには、Chromium標準の`--disable-gpu`コマンドラインスイッチを使用できます。
+SmartXは既定でChromiumのハードウェアアクセラレーションを有効にし、長い文書、スクロール、レイアウトアニメーションでGPUコンポジットとラスタライズを利用します。グラフィックスドライバーに問題がある場合のトラブルシューティングには、Chromium標準の`--disable-gpu`コマンドラインスイッチを使用できます。
 
 ### 通信回帰チェック
 
@@ -105,7 +105,7 @@ Playwright Electronスイートは`dist/`と`dist-electron/`からパッケー�
 
 - `pnpm run build:vite`でRendererとElectronのバンドルをビルド
 - 一時的な`HOME`を使ってElectronを分離E2Eモードで起動
-- 一時的なClawX `userData`ディレクトリを使用
+- 一時的なSmartX `userData`ディレクトリを使用
 - OS全体のリソースとパフォーマンステストを隔離しながら、通常のspecファイルを並列実行
 - Gateway自動起動、同梱スキルのインストール、トレイ作成、CLI自動インストールなど、重い起動副作用をスキップ
 

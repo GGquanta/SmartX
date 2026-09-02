@@ -54,7 +54,7 @@ requiredTests:
 acceptance:
   - Renderer invokes diagnostics.exportIssueReport only through src/lib/host-api.ts.
   - Main requires at least one session key and resolves every available selected transcript under its matching agent sessions directory without following an escaping symlink.
-  - The ZIP contains every available selected transcript, a recursively redacted OpenClaw config when present, available ClawX and OpenClaw log files with common credential forms redacted, and a manifest that reports stale selections.
+  - The ZIP contains every available selected transcript, a recursively redacted OpenClaw config when present, available SmartX and OpenClaw log files with common credential forms redacted, and a manifest that reports stale selections.
   - Archive entry names do not expose source absolute paths.
   - Export writes a uniquely named ZIP atomically to the Desktop directory on macOS and Windows and returns its absolute path.
   - The success state visibly renders the path and can reveal it in the platform file manager.

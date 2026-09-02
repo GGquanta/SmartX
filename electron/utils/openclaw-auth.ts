@@ -50,8 +50,9 @@ import {
   DEFAULT_COMPACTION_RESERVE_TOKENS_FLOOR,
 } from './openclaw-compaction';
 import {
-  CLAWX_OPENAI_IMAGE_DEFAULT_MODEL,
-  CLAWX_OPENAI_IMAGE_PROVIDER_KEY,
+  LEGACY_SMARTX_OPENAI_IMAGE_PROVIDER_KEY,
+  SMARTX_OPENAI_IMAGE_DEFAULT_MODEL,
+  SMARTX_OPENAI_IMAGE_PROVIDER_KEY,
 } from './openclaw-image-relay-constants';
 import {
   migrateAuthProfilesJsonToSqliteIfNeeded,
@@ -498,7 +499,7 @@ function getApiKeyFromAuthProfilesStore(
 /**
  * Read the API key OpenClaw will use for a runtime provider key.
  *
- * This intentionally reads auth-profiles.json rather than ClawX's provider
+ * This intentionally reads auth-profiles.json rather than SmartX's provider
  * cache, so UI status can reflect providers imported or preserved by the
  * OpenClaw runtime across overwrite installs.
  */
@@ -536,9 +537,9 @@ async function discoverAgentIds(): Promise<string[]> {
 
 const FEISHU_PLUGIN_ID_CANDIDATES = ['openclaw-lark', 'feishu-openclaw-plugin'] as const;
 const VALID_COMPACTION_MODES = new Set(['default', 'safeguard']);
-const CLAWX_COMPACTION_IDENTIFIER_INSTRUCTIONS = 'Preserve only identifiers referenced by unresolved asks, active constraints, modified files, or pending next steps.';
-const CLAWX_COMPACTION_KEEP_RECENT_TOKENS = 0;
-const CLAWX_COMPACTION_RECENT_TURNS_PRESERVE = 0;
+const SMARTX_COMPACTION_IDENTIFIER_INSTRUCTIONS = 'Preserve only identifiers referenced by unresolved asks, active constraints, modified files, or pending next steps.';
+const SMARTX_COMPACTION_KEEP_RECENT_TOKENS = 0;
+const SMARTX_COMPACTION_RECENT_TURNS_PRESERVE = 0;
 // OpenClaw 2026.7.1 bundles these channel extensions. Discord, WhatsApp,
 // QQBot, and the remaining catalog channels are external plugins and their
 // explicit allowlist registrations must be preserved.
@@ -870,10 +871,10 @@ function ensureCompactionSafeguardDefault(config: Record<string, unknown>): bool
   defaults.compaction = {
     mode: 'safeguard',
     qualityGuard: { enabled: false },
-    keepRecentTokens: CLAWX_COMPACTION_KEEP_RECENT_TOKENS,
-    recentTurnsPreserve: CLAWX_COMPACTION_RECENT_TURNS_PRESERVE,
+    keepRecentTokens: SMARTX_COMPACTION_KEEP_RECENT_TOKENS,
+    recentTurnsPreserve: SMARTX_COMPACTION_RECENT_TURNS_PRESERVE,
     identifierPolicy: 'custom',
-    identifierInstructions: CLAWX_COMPACTION_IDENTIFIER_INSTRUCTIONS,
+    identifierInstructions: SMARTX_COMPACTION_IDENTIFIER_INSTRUCTIONS,
     reserveTokensFloor: DEFAULT_COMPACTION_RESERVE_TOKENS_FLOOR,
     midTurnPrecheck: { enabled: true },
   };
@@ -883,7 +884,7 @@ function ensureCompactionSafeguardDefault(config: Record<string, unknown>): bool
 }
 
 /**
- * Enforce ClawX's compaction quality policy and backfill missing safety fields.
+ * Enforce SmartX's compaction quality policy and backfill missing safety fields.
  * Explicit reserveTokensFloor and midTurnPrecheck.enabled choices are preserved.
  */
 function syncCompactionSafetyDefaults(config: Record<string, unknown>): boolean {
@@ -911,20 +912,20 @@ function syncCompactionSafetyDefaults(config: Record<string, unknown>): boolean 
     compaction.qualityGuard = { enabled: false };
     changed = true;
   }
-  if (compaction.recentTurnsPreserve !== CLAWX_COMPACTION_RECENT_TURNS_PRESERVE) {
-    compaction.recentTurnsPreserve = CLAWX_COMPACTION_RECENT_TURNS_PRESERVE;
+  if (compaction.recentTurnsPreserve !== SMARTX_COMPACTION_RECENT_TURNS_PRESERVE) {
+    compaction.recentTurnsPreserve = SMARTX_COMPACTION_RECENT_TURNS_PRESERVE;
     changed = true;
   }
-  if (compaction.keepRecentTokens !== CLAWX_COMPACTION_KEEP_RECENT_TOKENS) {
-    compaction.keepRecentTokens = CLAWX_COMPACTION_KEEP_RECENT_TOKENS;
+  if (compaction.keepRecentTokens !== SMARTX_COMPACTION_KEEP_RECENT_TOKENS) {
+    compaction.keepRecentTokens = SMARTX_COMPACTION_KEEP_RECENT_TOKENS;
     changed = true;
   }
   if (compaction.identifierPolicy !== 'custom') {
     compaction.identifierPolicy = 'custom';
     changed = true;
   }
-  if (compaction.identifierInstructions !== CLAWX_COMPACTION_IDENTIFIER_INSTRUCTIONS) {
-    compaction.identifierInstructions = CLAWX_COMPACTION_IDENTIFIER_INSTRUCTIONS;
+  if (compaction.identifierInstructions !== SMARTX_COMPACTION_IDENTIFIER_INSTRUCTIONS) {
+    compaction.identifierInstructions = SMARTX_COMPACTION_IDENTIFIER_INSTRUCTIONS;
     changed = true;
   }
 
@@ -1689,7 +1690,7 @@ function mergeProviderModels(
 /**
  * OpenClaw 2026.5+ requires a positive `maxTokens` on each model (and can
  * fall back to provider-level `maxTokens`) when `api` is `anthropic-messages`.
- * ClawX-written entries historically only included `{ id, name }`.
+ * SmartX-written entries historically only included `{ id, name }`.
  *
  * Generic Anthropic-compatible providers should not be capped at 8k by
  * default: OpenClaw's native Anthropic transport caps default requests at 32k
@@ -1870,7 +1871,7 @@ export async function ensureAnthropicMessagesModelMaxTokens(): Promise<string[]>
  *
  * OpenClaw 2026.5+ auto-routes OpenAI providers (`openai`, `openai-codex`) to the
  * external `codex` agent harness, which expects a separate codex plugin install.
- * The bundled OpenClaw distribution ClawX ships does not register that harness,
+ * The bundled OpenClaw distribution SmartX ships does not register that harness,
  * so without pinning both keys chat fails with
  * `Requested agent harness "codex" is not registered.`
  */
@@ -2004,9 +2005,9 @@ function upsertOpenClawProviderEntry(
  *
  * Mirrors {@link pruneInvalidApiProviderEntries} — invoked opportunistically
  * before a default-provider switch so that pre-existing on-disk entries
- * (written by earlier ClawX builds that did not pin the runtime) get
+ * (written by earlier SmartX builds that did not pin the runtime) get
  * repaired before the next Gateway reload picks them up. Without this, users
- * who upgrade ClawX while still pointing at an OpenAI provider would keep
+ * who upgrade SmartX while still pointing at an OpenAI provider would keep
  * hitting `Requested agent harness "codex" is not registered.` until they
  * re-saved the provider manually.
  *
@@ -2188,7 +2189,7 @@ function ensurePluginRegistrationEnabled(config: Record<string, unknown>, plugin
 }
 
 /**
- * Configure a ClawX-owned OpenAI-compatible image provider.
+ * Configure a SmartX-owned OpenAI-compatible image provider.
  * This intentionally uses a separate provider key from `openai` so chat model
  * routing and OpenAI API/OAuth credentials remain untouched.
  */
@@ -2202,8 +2203,9 @@ export async function syncOpenAiCompatibleImageRelay(params: {
     if (!params.enabled) {
       const models = (config.models || {}) as Record<string, unknown>;
       const providers = (models.providers || {}) as Record<string, unknown>;
-      if (providers[CLAWX_OPENAI_IMAGE_PROVIDER_KEY]) {
-        delete providers[CLAWX_OPENAI_IMAGE_PROVIDER_KEY];
+      if (providers[SMARTX_OPENAI_IMAGE_PROVIDER_KEY] || providers[LEGACY_SMARTX_OPENAI_IMAGE_PROVIDER_KEY]) {
+        delete providers[SMARTX_OPENAI_IMAGE_PROVIDER_KEY];
+        delete providers[LEGACY_SMARTX_OPENAI_IMAGE_PROVIDER_KEY];
         models.providers = providers;
         config.models = models;
       }
@@ -2215,11 +2217,15 @@ export async function syncOpenAiCompatibleImageRelay(params: {
       const primary = typeof imageGenerationModel?.primary === 'string'
         ? imageGenerationModel.primary.trim().toLowerCase()
         : '';
-      if (defaults && imageGenerationModel && primary.startsWith(`${CLAWX_OPENAI_IMAGE_PROVIDER_KEY}/`)) {
+      if (defaults && imageGenerationModel && (
+        primary.startsWith(`${SMARTX_OPENAI_IMAGE_PROVIDER_KEY}/`)
+        || primary.startsWith(`${LEGACY_SMARTX_OPENAI_IMAGE_PROVIDER_KEY}/`)
+      )) {
         const remainingFallbacks = Array.isArray(imageGenerationModel.fallbacks)
           ? imageGenerationModel.fallbacks.filter((fallback): fallback is string => (
             typeof fallback === 'string'
-              && !fallback.trim().toLowerCase().startsWith(`${CLAWX_OPENAI_IMAGE_PROVIDER_KEY}/`)
+              && !fallback.trim().toLowerCase().startsWith(`${SMARTX_OPENAI_IMAGE_PROVIDER_KEY}/`)
+              && !fallback.trim().toLowerCase().startsWith(`${LEGACY_SMARTX_OPENAI_IMAGE_PROVIDER_KEY}/`)
           ))
           : [];
         if (remainingFallbacks.length > 0) {
@@ -2231,7 +2237,7 @@ export async function syncOpenAiCompatibleImageRelay(params: {
           imageGenerationModel.fallbacks = remainingFallbacks;
         }
       }
-      removePluginRegistrations(config, [CLAWX_OPENAI_IMAGE_PROVIDER_KEY]);
+      removePluginRegistrations(config, [SMARTX_OPENAI_IMAGE_PROVIDER_KEY, LEGACY_SMARTX_OPENAI_IMAGE_PROVIDER_KEY]);
       normalizeAgentsDefaultsCompactionMode(config);
       return;
     }
@@ -2241,22 +2247,22 @@ export async function syncOpenAiCompatibleImageRelay(params: {
       .map((id) => id.trim())
       .filter(Boolean))];
     if (modelIds.length === 0) {
-      modelIds.push(CLAWX_OPENAI_IMAGE_DEFAULT_MODEL);
+      modelIds.push(SMARTX_OPENAI_IMAGE_DEFAULT_MODEL);
     }
-    const existingModels = readModelsProvider(config, CLAWX_OPENAI_IMAGE_PROVIDER_KEY)?.models;
+    const existingModels = readModelsProvider(config, SMARTX_OPENAI_IMAGE_PROVIDER_KEY)?.models;
     const existingModelsById = new Map(
       (Array.isArray(existingModels) ? existingModels : [])
         .filter((model): model is Record<string, unknown> => isPlainRecord(model) && typeof model.id === 'string')
         .map((model) => [model.id as string, model]),
     );
-    upsertOpenClawProviderEntry(config, CLAWX_OPENAI_IMAGE_PROVIDER_KEY, {
+    upsertOpenClawProviderEntry(config, SMARTX_OPENAI_IMAGE_PROVIDER_KEY, {
       baseUrl,
       api: 'openai-completions',
       modelIds,
       mergeExistingModels: false,
       request: { allowPrivateNetwork: true },
     });
-    const relayProvider = readModelsProvider(config, CLAWX_OPENAI_IMAGE_PROVIDER_KEY);
+    const relayProvider = readModelsProvider(config, SMARTX_OPENAI_IMAGE_PROVIDER_KEY);
     if (relayProvider && Array.isArray(relayProvider.models)) {
       relayProvider.models = relayProvider.models.map((model) => {
         if (!isPlainRecord(model) || typeof model.id !== 'string') return model;
@@ -2264,29 +2270,29 @@ export async function syncOpenAiCompatibleImageRelay(params: {
         return existing ? { ...model, ...existing, id: model.id } : model;
       });
     }
-    ensurePluginRegistrationEnabled(config, CLAWX_OPENAI_IMAGE_PROVIDER_KEY);
+    ensurePluginRegistrationEnabled(config, SMARTX_OPENAI_IMAGE_PROVIDER_KEY);
     normalizeAgentsDefaultsCompactionMode(config);
   });
 
   if (!params.enabled) {
-    await removeProviderKeyFromOpenClaw(CLAWX_OPENAI_IMAGE_PROVIDER_KEY);
+    await removeProviderKeyFromOpenClaw(SMARTX_OPENAI_IMAGE_PROVIDER_KEY);
   }
   if (params.apiKey?.trim()) {
-    await saveProviderKeyToOpenClaw(CLAWX_OPENAI_IMAGE_PROVIDER_KEY, params.apiKey.trim());
+    await saveProviderKeyToOpenClaw(SMARTX_OPENAI_IMAGE_PROVIDER_KEY, params.apiKey.trim());
   }
 }
 
 export function readOpenAiCompatibleImageRelayState(
   config: Record<string, unknown>,
 ): { enabled: boolean; baseUrl: string; providerKey?: string } {
-  const clawxRelay = readModelsProvider(config, CLAWX_OPENAI_IMAGE_PROVIDER_KEY);
-  const relayBaseUrl = typeof clawxRelay?.baseUrl === 'string' ? clawxRelay.baseUrl.trim() : '';
+  const smartxRelay = readModelsProvider(config, SMARTX_OPENAI_IMAGE_PROVIDER_KEY);
+  const relayBaseUrl = typeof smartxRelay?.baseUrl === 'string' ? smartxRelay.baseUrl.trim() : '';
   if (relayBaseUrl) {
-    return { enabled: true, baseUrl: relayBaseUrl, providerKey: CLAWX_OPENAI_IMAGE_PROVIDER_KEY };
+    return { enabled: true, baseUrl: relayBaseUrl, providerKey: SMARTX_OPENAI_IMAGE_PROVIDER_KEY };
   }
 
-  // Backward compatibility for ClawX builds that used models.providers.openai
-  // for image relay. New saves move to the ClawX-owned provider above.
+  // Backward compatibility for SmartX builds that used models.providers.openai
+  // for image relay. New saves move to the SmartX-owned provider above.
   const openai = readModelsProvidersOpenAi(config);
   const baseUrl = typeof openai?.baseUrl === 'string' ? openai.baseUrl.trim() : '';
   if (!baseUrl || baseUrl === OFFICIAL_OPENAI_API_BASE_URL) {
@@ -2386,7 +2392,7 @@ export async function getActiveOpenClawProviders(): Promise<Set<string>> {
 
 /**
  * Read models.providers entries and agents.defaults.model from openclaw.json.
- * Used by ClawX to seed the provider store when it's empty but providers are
+ * Used by SmartX to seed the provider store when it's empty but providers are
  * configured externally (e.g. via CLI or by editing openclaw.json directly).
  */
 export async function getOpenClawProvidersConfig(): Promise<{
@@ -2447,7 +2453,7 @@ function applyControlUiAllowedOrigins(controlUi: Record<string, unknown>, port: 
 }
 
 /**
- * Write the ClawX gateway token into ~/.openclaw/openclaw.json.
+ * Write the SmartX gateway token into ~/.openclaw/openclaw.json.
  */
 export async function syncGatewayTokenToConfig(token: string): Promise<void> {
   const gatewayPort = (await getSetting('gatewayPort')) || PORTS.OPENCLAW_GATEWAY;
@@ -2580,7 +2586,7 @@ export async function syncBrowserConfigToOpenClaw(): Promise<void> {
  * Ensure session idle-reset is configured in ~/.openclaw/openclaw.json.
  *
  * By default OpenClaw resets the "main" session daily at 04:00 local time,
- * which means conversations disappear after roughly one day.  ClawX sets
+ * which means conversations disappear after roughly one day.  SmartX sets
  * `session.idleMinutes` to 10 080 (7 days) so that conversations are
  * preserved for a week unless the user has explicitly configured their own
  * value.  When `idleMinutes` is set without `session.reset` /
@@ -2722,10 +2728,10 @@ export async function batchSyncConfigFields(token: string): Promise<void> {
     // ── Compaction safeguard default ──
     if (ensureCompactionSafeguardDefault(config)) {
       modified = true;
-      compactionLog = `[batch-sync] Seeded agents.defaults.compaction.mode=safeguard qualityGuard.enabled=false keepRecentTokens=${CLAWX_COMPACTION_KEEP_RECENT_TOKENS} recentTurnsPreserve=${CLAWX_COMPACTION_RECENT_TURNS_PRESERVE} identifierPolicy=custom reserveTokensFloor=${DEFAULT_COMPACTION_RESERVE_TOKENS_FLOOR} midTurnPrecheck.enabled=true`;
+      compactionLog = `[batch-sync] Seeded agents.defaults.compaction.mode=safeguard qualityGuard.enabled=false keepRecentTokens=${SMARTX_COMPACTION_KEEP_RECENT_TOKENS} recentTurnsPreserve=${SMARTX_COMPACTION_RECENT_TURNS_PRESERVE} identifierPolicy=custom reserveTokensFloor=${DEFAULT_COMPACTION_RESERVE_TOKENS_FLOOR} midTurnPrecheck.enabled=true`;
     } else if (syncCompactionSafetyDefaults(config)) {
       modified = true;
-      compactionLog = '[batch-sync] Synchronized ClawX-managed agents.defaults.compaction settings';
+      compactionLog = '[batch-sync] Synchronized SmartX-managed agents.defaults.compaction settings';
     }
     if (applyModelAwareCompactionReserveTokensFloor(config, getDefaultModelRef(config))) {
       modified = true;
@@ -2734,7 +2740,7 @@ export async function batchSyncConfigFields(token: string): Promise<void> {
 
     // ── Memory search default ──
     // OpenClaw 2026.7.1 supports provider=none as an explicit FTS-only mode.
-    // Migrate ClawX's exact legacy disabled default once, and otherwise seed
+    // Migrate SmartX's exact legacy disabled default once, and otherwise seed
     // FTS only when the user has no memorySearch config or OpenAI embedding key.
     memorySearchDefaultResult = shouldMigrateLegacyMemorySearch
       && hasUserMemorySearchConfig(config)
@@ -2879,7 +2885,7 @@ export async function updateSingleAgentModelProvider(
  * Removes known-invalid keys that cause OpenClaw's strict Zod validation
  * to reject the entire config on startup.  Uses a conservative **blocklist**
  * approach: only strips keys that are KNOWN to be misplaced by older
- * OpenClaw/ClawX versions or external tools.
+ * OpenClaw/SmartX versions or external tools.
  *
  * Why blocklist instead of allowlist?
  *   • Allowlist (e.g. `VALID_SKILLS_KEYS`) would strip any NEW valid keys
@@ -3101,7 +3107,7 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
 
     // ── tools.profile & sessions.visibility ───────────────────────
     // OpenClaw 3.8+ requires tools.profile = 'full' and tools.sessions.visibility = 'all'
-    // for ClawX to properly integrate with its updated tool system.
+    // for SmartX to properly integrate with its updated tool system.
     const toolsConfig = (config.tools as Record<string, unknown> | undefined) || {};
     let toolsModified = false;
 
@@ -3118,7 +3124,7 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
     }
 
     // OpenClaw 6.5+ routes durable skill edits through the Skill Workshop tool.
-    // ClawX keeps direct skill-creator authoring instead, so deny the workshop
+    // SmartX keeps direct skill-creator authoring instead, so deny the workshop
     // tool even under tools.profile="full".
     const denyResult = ensureToolDenyIncludes(
       normalizeToolDenyList(toolsConfig.deny),
@@ -3127,13 +3133,13 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
     if (denyResult.modified) {
       toolsConfig.deny = denyResult.deny;
       toolsModified = true;
-      console.log('[sanitize] Added "skill_workshop" to tools.deny for ClawX desktop');
+      console.log('[sanitize] Added "skill_workshop" to tools.deny for SmartX desktop');
     } else if (!Array.isArray(toolsConfig.deny) || toolsConfig.deny.length !== denyResult.deny.length) {
       toolsConfig.deny = denyResult.deny;
       toolsModified = true;
     }
 
-    // ClawX uses the managed browser and web_fetch for explicit navigation,
+    // SmartX uses the managed browser and web_fetch for explicit navigation,
     // but does not expose general-purpose internet search to agents.
     const webSearchDenyResult = ensureToolDenyIncludes(
       normalizeToolDenyList(toolsConfig.deny),
@@ -3142,7 +3148,7 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
     if (webSearchDenyResult.modified) {
       toolsConfig.deny = webSearchDenyResult.deny;
       toolsModified = true;
-      console.log('[sanitize] Added "web_search" to tools.deny for ClawX desktop');
+      console.log('[sanitize] Added "web_search" to tools.deny for SmartX desktop');
     } else if (
       !Array.isArray(toolsConfig.deny)
       || toolsConfig.deny.length !== webSearchDenyResult.deny.length
@@ -3158,7 +3164,7 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
     if (controlPlaneToolDenyResult.modified) {
       toolsConfig.deny = controlPlaneToolDenyResult.deny;
       toolsModified = true;
-      console.log('[sanitize] Added control-plane tools to tools.deny for ClawX desktop');
+      console.log('[sanitize] Added control-plane tools to tools.deny for SmartX desktop');
     } else if (
       !Array.isArray(toolsConfig.deny)
       || toolsConfig.deny.length !== controlPlaneToolDenyResult.deny.length
@@ -3168,7 +3174,7 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
     }
 
     // ── tools.exec approvals (OpenClaw 3.28+) ──────────────────────
-    // ClawX is a local desktop app where the user is the trusted operator.
+    // SmartX is a local desktop app where the user is the trusted operator.
     // Exec approval prompts add unnecessary friction in this context, so we
     // set security="full" (allow all commands) and ask="off" (never prompt).
     // If a user has manually configured a stricter ~/.openclaw/exec-approvals.json,
@@ -3179,7 +3185,7 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
       execConfig.ask = 'off';
       toolsConfig.exec = execConfig;
       toolsModified = true;
-      console.log('[sanitize] Set tools.exec.security="full" and tools.exec.ask="off" to disable exec approvals for ClawX desktop');
+      console.log('[sanitize] Set tools.exec.security="full" and tools.exec.ask="off" to disable exec approvals for SmartX desktop');
     }
 
     if (toolsModified) {
@@ -3189,7 +3195,7 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
 
     // ── session.dmScope ─────────────────────────────────────────────
     // OpenClaw defaults DM session routing to "main" (all channels share
-    // agent:main:main), which makes ClawX sidebar conflate feishu, dingtalk,
+    // agent:main:main), which makes SmartX sidebar conflate feishu, dingtalk,
     // and other channel DMs into one entry. Set "per-channel-peer" so each
     // channel+peer gets its own session key (agent:main:feishu:direct:ou_xxx),
     // letting the sidebar show them as separate conversations with channel badges.
@@ -3202,7 +3208,7 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
       sessionConfig.dmScope = 'per-channel-peer';
       config.session = sessionConfig;
       modified = true;
-      console.log('[sanitize] Set session.dmScope="per-channel-peer" so channel DMs appear as separate sessions in ClawX');
+      console.log('[sanitize] Set session.dmScope="per-channel-peer" so channel DMs appear as separate sessions in SmartX');
     }
 
     // ── Skill Workshop hard-disable (OpenClaw 6.10+) ─────────────────
@@ -3223,7 +3229,7 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
     let gatewayModified = gatewayDenyResult.modified;
     if (gatewayDenyResult.modified) {
       gatewayTools.deny = gatewayDenyResult.deny;
-      console.log('[sanitize] Added "skill_workshop" to gateway.tools.deny for ClawX desktop');
+      console.log('[sanitize] Added "skill_workshop" to gateway.tools.deny for SmartX desktop');
     } else if (!Array.isArray(gatewayTools.deny) || gatewayTools.deny.length !== gatewayDenyResult.deny.length) {
       gatewayTools.deny = gatewayDenyResult.deny;
       gatewayModified = true;
@@ -3235,7 +3241,7 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
     if (gatewayWebSearchDenyResult.modified) {
       gatewayTools.deny = gatewayWebSearchDenyResult.deny;
       gatewayModified = true;
-      console.log('[sanitize] Added "web_search" to gateway.tools.deny for ClawX desktop');
+      console.log('[sanitize] Added "web_search" to gateway.tools.deny for SmartX desktop');
     } else if (
       !Array.isArray(gatewayTools.deny)
       || gatewayTools.deny.length !== gatewayWebSearchDenyResult.deny.length
@@ -3251,7 +3257,7 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
     if (gatewayControlPlaneToolDenyResult.modified) {
       gatewayTools.deny = gatewayControlPlaneToolDenyResult.deny;
       gatewayModified = true;
-      console.log('[sanitize] Added control-plane tools to gateway.tools.deny for ClawX desktop');
+      console.log('[sanitize] Added control-plane tools to gateway.tools.deny for SmartX desktop');
     } else if (
       !Array.isArray(gatewayTools.deny)
       || gatewayTools.deny.length !== gatewayControlPlaneToolDenyResult.deny.length
@@ -3288,7 +3294,7 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
       workshop.autonomous = autonomous;
       skillsObj.workshop = workshop;
       skillsModified = true;
-      console.log('[sanitize] Disabled skills.workshop.autonomous for ClawX desktop');
+      console.log('[sanitize] Disabled skills.workshop.autonomous for SmartX desktop');
     }
 
     const skillEntries = (
@@ -3304,7 +3310,7 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
       };
       skillsObj.entries = skillEntries;
       skillsModified = true;
-      console.log('[sanitize] Enabled bundled skill-creator for direct skill authoring in ClawX desktop');
+      console.log('[sanitize] Enabled bundled skill-creator for direct skill authoring in SmartX desktop');
     }
 
     if (skillsModified) {
@@ -3495,7 +3501,7 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
 
       // ── external channel plugin registration cleanup ────────────
       // Channel account configuration belongs under channels.<id>. OpenClaw's
-      // PluginEntryConfig rejects ClawX's legacy accounts/defaultAccount mirror.
+      // PluginEntryConfig rejects SmartX's legacy accounts/defaultAccount mirror.
       // Migrate first: some older configs have no channels.<id> copy, and
       // deleting the plugin account map directly would lose their credentials.
       for (const pluginId of ['discord', 'whatsapp', 'qqbot'] as const) {
@@ -3626,7 +3632,7 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
 
 
       // ── Remove legacy built-in 'feishu' registration ───────────────
-      // ClawX bundles Feishu via the official @larksuite/openclaw-lark
+      // SmartX bundles Feishu via the official @larksuite/openclaw-lark
       // plugin and removes the old built-in dist/extensions/feishu tree.
       // Keeping plugins.entries.feishu={enabled:false} looks harmless, but
       // OpenClaw's channel startup planner treats it as an explicit blocker
@@ -3667,7 +3673,7 @@ export async function sanitizeOpenClawConfig(): Promise<void> {
 
       // Discover all bundled extension IDs so we can clean stale bundled
       // allowlist entries from older OpenClaw versions. Re-add only the
-      // ClawX-critical bundled plugins, active provider plugins, and explicitly
+      // SmartX-critical bundled plugins, active provider plugins, and explicitly
       // enabled bundled plugins — not every enabledByDefault provider plugin.
       const bundled = discoverBundledPlugins();
       const installedExtensionIds = await discoverInstalledExtensionPluginIds();

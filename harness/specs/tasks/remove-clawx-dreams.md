@@ -1,9 +1,9 @@
 ---
 id: remove-clawx-dreams
-title: Remove the ClawX Dreams integration
+title: Remove the SmartX Dreams integration
 scenario: gateway-backend-communication
 taskType: runtime-bridge
-intent: Remove the developer-only ClawX Dreams page and its dedicated Control UI view while preserving generic Gateway communication, memory capability diagnostics, and existing OpenClaw dreaming configuration and data.
+intent: Remove the developer-only SmartX Dreams page and its dedicated Control UI view while preserving generic Gateway communication, memory capability diagnostics, and existing OpenClaw dreaming configuration and data.
 touchedAreas:
   - harness/specs/tasks/remove-clawx-dreams.md
   - harness/specs/tasks/image-generation-settings.md
@@ -26,8 +26,8 @@ touchedAreas:
   - README.zh-CN.md
   - README.ja-JP.md
 expectedUserBehavior:
-  - ClawX no longer shows a Dreams navigation item or serves the /dreams route, including when developer mode is enabled.
-  - ClawX continues to open the root OpenClaw Control UI from existing non-Dreams entry points.
+  - SmartX no longer shows a Dreams navigation item or serves the /dreams route, including when developer mode is enabled.
+  - SmartX continues to open the root OpenClaw Control UI from existing non-Dreams entry points.
   - Existing OpenClaw memory-core dreaming configuration and DREAMS.md data are not changed or deleted.
 requiredProfiles:
   - fast
@@ -45,12 +45,12 @@ requiredTests:
   - pnpm run comms:replay
   - pnpm run comms:compare
 acceptance:
-  - No ClawX production source, route, navigation item, locale namespace, or dedicated Control UI parameter exposes Dreams.
+  - No SmartX production source, route, navigation item, locale namespace, or dedicated Control UI parameter exposes Dreams.
   - The generic hostApi Gateway RPC and root Control UI paths remain available.
   - Gateway memory capability classification and OpenClaw memory-core configuration support remain unchanged.
-  - README and harness guidance no longer describe the removed ClawX Dreams page or its tests.
+  - README and harness guidance no longer describe the removed SmartX Dreams page or its tests.
 docs:
   required: true
 ---
 
-Use this task spec when removing or auditing the ClawX-owned Dreams UI and its dedicated renderer/Main bridge.
+Use this task spec when removing or auditing the SmartX-owned Dreams UI and its dedicated renderer/Main bridge.

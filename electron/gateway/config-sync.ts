@@ -35,7 +35,10 @@ import { logger } from '../utils/logger';
 import { prependPathEntry } from '../utils/env-path';
 import { copyPluginFromNodeModules, fixupPluginManifest, cpSyncSafe, buildCandidateSources, repairTrustedOfficialPluginInstallRecords, removeTrustedOfficialPluginInstallRecord, resolvePluginNpmPackagePath } from '../utils/plugin-install';
 import { safeRmSync } from '../utils/safe-fs';
-import { CLAWX_OPENAI_IMAGE_PROVIDER_KEY } from '../utils/openclaw-image-relay-constants';
+import {
+  LEGACY_SMARTX_OPENAI_IMAGE_PROVIDER_KEY,
+  SMARTX_OPENAI_IMAGE_PROVIDER_KEY,
+} from '../utils/openclaw-image-relay-constants';
 import {
   ensureOpenClaw2026_7_1UpgradeSnapshot,
   quarantineLegacyUpdateCheckState,
@@ -82,12 +85,13 @@ const CHANNEL_PLUGIN_MAP: Record<string, { dirName: string; npmName: string }> =
   whatsapp: { dirName: 'whatsapp', npmName: '@openclaw/whatsapp' },
 
   'openclaw-weixin': { dirName: 'openclaw-weixin', npmName: '@tencent-weixin/openclaw-weixin' },
-  [CLAWX_OPENAI_IMAGE_PROVIDER_KEY]: { dirName: CLAWX_OPENAI_IMAGE_PROVIDER_KEY, npmName: 'clawx-openai-image-plugin' },
+  [SMARTX_OPENAI_IMAGE_PROVIDER_KEY]: { dirName: SMARTX_OPENAI_IMAGE_PROVIDER_KEY, npmName: 'smartx-openai-image-plugin' },
+  [LEGACY_SMARTX_OPENAI_IMAGE_PROVIDER_KEY]: { dirName: SMARTX_OPENAI_IMAGE_PROVIDER_KEY, npmName: 'smartx-openai-image-plugin' },
 };
 
 /**
  * OpenClaw ships some channel plugins as bundled extensions under
- * dist/extensions/. If ClawX previously mirrored one of those ids into
+ * dist/extensions/. If SmartX previously mirrored one of those ids into
  * ~/.openclaw/extensions/, the stale copy overrides the bundled plugin.
  * Only remove extension copies whose id is actually bundled in the
  * currently resolved OpenClaw runtime (e.g. telegram in 2026.6.10).
@@ -298,8 +302,11 @@ function withConfiguredImageGenerationPlugins(configuredChannels: string[], rawC
   const next = [...configuredChannels];
   const primary = resolveImageGenerationPrimary(rawConfig);
   const provider = primary?.includes('/') ? primary.slice(0, primary.indexOf('/')).trim() : primary;
-  if (provider === CLAWX_OPENAI_IMAGE_PROVIDER_KEY && !next.includes(CLAWX_OPENAI_IMAGE_PROVIDER_KEY)) {
-    next.push(CLAWX_OPENAI_IMAGE_PROVIDER_KEY);
+  if (provider === SMARTX_OPENAI_IMAGE_PROVIDER_KEY && !next.includes(SMARTX_OPENAI_IMAGE_PROVIDER_KEY)) {
+    next.push(SMARTX_OPENAI_IMAGE_PROVIDER_KEY);
+  }
+  if (provider === LEGACY_SMARTX_OPENAI_IMAGE_PROVIDER_KEY && !next.includes(LEGACY_SMARTX_OPENAI_IMAGE_PROVIDER_KEY)) {
+    next.push(LEGACY_SMARTX_OPENAI_IMAGE_PROVIDER_KEY);
   }
   return next;
 }

@@ -48,13 +48,13 @@ requiredTests:
   - pnpm run comms:compare
 acceptance:
   - Native subagent classification derives from the exact third canonical key segment and does not parse transcript prose or classify `agent:<id>:acp:<id>` as a native subagent.
-  - Sidebar presentation uses the localized subagent tag and removes the leading context marker only in ClawX display state; no OpenClaw transcript, session row, or title is mutated.
+  - Sidebar presentation uses the localized subagent tag and removes the leading context marker only in SmartX display state; no OpenClaw transcript, session row, or title is mutated.
   - A loaded session retains one passive session-message subscription independently of prompt-lifetime subscription references and releases or replaces it on close, shutdown, or active-session replacement.
   - A no-pending `announce:v1` Chat delta or final for the exact loaded session is projected through ordinary recorded ACP updates with run-scoped snapshot reconciliation; unrelated or normal settled run IDs are ignored by this ambient path.
   - An ambient terminal records a later session snapshot checkpoint so a subsequent transcript-tail replay cannot duplicate text already captured live.
   - Complete ledger events remain unchanged and ordered; bounded transcript replay contributes only records with finite timestamps strictly newer than the maximum finite ledger event timestamp.
   - Transcript records at or before the high-water timestamp, records without a finite timestamp, and transcript-fetch failures do not replace, compare with, or remove complete ledger events.
-  - ClawX Main and Renderer continue to consume only ACP session updates for ordinary assistant history.
+  - SmartX Main and Renderer continue to consume only ACP session updates for ordinary assistant history.
 docs:
   required: true
 ---
@@ -65,6 +65,6 @@ Session `agent:main:session-1788111066745` completed its original ACP-backed run
 at 2026-08-30 17:35 UTC. Its complete ledger ended before two later synthetic
 `announce:v1` runs appended assistant records to the same durable transcript.
 OpenClaw WebUI displayed `第一次「检查一下」——两个已完成，一个大任务还在跑` and
-the final completion, while ClawX replayed only the earlier ledger. The child
+the final completion, while SmartX replayed only the earlier ledger. The child
 sessions use canonical keys under `agent:main:subagent:<uuid>` and currently
 surface their `[Subagent Context]` marker as an ordinary sidebar title prefix.

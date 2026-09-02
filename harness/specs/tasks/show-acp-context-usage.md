@@ -3,7 +3,7 @@ id: show-acp-context-usage
 title: Show ACP context usage in the chat composer
 scenario: acp-chat-experience
 taskType: renderer-feature
-intent: Surface OpenClaw ACP usage_update values in the ClawX chat composer without adding a parallel Gateway history or transport path.
+intent: Surface OpenClaw ACP usage_update values in the SmartX chat composer without adding a parallel Gateway history or transport path.
 touchedAreas:
   - harness/specs/tasks/show-acp-context-usage.md
   - harness/specs/scenarios/acp-chat-experience.md

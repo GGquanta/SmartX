@@ -22,7 +22,7 @@
     },
     "deleteDialog": {
         "title": "永久删除 Agent？",
-        "message": "确定永久删除“{{name}}”、其由 ClawX 管理的工作区及全部关联聊天记录吗？此操作无法撤销。",
+        "message": "确定永久删除“{{name}}”、其由 SmartX 管理的工作区及全部关联聊天记录吗？此操作无法撤销。",
         "confirm": "永久删除"
     },
     "settingsDialog": {

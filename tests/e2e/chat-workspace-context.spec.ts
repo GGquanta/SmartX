@@ -228,7 +228,7 @@ async function installWorkspaceMocks(app: ElectronApplication, options: Workspac
   await installWorkspaceTreeMock(app);
 }
 
-test.describe('ClawX chat workspace context', () => {
+test.describe('SmartX chat workspace context', () => {
   test('keeps the canonical default session out of a stale Agent workspace', async ({ launchElectronApp }) => {
     const app = await launchElectronApp({ skipSetup: true });
 

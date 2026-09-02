@@ -92,7 +92,7 @@ the complete buffered assistant message, but the pinned ACP bridge processed
 message content only for delta and final states before cancelling the prompt.
 
 This task repairs those producer paths for future events. It intentionally does
-not rewrite the existing field ledger. ClawX remains an ACP consumer and does
+not rewrite the existing field ledger. SmartX remains an ACP consumer and does
 not add a parallel transcript text projection.
 
 For `agent:main:session-1788096137870`, the durable final assistant message has

@@ -23,6 +23,7 @@ requiredTests:
 acceptance:
   - `cleanupNativePlatformPackages` keeps same-platform x64 and arm64 native packages when the electron-builder arch resolves to `universal`.
   - `cleanupNodeModulesRuntimeJunk` keeps same-platform x64 and arm64 `tree-sitter-bash/prebuilds` directories when the target arch is `universal`.
+  - `cleanupKnownRuntimeJunk` prunes nested `native/<platform>` and `prebuilds/<platform>-<arch>` payloads that do not match the target (e.g. `@earendil-works/pi-tui`).
   - Non-target platforms are still pruned from scoped native packages and tree-sitter-bash prebuilds.
   - The bundle script still skips a duplicate nested `openclaw` package.
 docs:

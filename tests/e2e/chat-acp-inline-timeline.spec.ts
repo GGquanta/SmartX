@@ -672,7 +672,7 @@ async function openChat(app: ElectronApplication) {
   return page;
 }
 
-test.describe('ClawX ACP inline timeline', () => {
+test.describe('SmartX ACP inline timeline', () => {
   test('routes unavailable sidebar Talk to realtime Models configuration', async ({ launchElectronApp }) => {
     const app = await launchElectronApp({ skipSetup: true });
 

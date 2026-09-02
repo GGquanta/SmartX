@@ -4,7 +4,7 @@ title: Restore supported channel configuration and plugin activation
 type: ai-coding-task
 scenario: gateway-backend-communication
 taskType: runtime-bridge
-intent: Make every ClawX-supported plugin channel persist schema-valid configuration and become visible to the running Gateway after save or QR login.
+intent: Make every SmartX-supported plugin channel persist schema-valid configuration and become visible to the running Gateway after save or QR login.
 touchedAreas:
   - harness/specs/tasks/fix-supported-channel-connectivity.md
   - harness/specs/tasks/remove-unsupported-channel-catalog-entries.md
@@ -30,7 +30,7 @@ expectedUserBehavior:
   - Discord, WhatsApp, and QQBot save account credentials under channels.<id> without schema-invalid account mirrors under plugins.entries.<id>.
   - DingTalk, WeCom, Feishu/Lark, WeChat, Discord, WhatsApp, and QQBot trigger a guarded full Gateway restart when saved while the Gateway is running.
   - A no-change retry of a plugin-backed channel still performs the restart needed to discover an already copied plugin.
-  - Telegram remains on the native OpenClaw config reload path without an extra ClawX restart.
+  - Telegram remains on the native OpenClaw config reload path without an extra SmartX restart.
 requiredProfiles:
   - fast
   - comms

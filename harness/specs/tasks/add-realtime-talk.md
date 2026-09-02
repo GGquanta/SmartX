@@ -1,11 +1,11 @@
 ---
 id: add-realtime-talk
-title: Add OpenClaw Gateway Relay realtime Talk to ClawX Chat
+title: Add OpenClaw Gateway Relay realtime Talk to SmartX Chat
 scenario: gateway-backend-communication
 scenarios:
   - realtime-talk
 taskType: runtime-bridge
-intent: Add a Main-owned OpenClaw Gateway Relay Talk transport, transient Renderer audio and direct-transcript UI, OpenClaw-backed Agent consult handling, and developer-gated Models Realtime Talk configuration without adding a ClawX-owned durable transcript source.
+intent: Add a Main-owned OpenClaw Gateway Relay Talk transport, transient Renderer audio and direct-transcript UI, OpenClaw-backed Agent consult handling, and developer-gated Models Realtime Talk configuration without adding a SmartX-owned durable transcript source.
 touchedAreas:
   - harness/specs/tasks/add-realtime-talk.md
   - harness/specs/scenarios/acp-chat-experience.md
@@ -69,7 +69,7 @@ expectedUserBehavior:
   - A user starts and stops one Gateway Relay realtime Talk session from the selected non-heartbeat Chat session.
   - The Renderer never communicates with the OpenClaw Gateway directly; Main owns all Talk RPCs and Talk event routing.
   - Microphone capture uses the negotiated relay input rate, browser audio processing, and 4096-sample batches so normal speech is not lost to render-quantum-sized RPC backpressure.
-  - Direct realtime transcripts are visible only while Talk is active and never become ClawX-owned durable history.
+  - Direct realtime transcripts are visible only while Talk is active and never become SmartX-owned durable history.
   - Agent consults use OpenClaw's existing chat.send path for the selected session and reappear only through ACP replay.
   - Completed consult-result correlation requires successful tool-result submission and the matching final tool result; provider audio and playback completion are recorded independently.
   - Because relay output boundaries omit a consult identifier, consults are serialized and ACP replay occurs only at the claimed audio's following playback-complete `audioDone` or mark without tearing down the relay.
@@ -125,7 +125,7 @@ acceptance:
   - Only gateway-relay is supported; client-owned WebRTC/provider WebSocket, video, dictation, recording, and a transport picker are absent.
   - Main validates Talk request payloads, owns provider-facing Gateway protocol calls, and forwards only active relaySessionId events to Renderer.
   - Renderer batches microphone capture into 4096-sample appends at the negotiated input rate and does not routinely discard render-quantum-sized frames under serialized RPC backpressure.
-  - No ClawX Talk transcript ledger, sidecar history, cache, direct OpenClaw transcript write, or synthetic ACP history exists.
+  - No SmartX Talk transcript ledger, sidecar history, cache, direct OpenClaw transcript write, or synthetic ACP history exists.
   - Direct-provider transcript UI is transient and clears on stop, session switch, ACP reload, and application restart.
   - Agent consult is started with talk.client.toolCall and shown after ACP reload from the existing OpenClaw transcript, never by a custom timeline projection; completed consult-result correlation requires successful tool-result submission and the matching final tool result.
   - Consult ACP replay does not tear down the relay before provider output playback completes; an unclaimed/no-audio mark never triggers replay.
@@ -136,7 +136,7 @@ acceptance:
   - A consumed boundary never retries automatically after failure; preserved-replay failure keeps Talk active with an explicit localized retry action and permits no concurrent refresh.
   - New text is localized in en, zh, ja, and ru; the UI has an Electron E2E interaction test.
   - README English, Simplified Chinese, and Japanese documentation describe the feature and its history semantics.
-  - The Talk scenario, authority rule, and reference define Gateway Relay-only transport, Main-owned configuration, and no ClawX-owned durable Talk history.
+  - The Talk scenario, authority rule, and reference define Gateway Relay-only transport, Main-owned configuration, and no SmartX-owned durable Talk history.
   - Talk readiness is displayed and checked before start; the tab configures provider/model only, while speaker voice and other provider-specific fields remain in the resolved OpenClaw config file.
   - Release validation records configured-provider macOS microphone permission, direct response, Agent consult, barge-in, stop, and Gateway reconnect results without claiming unperformed manual checks passed.
 docs:

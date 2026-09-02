@@ -120,6 +120,17 @@ if (bundledSkillsTrim.removed > 0) {
   echo`   Trimmed bundled OpenClaw skills: removed ${bundledSkillsTrim.removed}, kept ${bundledSkillsTrim.kept.join(', ')}`;
 }
 
+// 3b. Drop copied node_modules/ — we rebuild a flat, self-contained tree in
+// step 5 from the pnpm virtual store. The npm-published openclaw package can
+// ship a node_modules layout with symlinks (including absolute paths to
+// extension duplicates). If left in place, step 5 hits EEXIST and skips the
+// copy, leaving links that break electron-builder (libc++ equivalent() /
+// ENOTSUP) and can point at another clone of the repo on disk.
+const bundledNm = path.join(OUTPUT, 'node_modules');
+if (fs.existsSync(bundledNm)) {
+  fs.rmSync(bundledNm, { recursive: true, force: true });
+}
+
 // 4. Recursively collect ALL transitive dependencies via pnpm virtual store BFS
 //
 // pnpm structure example:
@@ -252,7 +263,7 @@ while (queue.length > 0) {
 echo`   Found ${collected.size} total packages (direct + transitive)`;
 echo`   Skipped ${skippedDevCount} dev-only package references`;
 
-// 4b. Collect extra packages required by ClawX's Electron main process that are
+// 4b. Collect extra packages required by SmartX's Electron main process that are
 //     NOT deps of openclaw.  These are resolved from openclaw's context at runtime
 //     (via createRequire from the openclaw directory) so they must live in the
 //     bundled openclaw/node_modules/.
@@ -795,7 +806,7 @@ function patchBrokenModules(nodeModulesDir) {
               const patched = [
                 original,
                 '',
-                '// ClawX patch: add LRUCache named export for Node.js 22+ ESM interop',
+                '// SmartX patch: add LRUCache named export for Node.js 22+ ESM interop',
                 'if (typeof module.exports === "function" && !module.exports.LRUCache) {',
                 '  module.exports.LRUCache = module.exports;',
                 '}',

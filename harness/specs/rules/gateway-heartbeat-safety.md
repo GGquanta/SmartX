@@ -17,6 +17,6 @@ Trusted liveness evidence is a pong, any incoming Gateway frame, or a successful
 
 Only after 180 seconds without trusted liveness may Main run one `system-presence` core-RPC verification with a 5000ms timeout for that silence generation. A successful probe records liveness and cancels recovery without reconnecting or restarting.
 
-After a failed deadline probe, automatic recovery may use the guarded `GatewayManager.restart` path only for a ClawX-owned Gateway when auto-recovery and lifecycle state permit it. For an externally managed Gateway, ClawX may reconnect its own transport and report unavailability, but must never automatically call `stop`, `shutdown`, or `restart` on that Gateway.
+After a failed deadline probe, automatic recovery may use the guarded `GatewayManager.restart` path only for a SmartX-owned Gateway when auto-recovery and lifecycle state permit it. For an externally managed Gateway, SmartX may reconnect its own transport and report unavailability, but must never automatically call `stop`, `shutdown`, or `restart` on that Gateway.
 
 Authoritative child-process exit, ordinary WebSocket close, Gateway restart close code 1012, and explicit user restart retain their existing separate lifecycle paths.

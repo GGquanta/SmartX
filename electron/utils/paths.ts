@@ -3,7 +3,8 @@
  * Cross-platform path resolution helpers
  */
 import { createRequire } from 'node:module';
-import { dirname, join, resolve } from 'path';
+import { dirname, join, normalize, resolve, sep } from 'path';
+import { pathToFileURL } from 'node:url';
 import { homedir } from 'os';
 import { existsSync, mkdirSync, readFileSync, realpathSync } from 'fs';
 
@@ -24,7 +25,7 @@ function getElectronApp() {
     return (require('electron') as typeof import('electron')).app;
   }
 
-  const fallbackUserData = process.env.CLAWX_USER_DATA_DIR?.trim() || join(homedir(), '.clawx');
+  const fallbackUserData = process.env.SMARTX_USER_DATA_DIR?.trim() || join(homedir(), '.smartx');
   const fallbackAppPath = process.cwd();
   const fallbackApp: ElectronAppLike = {
     isPackaged: false,
@@ -76,21 +77,21 @@ export function getOpenClawSkillsDir(): string {
 }
 
 /**
- * Get ClawX config directory
+ * Get SmartX config directory
  */
-export function getClawXConfigDir(): string {
-  return join(homedir(), '.clawx');
+export function getSmartXConfigDir(): string {
+  return join(homedir(), '.smartx');
 }
 
 /**
- * Get ClawX logs directory
+ * Get SmartX logs directory
  */
 export function getLogsDir(): string {
   return join(getElectronApp().getPath('userData'), 'logs');
 }
 
 /**
- * Get ClawX data directory
+ * Get SmartX data directory
  */
 export function getDataDir(): string {
   return getElectronApp().getPath('userData');
@@ -103,6 +104,18 @@ export function ensureDir(dir: string): void {
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
   }
+}
+
+/**
+ * Application root path (repository root in dev, app bundle root when packaged).
+ */
+export function getAppRootPath(): string {
+  return getElectronApp().getAppPath();
+}
+
+/** Whether SmartX is running from a packaged build (not dev). */
+export function isAppPackaged(): boolean {
+  return getElectronApp().isPackaged;
 }
 
 /**
@@ -120,6 +133,26 @@ export function getResourcesDir(): string {
  */
 export function getPreloadPath(): string {
   return join(__dirname, '../preload/index.js');
+}
+
+/**
+ * Absolute file:// URL for the Company Knowledge <webview> preload script.
+ * Uses file URL + optional asar.unpacked resolution so the guest preload reliably loads
+ * when the app is packaged (webview preloads can fail to attach if the path is wrong).
+ */
+export function getCompanyKnowledgeWebviewPreloadPath(): string {
+  const diskPath = normalize(join(__dirname, '../preload/company-knowledge-webview.js'));
+  let resolved = diskPath;
+  if (!existsSync(resolved)) {
+    const marker = `${sep}app.asar${sep}`;
+    if (diskPath.includes(marker)) {
+      const unpacked = diskPath.replace(marker, `${sep}app.asar.unpacked${sep}`);
+      if (existsSync(unpacked)) {
+        resolved = unpacked;
+      }
+    }
+  }
+  return pathToFileURL(resolved).href;
 }
 
 /**

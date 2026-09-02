@@ -3,10 +3,10 @@
  * Skill configuration reads and coordinated mutations for openclaw.json.
  */
 import { readFile, writeFile, mkdir, readdir, rm } from 'fs/promises';
-import { existsSync } from 'fs';
+import { existsSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
-import { getOpenClawDir, getOpenClawResolvedDir, getResourcesDir } from './paths';
+import { getAppRootPath, getOpenClawDir, getOpenClawResolvedDir, getOpenClawSkillsDir, getResourcesDir } from './paths';
 import { logger } from './logger';
 import { cpAsyncSafe } from './plugin-install';
 import { mutateOpenClawConfig, readOpenClawConfigSnapshot } from '../gateway/config-delivery';
@@ -49,7 +49,7 @@ interface PreinstalledLockFile {
 }
 
 interface PreinstalledMarker {
-    source: 'clawx-preinstalled';
+    source: 'smartx-preinstalled';
     slug: string;
     version: string;
     installedAt: string;
@@ -291,8 +291,122 @@ export async function trimBundledOpenClawSkillsAndConfigs(
     };
 }
 
+export const COMPANY_KNOWLEDGE_SKILL_KEY = 'company-knowledge';
+
+export const COMPANY_KNOWLEDGE_BIND_ENV = {
+    API_BASE_URL: 'COMPANY_KNOWLEDGE_API_BASE_URL',
+    USER_ID: 'COMPANY_KNOWLEDGE_USER_ID',
+    NICKNAME: 'COMPANY_KNOWLEDGE_NICKNAME',
+    MAX_CLEARANCE: 'COMPANY_KNOWLEDGE_MAX_CLEARANCE',
+} as const;
+
+export type CompanyKnowledgeWebBindPayload = {
+    token: string;
+    apiBaseUrl: string;
+    userId: string;
+    nickname: string;
+    maxClearance: string;
+};
+
+const CLEARANCE_LEVELS = new Set(['S0', 'S1', 'S2']);
+
+export function parseCompanyKnowledgeWebBindPayload(raw: unknown):
+    | { ok: true; value: CompanyKnowledgeWebBindPayload }
+    | { ok: false; error: string } {
+    if (raw === undefined) {
+        return { ok: false, error: 'Payload is missing (must be JSON-serializable plain object)' };
+    }
+    if (!raw || typeof raw !== 'object') {
+        return { ok: false, error: 'Payload must be an object' };
+    }
+    const o = raw as Record<string, unknown>;
+    const token = typeof o.token === 'string' ? o.token.trim() : '';
+    const apiBaseUrl = typeof o.apiBaseUrl === 'string' ? o.apiBaseUrl.trim() : '';
+    const userId = typeof o.userId === 'string' ? o.userId.trim() : '';
+    const nickname = typeof o.nickname === 'string' ? o.nickname.trim() : '';
+    const maxClearanceRaw = typeof o.maxClearance === 'string' ? o.maxClearance.trim().toUpperCase() : '';
+
+    if (!token.startsWith('cka_')) {
+        return { ok: false, error: 'token must be a non-empty string with prefix cka_' };
+    }
+    if (!apiBaseUrl) {
+        return { ok: false, error: 'apiBaseUrl is required' };
+    }
+    let parsedUrl: URL;
+    try {
+        parsedUrl = new URL(apiBaseUrl);
+    } catch {
+        return { ok: false, error: 'apiBaseUrl must be a valid absolute URL' };
+    }
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        return { ok: false, error: 'apiBaseUrl must use http or https' };
+    }
+    if (!userId) {
+        return { ok: false, error: 'userId is required' };
+    }
+    if (!CLEARANCE_LEVELS.has(maxClearanceRaw)) {
+        return { ok: false, error: 'maxClearance must be one of S0, S1, S2' };
+    }
+
+    return {
+        ok: true,
+        value: {
+            token,
+            apiBaseUrl,
+            userId,
+            nickname,
+            maxClearance: maxClearanceRaw,
+        },
+    };
+}
+
 /**
- * Built-in skills bundled with ClawX that should be pre-deployed to
+ * Persist SmartX Company Knowledge web bind payload into openclaw.json
+ * (skills.entries["company-knowledge"].apiKey + merged env).
+ */
+export async function bindCompanyKnowledgeFromWebview(
+    raw: unknown,
+): Promise<{ success: boolean; error?: string }> {
+    const parsed = parseCompanyKnowledgeWebBindPayload(raw);
+    if (!parsed.ok) {
+        return { success: false, error: parsed.error };
+    }
+    const payload = parsed.value;
+
+    try {
+        await mutateOpenClawConfig((config) => {
+            const skillConfig = config as OpenClawConfig;
+            if (!skillConfig.skills) {
+                skillConfig.skills = {};
+            }
+            if (!skillConfig.skills.entries) {
+                skillConfig.skills.entries = {};
+            }
+
+            const prev = skillConfig.skills.entries[COMPANY_KNOWLEDGE_SKILL_KEY] || {};
+            const entry: SkillEntry = { ...prev };
+
+            entry.apiKey = payload.token;
+
+            const mergedEnv: Record<string, string> = { ...(entry.env || {}) };
+            mergedEnv[COMPANY_KNOWLEDGE_BIND_ENV.API_BASE_URL] = payload.apiBaseUrl;
+            mergedEnv[COMPANY_KNOWLEDGE_BIND_ENV.USER_ID] = payload.userId;
+            mergedEnv[COMPANY_KNOWLEDGE_BIND_ENV.NICKNAME] = payload.nickname;
+            mergedEnv[COMPANY_KNOWLEDGE_BIND_ENV.MAX_CLEARANCE] = payload.maxClearance;
+            entry.env = mergedEnv;
+
+            skillConfig.skills.entries[COMPANY_KNOWLEDGE_SKILL_KEY] = entry;
+        });
+        logger.info('[company-knowledge] Web bind persisted to openclaw.json');
+        return { success: true };
+    } catch (err) {
+        logger.warn('Failed to bind company-knowledge from webview:', err);
+        return { success: false, error: err instanceof Error ? err.message : String(err) };
+    }
+}
+
+/**
+ * Built-in skills bundled with SmartX that should be pre-deployed to
  * ~/.openclaw/skills/ on first launch.  These come from the openclaw package's
  * extensions directory and are available in both dev and packaged builds.
  */
@@ -334,41 +448,112 @@ export async function ensureBuiltinSkillsInstalled(): Promise<void> {
 }
 
 const PREINSTALLED_MANIFEST_NAME = 'preinstalled-manifest.json';
-const PREINSTALLED_MARKER_NAME = '.clawx-preinstalled.json';
+const PREINSTALLED_MARKER_NAME = '.smartx-preinstalled.json';
+const LEGACY_PREINSTALLED_MARKER_NAME = '.clawx-preinstalled.json';
 
-async function readPreinstalledManifest(): Promise<PreinstalledSkillSpec[]> {
-    const candidates = [
-        join(getResourcesDir(), 'skills', PREINSTALLED_MANIFEST_NAME),
-        join(process.cwd(), 'resources', 'skills', PREINSTALLED_MANIFEST_NAME),
-    ];
-
-    const manifestPath = candidates.find((p) => existsSync(p));
-    if (!manifestPath) {
+function parsePreinstalledManifest(raw: string): PreinstalledSkillSpec[] {
+    const parsed = JSON.parse(raw) as PreinstalledManifest;
+    if (!Array.isArray(parsed.skills)) {
         return [];
     }
+    return parsed.skills.filter((s): s is PreinstalledSkillSpec => Boolean(s?.slug));
+}
 
+function sourceRootHasBundledSkills(root: string): boolean {
+    if (existsSync(join(root, '.preinstalled-lock.json')) || existsSync(join(root, PREINSTALLED_MANIFEST_NAME))) {
+        return true;
+    }
     try {
-        const raw = await readFile(manifestPath, 'utf-8');
-        const parsed = JSON.parse(raw) as PreinstalledManifest;
-        if (!Array.isArray(parsed.skills)) {
-            return [];
-        }
-        return parsed.skills.filter((s): s is PreinstalledSkillSpec => Boolean(s?.slug));
-    } catch (error) {
-        logger.warn('Failed to read preinstalled-skills manifest:', error);
-        return [];
+        return readdirSync(root, { withFileTypes: true })
+            .some((entry) => entry.isDirectory() && existsSync(join(root, entry.name, 'SKILL.md')));
+    } catch {
+        return false;
     }
 }
 
 function resolvePreinstalledSkillsSourceRoot(): string | null {
+    const appRoot = getAppRootPath();
     const candidates = [
         join(getResourcesDir(), 'preinstalled-skills'),
+        typeof process.resourcesPath === 'string' ? join(process.resourcesPath, 'preinstalled-skills') : '',
+        join(appRoot, 'resources', 'preinstalled-skills'),
+        join(appRoot, 'build', 'preinstalled-skills'),
         join(process.cwd(), 'build', 'preinstalled-skills'),
-        join(__dirname, '../../build/preinstalled-skills'),
-    ];
+        join(process.cwd(), 'openclaw', 'skills'),
+        join(appRoot, 'openclaw', 'skills'),
+    ].filter(Boolean);
 
-    const root = candidates.find((dir) => existsSync(dir));
-    return root || null;
+    for (const dir of candidates) {
+        if (!existsSync(dir) || !sourceRootHasBundledSkills(dir)) {
+            continue;
+        }
+        return dir;
+    }
+    return null;
+}
+
+async function scanPreinstalledSkillsFromSourceRoot(sourceRoot: string): Promise<PreinstalledSkillSpec[]> {
+    try {
+        const entries = await readdir(sourceRoot, { withFileTypes: true });
+        return entries
+            .filter((entry) => entry.isDirectory() && existsSync(join(sourceRoot, entry.name, 'SKILL.md')))
+            .map((entry) => ({ slug: entry.name }));
+    } catch (error) {
+        logger.warn('Failed to scan preinstalled skills source root:', error);
+        return [];
+    }
+}
+
+async function readPreinstalledManifestFromLock(sourceRoot: string): Promise<PreinstalledSkillSpec[]> {
+    const lockPath = join(sourceRoot, '.preinstalled-lock.json');
+    if (!existsSync(lockPath)) {
+        return [];
+    }
+    try {
+        const raw = await readFile(lockPath, 'utf-8');
+        const parsed = JSON.parse(raw) as PreinstalledLockFile;
+        return (parsed.skills || [])
+            .map((entry) => entry.slug?.trim())
+            .filter((slug): slug is string => Boolean(slug))
+            .map((slug) => ({ slug }));
+    } catch (error) {
+        logger.warn('Failed to derive preinstalled-skills manifest from lock file:', error);
+        return [];
+    }
+}
+
+async function readPreinstalledManifest(sourceRoot?: string | null): Promise<PreinstalledSkillSpec[]> {
+    const manifestCandidates = [
+        sourceRoot ? join(sourceRoot, PREINSTALLED_MANIFEST_NAME) : '',
+        join(getResourcesDir(), 'skills', PREINSTALLED_MANIFEST_NAME),
+        join(process.cwd(), 'resources', 'skills', PREINSTALLED_MANIFEST_NAME),
+        join(getAppRootPath(), 'resources', 'skills', PREINSTALLED_MANIFEST_NAME),
+    ].filter(Boolean);
+
+    for (const manifestPath of manifestCandidates) {
+        if (!existsSync(manifestPath)) {
+            continue;
+        }
+        try {
+            const raw = await readFile(manifestPath, 'utf-8');
+            const skills = parsePreinstalledManifest(raw);
+            if (skills.length > 0) {
+                return skills;
+            }
+        } catch (error) {
+            logger.warn(`Failed to read preinstalled-skills manifest at ${manifestPath}:`, error);
+        }
+    }
+
+    if (sourceRoot) {
+        const fromLock = await readPreinstalledManifestFromLock(sourceRoot);
+        if (fromLock.length > 0) {
+            return fromLock;
+        }
+        return scanPreinstalledSkillsFromSourceRoot(sourceRoot);
+    }
+
+    return [];
 }
 
 async function readPreinstalledLockVersions(sourceRoot: string): Promise<Map<string, string>> {
@@ -418,22 +603,24 @@ async function tryReadMarker(markerPath: string): Promise<PreinstalledMarker | n
  * - If skill is missing locally, install it.
  * - If local skill exists without our marker, treat as user-managed and never overwrite.
  * - If marker exists with same version, skip.
- * - If marker exists with a different version, skip by default to avoid overwriting edits.
+ * - If marker exists with a different version, upgrade the SmartX-managed copy.
  */
 export async function ensurePreinstalledSkillsInstalled(): Promise<void> {
-    const skills = await readPreinstalledManifest();
-    if (skills.length === 0) {
-        return;
-    }
-
     const sourceRoot = resolvePreinstalledSkillsSourceRoot();
     if (!sourceRoot) {
         logger.warn('Preinstalled skills source root not found; skipping preinstall.');
         return;
     }
+
+    const skills = await readPreinstalledManifest(sourceRoot);
+    if (skills.length === 0) {
+        logger.warn(`No preinstalled skills manifest entries found for source root: ${sourceRoot}`);
+        return;
+    }
+
     const lockVersions = await readPreinstalledLockVersions(sourceRoot);
 
-    const targetRoot = join(homedir(), '.openclaw', 'skills');
+    const targetRoot = getOpenClawSkillsDir();
     await mkdir(targetRoot, { recursive: true });
     const toEnable: string[] = [];
 
@@ -448,10 +635,11 @@ export async function ensurePreinstalledSkillsInstalled(): Promise<void> {
         const targetDir = join(targetRoot, spec.slug);
         const targetManifest = join(targetDir, 'SKILL.md');
         const markerPath = join(targetDir, PREINSTALLED_MARKER_NAME);
+        const legacyMarkerPath = join(targetDir, LEGACY_PREINSTALLED_MARKER_NAME);
         const desiredVersion = lockVersions.get(spec.slug)
             || (spec.version || 'unknown').trim()
             || 'unknown';
-        const marker = await tryReadMarker(markerPath);
+        const marker = await tryReadMarker(markerPath) ?? await tryReadMarker(legacyMarkerPath);
 
         if (existsSync(targetManifest)) {
             if (!marker) {
@@ -459,17 +647,33 @@ export async function ensurePreinstalledSkillsInstalled(): Promise<void> {
                 continue;
             }
             if (marker.version === desiredVersion) {
+                if (spec.autoEnable) {
+                    toEnable.push(spec.slug);
+                }
                 continue;
             }
-            logger.info(`Skipping preinstalled skill update for ${spec.slug} (local marker version=${marker.version}, desired=${desiredVersion})`);
-            continue;
+            try {
+                await rm(targetDir, { recursive: true, force: true });
+                logger.info(`Upgrading preinstalled skill ${spec.slug} (${marker.version} -> ${desiredVersion})`);
+            } catch (error) {
+                logger.warn(`Failed to remove outdated preinstalled skill ${spec.slug}:`, error);
+                continue;
+            }
+        } else if (existsSync(targetDir)) {
+            try {
+                await rm(targetDir, { recursive: true, force: true });
+                logger.info(`Removing incomplete preinstalled skill directory: ${spec.slug}`);
+            } catch (error) {
+                logger.warn(`Failed to remove incomplete preinstalled skill ${spec.slug}:`, error);
+                continue;
+            }
         }
 
         try {
             await mkdir(targetDir, { recursive: true });
             await cpAsyncSafe(sourceDir, targetDir);
             const markerPayload: PreinstalledMarker = {
-                source: 'clawx-preinstalled',
+                source: 'smartx-preinstalled',
                 slug: spec.slug,
                 version: desiredVersion,
                 installedAt: new Date().toISOString(),

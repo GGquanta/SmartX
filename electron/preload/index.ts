@@ -40,6 +40,7 @@ const electronAPI = {
         'dialog:message',
         // App
         'app:version',
+        'app:getCompanyKnowledgeWebviewPreloadPath',
         'app:name',
         'app:platform',
         'app:request',
@@ -168,13 +169,13 @@ const electronAPI = {
   isDev: process.env.NODE_ENV === 'development' || !!process.env.VITE_DEV_SERVER_URL,
 };
 
-const clawxAPI = {
+const smartxAPI = {
   hostInvoke: (request: HostRequest) => ipcRenderer.invoke('host:invoke', request),
 };
 
 // Expose the API to the renderer process
 contextBridge.exposeInMainWorld('electron', electronAPI);
-contextBridge.exposeInMainWorld('clawx', clawxAPI);
+contextBridge.exposeInMainWorld('smartx', smartxAPI);
 
 // Type declarations for the renderer process
 export type ElectronAPI = typeof electronAPI;

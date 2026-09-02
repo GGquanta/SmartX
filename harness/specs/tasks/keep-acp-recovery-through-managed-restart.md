@@ -54,8 +54,8 @@ docs:
 
 ## Incident
 
-The ACP bridge dropped an accepted prompt before ClawX's fourth heartbeat miss restarted the Gateway. OpenClaw later recovered the durable session and continued producing output, but the original ACP prompt was no longer present to adopt the replacement run. A renderer-only reload could then retry the same active-prompt load response and surface a synthetic load failure.
+The ACP bridge dropped an accepted prompt before SmartX's fourth heartbeat miss restarted the Gateway. OpenClaw later recovered the durable session and continued producing output, but the original ACP prompt was no longer present to adopt the replacement run. A renderer-only reload could then retry the same active-prompt load response and surface a synthetic load failure.
 
 ## Scope
 
-This task adjusts the existing ClawX-local OpenClaw patch and Main-owned process configuration. It deliberately leaves OpenClaw upstream work and a durable prompt-settlement protocol out of scope.
+This task adjusts the existing SmartX-local OpenClaw patch and Main-owned process configuration. It deliberately leaves OpenClaw upstream work and a durable prompt-settlement protocol out of scope.

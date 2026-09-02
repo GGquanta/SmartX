@@ -3,7 +3,7 @@ id: remove-custom-provider-request-timeout-default
 title: Stop injecting custom-provider request timeouts
 scenario: gateway-backend-communication
 taskType: runtime-bridge
-intent: Leave custom-provider request timeout policy to OpenClaw and user-authored provider configuration instead of injecting a ClawX-owned default.
+intent: Leave custom-provider request timeout policy to OpenClaw and user-authored provider configuration instead of injecting a SmartX-owned default.
 touchedAreas:
   - harness/specs/tasks/remove-custom-provider-request-timeout-default.md
   - harness/specs/tasks/bound-custom-provider-request-timeouts.md
@@ -20,7 +20,7 @@ touchedAreas:
   - README.zh-CN.md
   - README.ja-JP.md
 expectedUserBehavior:
-  - New custom providers do not receive a ClawX-authored timeoutSeconds value.
+  - New custom providers do not receive a SmartX-authored timeoutSeconds value.
   - Startup synchronization does not add timeoutSeconds to existing custom providers.
   - Per-Agent models.json synchronization does not add timeoutSeconds.
   - Existing explicit timeoutSeconds values remain unchanged.
@@ -48,9 +48,9 @@ docs:
 
 ## Background
 
-ClawX briefly injected a per-attempt timeout into `models.providers.custom-*`
+SmartX briefly injected a per-attempt timeout into `models.providers.custom-*`
 entries. Custom endpoints have different latency and retry characteristics, so
-ClawX must not impose a single provider-level timeout. OpenClaw defaults and
+SmartX must not impose a single provider-level timeout. OpenClaw defaults and
 explicit user configuration remain authoritative.
 
 ## Scope
@@ -59,7 +59,7 @@ explicit user configuration remain authoritative.
 - Stop startup backfill in `openclaw.json`.
 - Stop timeout injection into per-Agent `models.json`.
 - Preserve timeout values already present in provider configuration.
-- Remove documentation and harness rules that advertise a ClawX-owned default.
+- Remove documentation and harness rules that advertise a SmartX-owned default.
 
 ## Out Of Scope
 

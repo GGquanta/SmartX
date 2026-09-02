@@ -43,4 +43,4 @@ docs:
   required: true
 ---
 
-The OpenClaw ACP bridge legitimately reports `ACP` as its Gateway client display name. ClawX treats that value as transport provenance and keeps it behind the local new-chat placeholder until the user-authored title is ready.
+The OpenClaw ACP bridge legitimately reports `ACP` as its Gateway client display name. SmartX treats that value as transport provenance and keeps it behind the local new-chat placeholder until the user-authored title is ready.

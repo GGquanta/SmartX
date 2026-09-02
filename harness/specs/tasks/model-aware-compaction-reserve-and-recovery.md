@@ -3,7 +3,7 @@ id: model-aware-compaction-reserve-and-recovery
 title: Apply model-aware compaction reserve and protect active compaction from Gateway recovery
 scenario: gateway-backend-communication
 taskType: runtime-bridge
-intent: Keep OpenClaw compaction requests below the active model's usable context budget and prevent ClawX liveness recovery from aborting an observed in-progress compaction.
+intent: Keep OpenClaw compaction requests below the active model's usable context budget and prevent SmartX liveness recovery from aborting an observed in-progress compaction.
 touchedAreas:
   - patches/openclaw@2026.7.1-2.patch
   - pnpm-lock.yaml
@@ -59,7 +59,7 @@ expectedUserBehavior:
   - Startup configuration sync corrects stale local reserveTokensFloor values using the active default model's explicit context metadata, or resets the floor to 50000 when that metadata is absent.
   - Startup configuration sync overwrites agents.defaults.compaction.recentTurnsPreserve and keepRecentTokens with 0 so completed turns are summarized instead of replayed verbatim after compaction.
   - Developer Mode displays the currently applied compaction reserve-token floor and explains the explicit-context 25% policy plus its 50000-token fallback.
-  - ClawX does not restart an owned Gateway while its stderr confirms that an OpenClaw compaction is in progress; recovery resumes after compaction ends or after the bounded compaction grace period expires.
+  - SmartX does not restart an owned Gateway while its stderr confirms that an OpenClaw compaction is in progress; recovery resumes after compaction ends or after the bounded compaction grace period expires.
 requiredProfiles:
   - fast
   - comms
@@ -103,5 +103,5 @@ docs:
 
 OpenClaw's global compaction reserve defaults are too small for a 272k-token
 model behind a slow provider. The resulting compaction can exceed the fixed
-timeout. ClawX also owns the Gateway liveness restart policy, which must not
+timeout. SmartX also owns the Gateway liveness restart policy, which must not
 abort an observed compaction before OpenClaw can finish it.

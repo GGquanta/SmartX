@@ -721,7 +721,7 @@ describe('Channels page status refresh', () => {
             consecutiveHeartbeatMisses: 1,
           },
           channels: [],
-          clawxLogTail: 'clawx',
+          smartxLogTail: 'smartx',
           gatewayLogTail: 'gateway',
           gatewayErrLogTail: '',
         };
@@ -945,7 +945,7 @@ describe('Channels page status refresh', () => {
             consecutiveHeartbeatMisses: 1,
           },
           channels: [],
-          clawxLogTail: `clawx-${diagnosticsFetchCount}`,
+          smartxLogTail: `smartx-${diagnosticsFetchCount}`,
           gatewayLogTail: 'gateway',
           gatewayErrLogTail: '',
         };
@@ -1016,7 +1016,7 @@ describe('Channels page status refresh', () => {
             recovery,
           },
           channels: [],
-          clawxLogTail: 'clawx',
+          smartxLogTail: 'clawx',
           gatewayLogTail: 'gateway',
           gatewayErrLogTail: '',
         };

@@ -1,6 +1,6 @@
 # Local HTML Preview Architecture
 
-ClawX no longer exposes a general-purpose embedded Web Browser. The remaining Electron webview is used only to render an authorized local `.html` or `.htm` file inside the existing Preview tab.
+SmartX no longer exposes a general-purpose embedded Web Browser. The remaining Electron webview is used only to render an authorized local `.html` or `.htm` file inside the existing Preview tab.
 
 ## User flow
 
@@ -13,7 +13,7 @@ ClawX no longer exposes a general-purpose embedded Web Browser. The remaining El
 
 All links are inert:
 
-- ClawX-rendered Markdown/content links are plain text.
+- SmartX-rendered Markdown/content links are plain text.
 - Inside HTML Preview, Main injects user-origin CSS that removes anchor and area styling and pointer interaction.
 - Main also prevents navigation independently, so scripts, forms, synthetic clicks, hash navigation, redirects, and popups cannot bypass the visual restriction.
 - Downloads and network requests are canceled.
@@ -37,4 +37,4 @@ The dedicated Session denies all permissions, cancels downloads, blocks network 
 
 ## Security consequence
 
-The preview can execute self-contained local HTML scripts for rendering, but it cannot follow links, leave its selected document, request network data, download files, obtain device permissions, or access ClawX/Electron APIs.
+The preview can execute self-contained local HTML scripts for rendering, but it cannot follow links, leave its selected document, request network data, download files, obtain device permissions, or access SmartX/Electron APIs.

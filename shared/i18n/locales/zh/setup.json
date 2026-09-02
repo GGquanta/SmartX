@@ -1,7 +1,7 @@
 {
     "steps": {
         "welcome": {
-            "title": "欢迎使用 ClawX",
+            "title": "欢迎使用 小光",
             "description": "您的 AI 助手已准备好进行配置"
         },
         "runtime": {
@@ -22,12 +22,12 @@
         },
         "complete": {
             "title": "准备就绪！",
-            "description": "ClawX 已准备好使用"
+            "description": "小光 已准备好使用"
         }
     },
     "welcome": {
-        "title": "欢迎使用 ClawX",
-        "description": "ClawX 是 OpenClaw 的图形界面，让您可以在喜爱的消息平台上轻松使用 AI 助手。",
+        "title": "欢迎使用 小光 —— 您的个人智慧助理",
+        "description": "小光是中科国光量子基于 OpenClaw 开发的智能客户端软件，让您能够方便地使用人工智能技术来完成各项日常办公任务。",
         "features": {
             "noCommand": "无需命令行",
             "modernUI": "现代美观的界面",
@@ -42,6 +42,16 @@
         "nodejs": "Node.js 运行时",
         "openclaw": "OpenClaw 包",
         "gateway": "网关服务",
+        "provider": {
+            "label": "模型提供商",
+            "status": {
+                "checking": "正在应用默认模型提供商...",
+                "skip": "未配置默认模型提供商，可稍后在设置中添加",
+                "success": "已配置 {{name}}",
+                "successWithModel": "{{name}} · {{model}}",
+                "error": "默认模型提供商配置失败"
+            }
+        },
         "startGateway": "启动网关",
         "status": {
             "checking": "检查中...",
@@ -113,7 +123,7 @@
     },
     "complete": {
         "title": "设置完成！",
-        "subtitle": "ClawX 已配置并准备就绪。您现在可以开始与您的 AI 助手聊天了。",
+        "subtitle": "小光 已配置并准备就绪。您现在可以开始与您的 AI 助手聊天了。",
         "provider": "AI 提供商",
         "components": "组件",
         "gateway": "网关",

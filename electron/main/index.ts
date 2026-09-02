@@ -23,12 +23,13 @@ import { loadExtensionsFromManifest } from '../extensions/loader';
 import { registerAllBuiltinExtensions } from '../extensions/builtin';
 import { loadExternalMainExtensions } from '../extensions/_ext-bridge.generated';
 import {
-  ensureClawXContext,
-  ensureClawXDefaultIdentity,
-  repairClawXOnlyBootstrapFiles,
+  ensureSmartXContext,
+  ensureSmartXDefaultIdentity,
+  repairSmartXOnlyBootstrapFiles,
 } from '../utils/openclaw-workspace';
 import { autoInstallCliIfNeeded, generateCompletionCache, installCompletionToProfile } from '../utils/openclaw-cli';
 import { isQuitting, setQuitting } from './app-state';
+import { initBubbleSystem, teardownBubbleSystem, isBubbleEnabledInCurrentProcess } from './bubble-window';
 import { getMacTrafficLightPosition, syncMacTrafficLightPosition } from './traffic-light-layout';
 import { getSetting } from '../utils/store';
 import { applyProxySettings } from './proxy';
@@ -54,12 +55,21 @@ import { deviceOAuthManager } from '../utils/device-oauth';
 import { browserOAuthManager } from '../utils/browser-oauth';
 import { whatsAppLoginManager } from '../utils/whatsapp-login';
 import { syncAllProviderAuthToRuntime } from '../services/providers/provider-runtime-sync';
+import { loadProviderDefaultEnvFiles, resolveSmartXProjectRoot } from '../utils/provider-default-env';
+import { buildChromeUserAgent } from '@shared/chrome-user-agent';
 import { closeWindowAfterActiveTalk, forwardActiveTalkEvent, type TalkRelayOwnership } from '../services/talk-api';
 
-const WINDOWS_APP_USER_MODEL_ID = 'app.clawx.desktop';
-const isE2EMode = process.env.CLAWX_E2E === '1';
-const requestedUserDataDir = process.env.CLAWX_USER_DATA_DIR?.trim();
-const requestedRemoteDebuggingPort = process.env.CLAWX_REMOTE_DEBUGGING_PORT?.trim();
+const WINDOWS_APP_USER_MODEL_ID = 'app.smartx.desktop';
+
+loadProviderDefaultEnvFiles(resolveSmartXProjectRoot());
+
+// Subframe/worker requests (e.g. Cloudflare Turnstile iframes) can bypass per-webview
+// useragent and fall back to this default. Must be set before any webContents is created.
+app.userAgentFallback = buildChromeUserAgent();
+
+const isE2EMode = process.env.SMARTX_E2E === '1';
+const requestedUserDataDir = process.env.SMARTX_USER_DATA_DIR?.trim();
+const requestedRemoteDebuggingPort = process.env.SMARTX_REMOTE_DEBUGGING_PORT?.trim();
 
 if (requestedRemoteDebuggingPort) {
   app.commandLine.appendSwitch('remote-debugging-port', requestedRemoteDebuggingPort);
@@ -70,12 +80,12 @@ if (isE2EMode && requestedUserDataDir) {
 }
 
 // On Linux, set CHROME_DESKTOP so Chromium can find the correct .desktop file.
-// On Wayland this maps the running window to clawx.desktop (→ icon + app grouping);
+// On Wayland this maps the running window to smartx.desktop (→ icon + app grouping);
 // on X11 it supplements the StartupWMClass matching.
 // Must be called before app.whenReady() / before any window is created.
 if (process.platform === 'linux') {
   const linuxApp = app as typeof app & { setDesktopName?: (desktopName: string) => void };
-  linuxApp.setDesktopName?.('clawx.desktop');
+  linuxApp.setDesktopName?.('smartx.desktop');
 }
 
 // Prevent multiple instances of the app from running simultaneously.
@@ -85,7 +95,7 @@ if (process.platform === 'linux') {
 // The losing process must exit immediately so it never reaches Gateway startup.
 const gotElectronLock = isE2EMode ? true : app.requestSingleInstanceLock();
 if (!gotElectronLock) {
-  console.info('[ClawX] Another instance already holds the single-instance lock; exiting duplicate process');
+  console.info('[SmartX] Another instance already holds the single-instance lock; exiting duplicate process');
   app.exit(0);
 }
 let releaseProcessInstanceFileLock: () => void = () => {};
@@ -94,7 +104,7 @@ if (gotElectronLock && !isE2EMode) {
   try {
     const fileLock = acquireProcessInstanceFileLock({
       userDataDir: app.getPath('userData'),
-      lockName: 'clawx',
+      lockName: 'smartx',
       force: true, // Electron lock already guarantees exclusivity; force-clean orphan/recycled-PID locks
     });
     gotFileLock = fileLock.acquired;
@@ -106,12 +116,12 @@ if (gotElectronLock && !isE2EMode) {
           ? 'unknown lock format/content'
           : 'unknown owner';
       console.info(
-        `[ClawX] Another instance already holds process lock (${fileLock.lockPath}, ${ownerDescriptor}); exiting duplicate process`,
+        `[SmartX] Another instance already holds process lock (${fileLock.lockPath}, ${ownerDescriptor}); exiting duplicate process`,
       );
       app.exit(0);
     }
   } catch (error) {
-    console.warn('[ClawX] Failed to acquire process instance file lock; continuing with Electron single-instance lock only', error);
+    console.warn('[SmartX] Failed to acquire process instance file lock; continuing with Electron single-instance lock only', error);
   }
 }
 const gotTheLock = gotElectronLock && gotFileLock;
@@ -215,7 +225,7 @@ function createWindow(): BrowserWindow {
 }
 
 function loadMainWindow(win: BrowserWindow): void {
-  const shouldSkipSetupForE2E = process.env.CLAWX_E2E_SKIP_SETUP === '1';
+  const shouldSkipSetupForE2E = process.env.SMARTX_E2E_SKIP_SETUP === '1';
 
   if (process.env.VITE_DEV_SERVER_URL) {
     const rendererUrl = new URL(process.env.VITE_DEV_SERVER_URL);
@@ -321,7 +331,7 @@ function createMainWindow(): BrowserWindow {
 async function initialize(): Promise<void> {
   // Initialize logger first
   logger.init();
-  logger.info('=== ClawX Application Starting ===');
+  logger.info('=== SmartX Application Starting ===');
   logger.debug(
     `Runtime: platform=${process.platform}/${process.arch}, electron=${process.versions.electron}, node=${process.versions.node}, packaged=${app.isPackaged}, pid=${process.pid}, ppid=${process.ppid}`
   );
@@ -382,7 +392,16 @@ async function initialize(): Promise<void> {
     hostApiRegistry,
     webBrowserSession,
     webBrowserGuestRegistry,
+    focusMainWindow,
   );
+
+  if (isBubbleEnabledInCurrentProcess()) {
+    initBubbleSystem({
+      gatewayManager,
+      getMainWindow: () => mainWindow,
+      focusMainWindow,
+    });
+  }
 
   loadMainWindow(window);
 
@@ -415,51 +434,19 @@ async function initialize(): Promise<void> {
   // so it respects the user's "Auto-check for updates" setting.
 
   // Seed a stable default IDENTITY.md before the Gateway initializes the
-  // workspace so ClawX desktop sessions skip OpenClaw's chat-first bootstrap.
+  // workspace so SmartX desktop sessions skip OpenClaw's chat-first bootstrap.
   if (!isE2EMode) {
-    void ensureClawXDefaultIdentity().catch((error) => {
-      logger.warn('Failed to seed default ClawX identity:', error);
+    void ensureSmartXDefaultIdentity().catch((error) => {
+      logger.warn('Failed to seed default SmartX identity:', error);
     });
   }
 
-  // Repair any bootstrap files that only contain ClawX markers (no OpenClaw
-  // template content). This fixes a race condition where ensureClawXContext()
+  // Repair any bootstrap files that only contain SmartX markers (no OpenClaw
+  // template content). This fixes a race condition where ensureSmartXContext()
   // previously created the file before the gateway could seed the full template.
   if (!isE2EMode) {
-    void repairClawXOnlyBootstrapFiles().catch((error) => {
+    void repairSmartXOnlyBootstrapFiles().catch((error) => {
       logger.warn('Failed to repair bootstrap files:', error);
-    });
-  }
-
-  // Pre-deploy built-in skills (feishu-doc, feishu-drive, feishu-perm, feishu-wiki)
-  // to ~/.openclaw/skills/ so they are immediately available without manual install.
-  if (!isE2EMode) {
-    void ensureBuiltinSkillsInstalled().catch((error) => {
-      logger.warn('Failed to install built-in skills:', error);
-    });
-  }
-
-  // Keep community builds aligned with Clawx-biz by physically trimming
-  // bundled OpenClaw consumer skills on startup (dev + packaged), keeping only
-  // `skill-creator`. This also prunes stale openclaw.json entries for trimmed
-  // bundled skills so we do not keep `enabled: false` config for skills that no
-  // longer exist.
-  if (!isE2EMode) {
-    void trimBundledOpenClawSkillsAndConfigs().then(({ removed, removedConfigs, kept }) => {
-      if (removed > 0 || removedConfigs > 0) {
-        logger.info(
-          `Trimmed bundled OpenClaw skills: removed ${removed}, pruned configs ${removedConfigs}, kept ${kept.join(', ')}`,
-        );
-      }
-    });
-  }
-
-  // Pre-deploy bundled third-party skills from resources/preinstalled-skills.
-  // This installs full skill directories (not only SKILL.md) in an idempotent,
-  // non-destructive way and never blocks startup.
-  if (!isE2EMode) {
-    void ensurePreinstalledSkillsInstalled().catch((error) => {
-      logger.warn('Failed to install preinstalled skills:', error);
     });
   }
 
@@ -473,8 +460,8 @@ async function initialize(): Promise<void> {
   gatewayManager.on('status', (status: { state: string }) => {
     sendMainWindowEvent('gateway:status-changed', status);
     if (status.state === 'running' && !isE2EMode) {
-      void ensureClawXContext().catch((error) => {
-        logger.warn('Failed to re-merge ClawX context after gateway reconnect:', error);
+      void ensureSmartXContext().catch((error) => {
+        logger.warn('Failed to re-merge SmartX context after gateway reconnect:', error);
       });
     }
   });
@@ -554,6 +541,33 @@ async function initialize(): Promise<void> {
     sendMainWindowEvent('channel:whatsapp-error', error);
   });
 
+  // Deploy bundled skills before Gateway auto-start so the managed skills root
+  // is ready when OpenClaw scans ~/.openclaw/skills on first launch.
+  if (!isE2EMode) {
+    try {
+      await ensureBuiltinSkillsInstalled();
+    } catch (error) {
+      logger.warn('Failed to install built-in skills:', error);
+    }
+
+    try {
+      const trimResult = await trimBundledOpenClawSkillsAndConfigs();
+      if (trimResult.removed > 0 || trimResult.removedConfigs > 0) {
+        logger.info(
+          `Trimmed bundled OpenClaw skills: removed ${trimResult.removed}, pruned configs ${trimResult.removedConfigs}, kept ${trimResult.kept.join(', ')}`,
+        );
+      }
+    } catch (error) {
+      logger.warn('Failed to trim bundled OpenClaw skills:', error);
+    }
+
+    try {
+      await ensurePreinstalledSkillsInstalled();
+    } catch (error) {
+      logger.warn('Failed to install preinstalled skills:', error);
+    }
+  }
+
   // Start Gateway automatically (this seeds missing bootstrap files with full templates)
   const gatewayAutoStart = await getSetting('gatewayAutoStart');
   if (!isE2EMode && gatewayAutoStart) {
@@ -572,12 +586,12 @@ async function initialize(): Promise<void> {
     logger.info('Gateway auto-start disabled in settings');
   }
 
-  // Merge ClawX context snippets into the workspace bootstrap files.
+  // Merge SmartX context snippets into the workspace bootstrap files.
   // The gateway seeds workspace files asynchronously after its HTTP server
-  // is ready, so ensureClawXContext will retry until the target files appear.
+  // is ready, so ensureSmartXContext will retry until the target files appear.
   if (!isE2EMode) {
-    void ensureClawXContext().catch((error) => {
-      logger.warn('Failed to merge ClawX context into workspace:', error);
+    void ensureSmartXContext().catch((error) => {
+      logger.warn('Failed to merge SmartX context into workspace:', error);
     });
   }
 
@@ -628,7 +642,7 @@ if (gotTheLock) {
 
   // When a second instance is launched, focus the existing window instead.
   app.on('second-instance', () => {
-    logger.info('Second ClawX instance detected; redirecting to the existing window');
+    logger.info('Second SmartX instance detected; redirecting to the existing window');
 
     const focusRequest = requestSecondInstanceFocus(
       mainWindowFocusState,
@@ -685,6 +699,7 @@ if (gotTheLock) {
     }
 
     void extensionRegistry.teardownAll();
+    teardownBubbleSystem();
 
     const stopPromise = gatewayManager.stop().catch((err) => {
       logger.warn('gatewayManager.stop() error during quit:', err);

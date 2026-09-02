@@ -1,4 +1,4 @@
-# ClawX 开发文档
+# SmartX 开发文档
 
 本文档是 README「开发指南」一节的详细说明。
 
@@ -14,7 +14,7 @@
 
 ### 项目结构
 
-```ClawX/
+```SmartX/
 ├── electron/                 # Electron 主进程
 │   ├── services/            # 类型化 Host API、Provider、Secrets 与运行时服务
 │   │   ├── providers/       # Provider/account 模型同步逻辑
@@ -64,7 +64,7 @@ pnpm run build:vite       # 仅构建前端
 pnpm build                # 完整生产构建（含打包资源）
 pnpm package              # 为当前平台打包（包含预装技能资源）
 pnpm package:mac          # 为 macOS 打包
-pnpm package:win          # 为 Windows 打包
+pnpm package:win          # 为 Windows 打包（同时产出 x64 与 ARM64 NSIS）
 pnpm package:linux        # 为 Linux 打包
 ```
 
@@ -80,7 +80,7 @@ Electron E2E 功能测试在本地和 CI 中默认使用两个 Playwright worker
 
 录制真实 Renderer 时，使用 `CLAWX_REMOTE_DEBUGGING_PORT=9223 pnpm dev` 启动开发环境，再让 Playwright 或 Chrome DevTools 连接 `localhost:9223`。录制真实 Electron Main 时，运行 `pnpm run profile:main`，在 `chrome://inspect` 中配置 `localhost:9229` 并选择 Electron Main target。除非正在测量 WebSocket trace 本身，否则不要设置 `CLAWX_GATEWAY_WS_TRACE`。
 
-ClawX 默认保留 Chromium 硬件加速，使长文档、滚动和布局动画能够使用 GPU 合成与光栅化。若某台机器的显卡驱动存在问题，仍可使用 Chromium 原生的 `--disable-gpu` 命令行参数作为排障回退。
+SmartX 默认保留 Chromium 硬件加速，使长文档、滚动和布局动画能够使用 GPU 合成与光栅化。若某台机器的显卡驱动存在问题，仍可使用 Chromium 原生的 `--disable-gpu` 命令行参数作为排障回退。
 
 ### 通信回归检查
 

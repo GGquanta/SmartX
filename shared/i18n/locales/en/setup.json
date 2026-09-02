@@ -1,7 +1,7 @@
 {
     "steps": {
         "welcome": {
-            "title": "Welcome to ClawX",
+            "title": "Welcome to Xiaoguang",
             "description": "Your AI assistant is ready to be configured"
         },
         "runtime": {
@@ -22,12 +22,12 @@
         },
         "complete": {
             "title": "All Set!",
-            "description": "ClawX is ready to use"
+            "description": "Xiaoguang is ready to use"
         }
     },
     "welcome": {
-        "title": "Welcome to ClawX",
-        "description": "ClawX is a graphical interface for OpenClaw, making it easy to use AI assistants across your favorite messaging platforms.",
+        "title": "Welcome to Xiaoguang — Your Personal Intelligent Assistant",
+        "description": "Xiaoguang is an intelligent client developed by CAS Guoguang Quantum based on OpenClaw, helping you conveniently use AI technology to complete everyday office tasks.",
         "features": {
             "noCommand": "Zero command-line required",
             "modernUI": "Modern, beautiful interface",
@@ -42,6 +42,16 @@
         "nodejs": "Node.js Runtime",
         "openclaw": "OpenClaw Package",
         "gateway": "Gateway Service",
+        "provider": {
+            "label": "AI Provider",
+            "status": {
+                "checking": "Applying default provider...",
+                "skip": "No default provider configured — add one later in Settings",
+                "success": "{{name}} configured",
+                "successWithModel": "{{name}} · {{model}}",
+                "error": "Failed to configure default provider"
+            }
+        },
         "startGateway": "Start Gateway",
         "status": {
             "checking": "Checking...",
@@ -113,7 +123,7 @@
     },
     "complete": {
         "title": "Setup Complete!",
-        "subtitle": "ClawX is configured and ready to use. You can now start chatting with your AI assistant.",
+        "subtitle": "Xiaoguang is configured and ready. You can now start chatting with your AI assistant.",
         "provider": "AI Provider",
         "components": "Components",
         "gateway": "Gateway",

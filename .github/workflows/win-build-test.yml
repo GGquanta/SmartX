@@ -15,6 +15,14 @@ permissions:
 jobs:
   windows-build-sign:
     runs-on: windows-latest
+    env:
+      CI: "true"
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VITE_COMPANY_KNOWLEDGE_URL: ${{ vars.VITE_COMPANY_KNOWLEDGE_URL }}
+      PROVIDER_DEFAULT_NAME: ${{ secrets.PROVIDER_DEFAULT_NAME }}
+      PROVIDER_DEFAULT_APIKEY: ${{ secrets.PROVIDER_DEFAULT_APIKEY }}
+      PROVIDER_DEFAULT_MODEL: ${{ secrets.PROVIDER_DEFAULT_MODEL }}
+      PROVIDER_DEFAULT_BASE_URL: ${{ secrets.PROVIDER_DEFAULT_BASE_URL }}
 
     steps:
       - name: Checkout code
@@ -48,6 +56,30 @@ jobs:
       - name: Build Windows
         run: pnpm run package:win
 
+      - name: Assert Windows x64 and arm64 installers
+        shell: pwsh
+        run: |
+          $x64 = Get-ChildItem -Path "release" -Filter "*-win-x64.exe" -File
+          $arm64 = Get-ChildItem -Path "release" -Filter "*-win-arm64.exe" -File
+          if (-not $x64) { throw "Missing Windows x64 installer (release/*-win-x64.exe)" }
+          if (-not $arm64) { throw "Missing Windows ARM64 installer (release/*-win-arm64.exe)" }
+          Write-Host "Found x64: $($x64.Name)"
+          Write-Host "Found arm64: $($arm64.Name)"
+
+          $ymlFiles = Get-ChildItem -Path "release" -Filter "*.yml" -File | Where-Object { $_.Name -ne "builder-debug.yml" }
+          if (-not $ymlFiles) { throw "No update manifest yml files found in release/" }
+          $hasX64 = $false
+          $hasArm64 = $false
+          foreach ($yml in $ymlFiles) {
+            $content = Get-Content $yml.FullName -Raw
+            Write-Host "--- $($yml.Name) ---"
+            Write-Host $content
+            if ($content -match 'win-x64\.exe') { $hasX64 = $true }
+            if ($content -match 'win-arm64\.exe') { $hasArm64 = $true }
+          }
+          if (-not $hasX64) { throw "Update manifest is missing win-x64.exe" }
+          if (-not $hasArm64) { throw "Update manifest is missing win-arm64.exe" }
+
       - name: Validate unsigned Windows artifacts before SignPath
         shell: pwsh
         run: |
@@ -60,31 +92,19 @@ jobs:
           Write-Host "Found $unsignedCount unsigned .exe file(s):"
           $unsignedExeFiles | ForEach-Object { Write-Host " - $($_.Name)" }
 
-      # Required by SignPath Trusted Build: artifact must exist on GitHub first.
-      - name: Upload unsigned Windows artifacts for SignPath
-        id: upload-unsigned-windows-artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: unsigned-win-exe-${{ github.run_id }}-${{ github.run_attempt }}
-          path: release/*.exe
-          retention-days: 1
-
-      - name: Sign Windows artifacts via SignPath
+      # Bypass GitHub connector (HTTP 503). Sign via SignPath REST SubmitWithArtifact.
+      - name: Sign Windows artifacts via SignPath REST API
         id: signpath-sign-windows
-        uses: signpath/github-action-submit-signing-request@v2
-        with:
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: "78e37079-23df-4800-b41c-33312ad7c1e3"
-          project-slug: "ValueCell"
-          signing-policy-slug: "ValueCell-sign"
-          github-artifact-id: ${{ steps.upload-unsigned-windows-artifact.outputs.artifact-id }}
-          wait-for-completion: true
-          output-artifact-directory: release/signed
+        env:
+          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          SIGNPATH_ORGANIZATION_ID: "05aeab6b-bde4-460b-90e0-808d9f83779b"
+          SIGNPATH_PROJECT_SLUG: "GGquanta"
+          SIGNPATH_SIGNING_POLICY_SLUG: "GGquanta-sign"
+        run: node scripts/signpath-sign-windows.mjs --input-dir release --output-dir release/signed --description "SmartX ${{ github.event.inputs.version || 'dev' }}"
 
       - name: Replace unsigned executables with signed ones
         shell: pwsh
         run: |
-          Write-Host "SignPath GitHub artifact ID: ${{ steps.upload-unsigned-windows-artifact.outputs.artifact-id }}"
           $signedExeFiles = Get-ChildItem -Path "release/signed" -Filter *.exe -File -Recurse
           if (-not $signedExeFiles) {
             throw "No signed .exe files found in release/signed"

@@ -22,7 +22,7 @@
     },
     "deleteDialog": {
         "title": "Permanently delete Agent?",
-        "message": "Permanently delete \"{{name}}\", its ClawX-managed workspace, and all associated chat history? This action cannot be undone.",
+        "message": "Permanently delete \"{{name}}\", its SmartX-managed workspace, and all associated chat history? This action cannot be undone.",
         "confirm": "Permanently delete"
     },
     "settingsDialog": {
@@ -54,7 +54,7 @@
     },
     "removeChannelDialog": {
         "title": "Remove Channel",
-        "message": "Remove {{name}} from ClawX? This deletes the current channel configuration."
+        "message": "Remove {{name}} from SmartX? This deletes the current channel configuration."
     },
     "toast": {
         "agentCreated": "Agent created",

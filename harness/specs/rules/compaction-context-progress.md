@@ -12,7 +12,7 @@ requiredTests:
 
 # Compaction Context Progress
 
-When ClawX configures `keepRecentTokens: 0`, OpenClaw must summarize every
+When SmartX configures `keepRecentTokens: 0`, OpenClaw must summarize every
 completed pre-compaction turn and harden the persisted boundary to the new
 compaction entry. It must not replay a completed message merely because that
 message crosses a token-retention threshold.

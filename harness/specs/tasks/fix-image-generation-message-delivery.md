@@ -34,7 +34,7 @@ requiredTests:
   - pnpm exec playwright test tests/e2e/chat-run-state-events.spec.ts -g "projects OpenClaw image-generation"
   - pnpm run typecheck
 acceptance:
-  - ClawX accepts only trusted ACP or Gateway completion evidence that matches the ACP session and recent image-generation context.
+  - SmartX accepts only trusted ACP or Gateway completion evidence that matches the ACP session and recent image-generation context.
   - Internal-UI sourceReply text remains authoritative for successful media replies and text-only failure replies.
   - Existing safeguards still reject arbitrary image paths and generic tool output without approved image-generation context.
 docs:

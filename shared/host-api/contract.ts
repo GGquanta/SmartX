@@ -42,6 +42,20 @@ export type OpenClawDoctorResult = HostSuccess & {
 };
 export type OpenClawDoctorPayload = { mode: OpenClawDoctorMode };
 
+export type ProviderEnvDefaultsPreview = {
+  providerId: string;
+  providerName: string;
+  model: string;
+  baseUrl: string;
+};
+
+export type SeedProviderFromEnvResponse = {
+  status: 'seeded' | 'skipped' | 'missing-env' | 'already-configured' | 'failed';
+  providerName?: string;
+  model?: string;
+  error?: string;
+};
+
 export type OpenClawStatusResult = {
   packageExists: boolean;
   isBuilt: boolean;
@@ -120,6 +134,11 @@ export type UpdateCheckResult = HostSuccess & { status?: UpdateStatusSnapshot };
 export type UpdateSetChannelPayload = { channel: UpdateChannel };
 export type UpdateSetAutoDownloadPayload = { enable: boolean };
 
+export type BubbleVisibility = 'always' | 'whenMinimized' | 'never';
+export type BubbleSyncForegroundRunPayload = { active: boolean };
+export type BubbleVisualState = 'disconnected' | 'idle' | 'working';
+export type BubbleVisualStateEvent = { state: BubbleVisualState };
+
 export type SettingsSnapshot = Partial<{
   theme: 'light' | 'dark' | 'system';
   language: string;
@@ -140,10 +159,12 @@ export type SettingsSnapshot = Partial<{
   sidebarWidth: number;
   devModeUnlocked: boolean;
   setupComplete: boolean;
+  bubbleVisibility: BubbleVisibility;
   chatWorkspacePath: string;
   recentWorkspacePaths: string[];
   workspaceLabels: Record<string, string>;
 }>;
+
 export type SettingsKey = keyof SettingsSnapshot & string;
 export type SettingsValue = SettingsSnapshot[SettingsKey];
 export type SettingsGetPayload = { key: SettingsKey };
@@ -326,7 +347,7 @@ export type DiagnosticsGatewaySnapshotResult = {
   platform: string;
   gateway: DiagnosticsGatewaySnapshotGateway;
   channels: ChannelGroupItem[];
-  clawxLogTail: string;
+  smartxLogTail: string;
   gatewayLogTail: string;
   gatewayErrLogTail: string;
 };
@@ -347,6 +368,7 @@ export type ProviderType =
   | 'moonshot-global'
   | 'siliconflow'
   | 'deepseek'
+  | 'bailian'
   | 'minimax-portal'
   | 'minimax-portal-cn'
   | 'zai'
@@ -865,6 +887,8 @@ export type DeliveryTargetsResult = HostSuccess & { targets: DeliveryChannelGrou
 export type HostApiContract = {
   app: {
     openClawDoctor: (payload: OpenClawDoctorPayload) => Omit<OpenClawDoctorResult, 'mode'>;
+    getProviderEnvDefaults: () => ProviderEnvDefaultsPreview | null;
+    seedProviderFromEnv: () => SeedProviderFromEnvResponse;
   };
   openclaw: {
     status: () => OpenClawStatusResult;
@@ -1081,6 +1105,10 @@ export type HostApiContract = {
   };
   usage: {
     recentTokenHistory: (payload?: UsageHistoryPayload) => UsageHistoryEntry[];
+  };
+  bubble: {
+    openMainWindow: () => void;
+    syncForegroundRun: (payload: BubbleSyncForegroundRunPayload) => void;
   };
 };
 

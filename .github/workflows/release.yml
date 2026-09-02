@@ -1,5 +1,23 @@
-# ClawX Release Workflow
+# SmartX Release Workflow
 # Builds and publishes releases for macOS, Windows, and Linux
+#
+# Secrets (macOS code signing + notarization — required for stable mac builds):
+#   CSC_LINK / MAC_CERTS                 — Developer ID Application .p12 (base64 or file:// / https URL)
+#   CSC_KEY_PASSWORD / MAC_CERTS_PASSWORD — Password for the .p12
+#   APPLE_API_KEY_ID                     — App Store Connect API Key ID (10 chars)
+#   APPLE_API_ISSUER                     — App Store Connect Issuer ID (UUID)
+#   APPLE_API_KEY_P8                     — Full contents of AuthKey_<KEY_ID>.p8
+# Windows code signing (stable channel):
+#   SIGNPATH_API_TOKEN                   — SignPath REST submitter token
+# Stable Windows builds sign via scripts/signpath-sign-windows.mjs
+# (POST /SigningRequests/SubmitWithArtifact), not the GitHub connector action.
+# Fallback (legacy Apple ID notarization, used only if API key secrets are absent):
+#   APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID
+#
+# Prepare CSC_LINK on a Mac with the certificate installed:
+#   security find-identity -v -p codesigning
+#   # Export "Developer ID Application" from Keychain Access as .p12, then:
+#   base64 -i DeveloperID.p12 | pbcopy
 
 name: Release
 
@@ -12,10 +30,22 @@ on:
       version:
         description: 'Version to release (e.g., 1.0.0)'
         required: true
+      internal_release:
+        description: '内网测试：跳过 mac 签名/公证与 Windows SignPath（tag 含 alpha/beta/rc/internal 时也会自动启用）'
+        type: boolean
+        default: true
 
 permissions:
   contents: write
   actions: read
+
+# Repository variables (Settings → Secrets and variables → Actions → Variables):
+#   PUBLISH_GITHUB_RELEASE — set to 'true' to run publish + finalize (GitHub Releases); unset/false skips
+#   OSS_BUCKET   — OSS bucket name (default: ggquanta-smartx)
+#   OSS_ENDPOINT — ossutil endpoint (e.g. oss-cn-hongkong.aliyuncs.com)
+env:
+  OSS_BUCKET: ${{ vars.OSS_BUCKET || 'ggquanta-smartx' }}
+  OSS_ENDPOINT: ${{ vars.OSS_ENDPOINT }}
 
 jobs:
   # Fails fast on tag pushes if package.json "version" does not match the tag.
@@ -41,7 +71,13 @@ jobs:
             platform: linux
 
     runs-on: ${{ matrix.os }}
-    
+    env:
+      VITE_COMPANY_KNOWLEDGE_URL: ${{ vars.VITE_COMPANY_KNOWLEDGE_URL }}
+      PROVIDER_DEFAULT_NAME: ${{ secrets.PROVIDER_DEFAULT_NAME }}
+      PROVIDER_DEFAULT_APIKEY: ${{ secrets.PROVIDER_DEFAULT_APIKEY }}
+      PROVIDER_DEFAULT_MODEL: ${{ secrets.PROVIDER_DEFAULT_MODEL }}
+      PROVIDER_DEFAULT_BASE_URL: ${{ secrets.PROVIDER_DEFAULT_BASE_URL }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -51,11 +87,13 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
+      # Windows release jobs exhaust disk after Electron packaging; skip pnpm cache
+      # save in Post Setup Node.js (tar+zstd) to avoid post-job cleanup failures.
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '24'
-          cache: 'pnpm'
+          cache: ${{ matrix.platform != 'win' && 'pnpm' || '' }}
 
       - name: Prefer HTTPS for public GitHub git dependencies
         run: |
@@ -89,6 +127,32 @@ jobs:
         if: matrix.platform == 'linux'
         run: pnpm run agent-browser:download:linux
 
+      # Internal: unsigned mac + no Windows SignPath. Stable: Apple notarize + SignPath.
+      - name: Detect release channel
+        id: release-channel
+        shell: bash
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF#refs/tags/v}"
+          else
+            TAG="${{ github.event.inputs.version }}"
+          fi
+          INTERNAL=false
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.internal_release }}" == "true" ]]; then
+            INTERNAL=true
+          fi
+          if [[ "$TAG" =~ (alpha|beta|rc|internal) ]]; then
+            INTERNAL=true
+          fi
+          if [[ "$INTERNAL" == "true" ]]; then
+            echo "is_internal=true" >> $GITHUB_OUTPUT
+            echo "is_stable=false" >> $GITHUB_OUTPUT
+            echo "Channel: internal ($TAG) — skip mac signing/notarize and Windows SignPath"
+          else
+            echo "is_internal=false" >> $GITHUB_OUTPUT
+            echo "is_stable=true" >> $GITHUB_OUTPUT
+            echo "Channel: stable ($TAG) — mac notarize + Windows SignPath"
+          fi
 
       # macOS specific steps
       - name: Free disk space (macOS)
@@ -110,46 +174,167 @@ jobs:
 
       # --publish never: prevent electron-builder from auto-publishing to GitHub.
       # All artifacts are collected and published atomically in the publish job.
-      - name: Build macOS
-        if: matrix.platform == 'mac'
+      - name: Build macOS (internal, unsigned)
+        if: matrix.platform == 'mac' && steps.release-channel.outputs.is_internal == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK: ${{ secrets.MAC_CERTS }}
-          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           ulimit -n 65536
           echo "File descriptor limit: $(ulimit -n)"
+          pnpm run package:mac:internal
+
+      - name: Prepare Apple notarization API key
+        if: matrix.platform == 'mac' && steps.release-channel.outputs.is_internal != 'true'
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          CSC_LINK: ${{ secrets.CSC_LINK || secrets.MAC_CERTS }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD || secrets.MAC_CERTS_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+        run: |
+          if [ -z "${CSC_LINK}" ] || [ -z "${CSC_KEY_PASSWORD}" ]; then
+            echo "::error::Missing CSC_LINK/MAC_CERTS or CSC_KEY_PASSWORD/MAC_CERTS_PASSWORD"
+            exit 1
+          fi
+
+          if [ -n "${APPLE_API_KEY_P8}" ]; then
+            missing=0
+            for name in APPLE_API_KEY_ID APPLE_API_ISSUER APPLE_API_KEY_P8; do
+              if [ -z "${!name}" ]; then
+                echo "::error::Missing required secret: ${name}"
+                missing=1
+              fi
+            done
+            if [ "$missing" -ne 0 ]; then
+              exit 1
+            fi
+
+            KEY_PATH="${RUNNER_TEMP}/AuthKey_${APPLE_API_KEY_ID}.p8"
+            printf '%s' "${APPLE_API_KEY_P8}" > "${KEY_PATH}"
+            [[ "$(tail -c1 "${KEY_PATH}" | wc -l)" -eq 0 ]] && printf '\n' >> "${KEY_PATH}"
+            chmod 600 "${KEY_PATH}"
+            echo "APPLE_API_KEY=${KEY_PATH}" >> "$GITHUB_ENV"
+            echo "Wrote App Store Connect API key to ${KEY_PATH}"
+
+            echo "=== Preflight: notarytool auth ==="
+            xcrun notarytool history \
+              --key "${KEY_PATH}" \
+              --key-id "${APPLE_API_KEY_ID}" \
+              --issuer "${APPLE_API_ISSUER}" || {
+                echo "::error::notarytool auth failed — check APPLE_API_KEY_P8 / KEY_ID / ISSUER"
+                exit 1
+              }
+          elif [ -n "${APPLE_ID}" ]; then
+            echo "::warning::APPLE_API_KEY_P8 is unset; falling back to Apple ID notarization"
+          else
+            echo "::error::Configure APPLE_API_KEY_P8 / APPLE_API_KEY_ID / APPLE_API_ISSUER (preferred) or APPLE_ID"
+            exit 1
+          fi
+
+      - name: Build macOS (signed + notarized)
+        if: matrix.platform == 'mac' && steps.release-channel.outputs.is_internal != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.CSC_LINK || secrets.MAC_CERTS }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD || secrets.MAC_CERTS_PASSWORD }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          DEBUG: electron-builder,electron-osx-sign
+        run: |
+          ulimit -n 65536
+          echo "File descriptor limit: $(ulimit -n)"
+          echo "CSC_LINK length: ${#CSC_LINK}"
+          echo "APPLE_API_KEY: ${APPLE_API_KEY:-<unset>}"
+          echo "APPLE_API_KEY_ID: ${APPLE_API_KEY_ID:-<unset>}"
           pnpm run package:mac
 
+      - name: Verify macOS signature and notarization
+        if: matrix.platform == 'mac' && steps.release-channel.outputs.is_internal != 'true'
+        run: |
+          set -euo pipefail
+          APP_PATH="$(find release -name 'SmartX.app' -not -path '*/Frameworks/*' -print | head -n 1 || true)"
+          DMG_PATH="$(find release -maxdepth 1 -name '*-mac-*.dmg' -print | head -n 1 || true)"
+
+          if [ -z "${APP_PATH}" ] && [ -n "${DMG_PATH}" ]; then
+            MOUNT_POINT="$(mktemp -d)"
+            hdiutil attach "${DMG_PATH}" -nobrowse -readonly -mountpoint "${MOUNT_POINT}"
+            APP_PATH="$(find "${MOUNT_POINT}" -maxdepth 1 -name 'SmartX.app' -print | head -n 1)"
+            cleanup() { hdiutil detach "${MOUNT_POINT}" -quiet || true; rm -rf "${MOUNT_POINT}"; }
+            trap cleanup EXIT
+          fi
+
+          if [ -z "${APP_PATH}" ]; then
+            echo "::error::No SmartX.app found to verify after macOS build"
+            ls -laR release || true
+            exit 1
+          fi
+
+          node scripts/mac-signing-env.mjs verify "${APP_PATH}"
+          xcrun stapler validate "${APP_PATH}" || echo "::warning::stapler validate failed (notarize ticket may still be pending)"
+          spctl --assess --type execute --verbose "${APP_PATH}" || {
+            echo "::warning::spctl assess reported a warning (codesign already verified)"
+          }
+
       # Windows specific steps
+      - name: Free disk space (Windows)
+        if: matrix.platform == 'win'
+        shell: pwsh
+        run: |
+          Write-Host "=== Disk usage before cleanup ==="
+          Get-PSDrive -Name C | Format-List Used,Free
+          $paths = @(
+            "C:\Android",
+            "$env:ProgramFiles\Android",
+            "$env:ProgramFiles\dotnet",
+            "C:\hostedtoolcache\windows\CodeQL",
+            "C:\hostedtoolcache\windows\go",
+            "C:\hostedtoolcache\windows\Java",
+            "C:\hostedtoolcache\windows\Ruby"
+          )
+          foreach ($p in $paths) {
+            if (Test-Path $p) {
+              Write-Host "Removing $p"
+              cmd /c "rmdir /s /q `"$p`""
+            }
+          }
+          Write-Host "=== Disk usage after cleanup ==="
+          Get-PSDrive -Name C | Format-List Used,Free
+
       - name: Build Windows
         if: matrix.platform == 'win'
         run: pnpm run package:win
 
-      # Detect release channel from tag to skip code signing for alpha/beta builds
-      - name: Detect Windows release channel
+      - name: Assert Windows x64 and arm64 installers
         if: matrix.platform == 'win'
-        id: win-channel
-        shell: bash
+        shell: pwsh
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            TAG="${GITHUB_REF#refs/tags/v}"
-          else
-            TAG="${{ github.event.inputs.version }}"
-          fi
-          if [[ "$TAG" =~ (alpha|beta) ]]; then
-            echo "is_stable=false" >> $GITHUB_OUTPUT
-            echo "Channel: prerelease ($TAG) — skipping code signing"
-          else
-            echo "is_stable=true" >> $GITHUB_OUTPUT
-            echo "Channel: stable ($TAG) — will sign"
-          fi
+          $x64 = Get-ChildItem -Path "release" -Filter "*-win-x64.exe" -File
+          $arm64 = Get-ChildItem -Path "release" -Filter "*-win-arm64.exe" -File
+          if (-not $x64) { throw "Missing Windows x64 installer (release/*-win-x64.exe)" }
+          if (-not $arm64) { throw "Missing Windows ARM64 installer (release/*-win-arm64.exe)" }
+          Write-Host "Found x64: $($x64.Name)"
+          Write-Host "Found arm64: $($arm64.Name)"
+
+          $ymlFiles = Get-ChildItem -Path "release" -Filter "*.yml" -File | Where-Object { $_.Name -ne "builder-debug.yml" }
+          if (-not $ymlFiles) { throw "No update manifest yml files found in release/" }
+          $hasX64 = $false
+          $hasArm64 = $false
+          foreach ($yml in $ymlFiles) {
+            $content = Get-Content $yml.FullName -Raw
+            Write-Host "--- $($yml.Name) ---"
+            Write-Host $content
+            if ($content -match 'win-x64\.exe') { $hasX64 = $true }
+            if ($content -match 'win-arm64\.exe') { $hasArm64 = $true }
+          }
+          if (-not $hasX64) { throw "Update manifest is missing win-x64.exe" }
+          if (-not $hasArm64) { throw "Update manifest is missing win-arm64.exe" }
 
       - name: Validate unsigned Windows artifacts before SignPath
-        if: matrix.platform == 'win' && steps.win-channel.outputs.is_stable == 'true'
+        if: matrix.platform == 'win' && steps.release-channel.outputs.is_stable == 'true'
         shell: pwsh
         run: |
           $unsignedExeFiles = Get-ChildItem -Path "release" -Filter *.exe -File
@@ -161,33 +346,21 @@ jobs:
           Write-Host "Found $unsignedCount unsigned .exe file(s):"
           $unsignedExeFiles | ForEach-Object { Write-Host " - $($_.Name)" }
 
-      - name: Upload unsigned Windows artifacts for SignPath
-        if: matrix.platform == 'win' && steps.win-channel.outputs.is_stable == 'true'
-        id: upload-unsigned-windows-artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: unsigned-win-exe-${{ github.run_id }}-${{ github.run_attempt }}
-          path: release/*.exe
-          retention-days: 1
-
-      - name: Sign Windows artifacts via SignPath
-        if: matrix.platform == 'win' && steps.win-channel.outputs.is_stable == 'true'
+      # Bypass GitHub connector (HTTP 503). Sign via SignPath REST SubmitWithArtifact.
+      - name: Sign Windows artifacts via SignPath REST API
+        if: matrix.platform == 'win' && steps.release-channel.outputs.is_stable == 'true'
         id: signpath-sign-windows
-        uses: signpath/github-action-submit-signing-request@v2
-        with:
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: "78e37079-23df-4800-b41c-33312ad7c1e3"
-          project-slug: "ValueCell"
-          signing-policy-slug: "ValueCell-sign"
-          github-artifact-id: ${{ steps.upload-unsigned-windows-artifact.outputs.artifact-id }}
-          wait-for-completion: true
-          output-artifact-directory: release/signed
+        env:
+          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          SIGNPATH_ORGANIZATION_ID: "05aeab6b-bde4-460b-90e0-808d9f83779b"
+          SIGNPATH_PROJECT_SLUG: "GGquanta"
+          SIGNPATH_SIGNING_POLICY_SLUG: "GGquanta-sign"
+        run: node scripts/signpath-sign-windows.mjs --input-dir release --output-dir release/signed --description "SmartX ${{ github.event.inputs.version || github.ref_name }}"
 
       - name: Replace unsigned executables with signed ones
-        if: matrix.platform == 'win' && steps.win-channel.outputs.is_stable == 'true'
+        if: matrix.platform == 'win' && steps.release-channel.outputs.is_stable == 'true'
         shell: pwsh
         run: |
-          Write-Host "SignPath GitHub artifact ID: ${{ steps.upload-unsigned-windows-artifact.outputs.artifact-id }}"
           $signedExeFiles = Get-ChildItem -Path "release/signed" -Filter *.exe -File -Recurse
           if (-not $signedExeFiles) {
             throw "No signed .exe files found in release/signed"
@@ -212,14 +385,14 @@ jobs:
       #
       # Actual latest.yml structure (from electron-builder NSIS):
       #   files:
-      #     - url: ClawX-0.2.4-win-x64.exe    ← files[] entries have url/sha512/size
+      #     - url: SmartX-0.2.4-win-x64.exe    ← files[] entries have url/sha512/size
       #       sha512: <base64>
       #       size: 430775882
-      #   path: ClawX-0.2.4-win-arm64.exe      ← top-level has path/sha512 (no size!)
+      #   path: SmartX-0.2.4-win-arm64.exe      ← top-level has path/sha512 (no size!)
       #   sha512: <base64>
       #   releaseDate: '...'
       - name: Update latest.yml sha512 after code signing
-        if: matrix.platform == 'win' && steps.win-channel.outputs.is_stable == 'true'
+        if: matrix.platform == 'win' && steps.release-channel.outputs.is_stable == 'true'
         shell: pwsh
         run: |
           $ymlFiles = Get-ChildItem -Path "release" -Filter "*.yml" -File | Where-Object { $_.Name -ne "builder-debug.yml" }
@@ -297,8 +470,9 @@ jobs:
   # ──────────────────────────────────────────────────────────────
   publish:
     needs: release
+    if: ${{ vars.PUBLISH_GITHUB_RELEASE == 'true' }}
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Download release artifacts only
         uses: actions/download-artifact@v4
@@ -336,28 +510,28 @@ jobs:
           make_latest: false
           generate_release_notes: true
           body: |
-            ## 🚀 ClawX ${{ github.ref_name }}
+            ## 🚀 SmartX ${{ github.ref_name }}
             
-            ClawX - Graphical AI Assistant based on OpenClaw
+            SmartX - Graphical AI Assistant based on OpenClaw
             
             ### 📦 Downloads
             
             Please select the appropriate installer for your operating system and architecture:
             
             #### macOS
-            - **Apple Silicon (M1/M2/M3/M4)**: `ClawX-*-mac-arm64.dmg`
-            - **Intel (x64)**: `ClawX-*-mac-x64.dmg`
+            - **Apple Silicon (M1/M2/M3/M4)**: `SmartX-*-mac-arm64.dmg`
+            - **Intel (x64)**: `SmartX-*-mac-x64.dmg`
             
             #### Windows
-            - **Installer (x64)**: `ClawX-*-win-x64.exe`
-            - **Installer (ARM64)**: `ClawX-*-win-arm64.exe`
+            - **Installer (x64)**: `SmartX-*-win-x64.exe`
+            - **Installer (ARM64)**: `SmartX-*-win-arm64.exe`
             
             #### Linux
-            - **AppImage (x64)**: `ClawX-*-linux-x86_64.AppImage` (Universal format, recommended)
-            - **AppImage (ARM64)**: `ClawX-*-linux-arm64.AppImage`
-            - **Debian/Ubuntu (x64)**: `ClawX-*-linux-amd64.deb`
-            - **Debian/Ubuntu (ARM64)**: `ClawX-*-linux-arm64.deb`
-            - **RPM (x64)**: `ClawX-*-linux-x86_64.rpm`
+            - **AppImage (x64)**: `SmartX-*-linux-x86_64.AppImage` (Universal format, recommended)
+            - **AppImage (ARM64)**: `SmartX-*-linux-arm64.AppImage`
+            - **Debian/Ubuntu (x64)**: `SmartX-*-linux-amd64.deb`
+            - **Debian/Ubuntu (ARM64)**: `SmartX-*-linux-arm64.deb`
+            - **RPM (x64)**: `SmartX-*-linux-x86_64.rpm`
             
             ### 📝 Release Notes
             
@@ -367,7 +541,7 @@ jobs:
             
             - **macOS**: On first launch, you may see "cannot verify developer". Go to System Preferences → Security & Privacy to allow the app to run
             - **Windows**: SmartScreen may block the app. Click "More info" → "Run anyway" to proceed
-            - **Linux AppImage**: First run `chmod +x ClawX-*.AppImage` to add execute permission. On Ubuntu 22.04 you may also need `sudo apt install libfuse2`; on Ubuntu 24.04 use `sudo apt install libfuse2t64`
+            - **Linux AppImage**: First run `chmod +x SmartX-*.AppImage` to add execute permission. On Ubuntu 22.04 you may also need `sudo apt install libfuse2`; on Ubuntu 24.04 use `sudo apt install libfuse2t64`
             - **Linux .deb (Ubuntu 24.04)**: If installation fails due to missing dependencies, use `sudo apt install libgtk-3-0t64 libnotify4t64 libxss1t64` before installing
             
             ---
@@ -456,7 +630,7 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           CHANNEL="${{ steps.version.outputs.channel }}"
-          BASE_URL="https://oss.intelli-spectrum.com/${CHANNEL}"
+          BASE_URL="https://smartx.qubitlab.cc/${CHANNEL}"
 
           jq -n \
             --arg version "$VERSION" \
@@ -470,19 +644,19 @@ jobs:
               releaseDate: $date,
               downloads: {
                 mac: {
-                  x64: ($base + "/ClawX-" + $version + "-mac-x64.dmg"),
-                  arm64: ($base + "/ClawX-" + $version + "-mac-arm64.dmg")
+                  x64: ($base + "/SmartX-" + $version + "-mac-x64.dmg"),
+                  arm64: ($base + "/SmartX-" + $version + "-mac-arm64.dmg")
                 },
                 win: {
-                  x64: ($base + "/ClawX-" + $version + "-win-x64.exe"),
-                  arm64: ($base + "/ClawX-" + $version + "-win-arm64.exe")
+                  x64: ($base + "/SmartX-" + $version + "-win-x64.exe"),
+                  arm64: ($base + "/SmartX-" + $version + "-win-arm64.exe")
                 },
                 linux: {
-                  deb_amd64: ($base + "/ClawX-" + $version + "-linux-amd64.deb"),
-                  deb_arm64: ($base + "/ClawX-" + $version + "-linux-arm64.deb"),
-                  appimage_x64: ($base + "/ClawX-" + $version + "-linux-x86_64.AppImage"),
-                  appimage_arm64: ($base + "/ClawX-" + $version + "-linux-arm64.AppImage"),
-                  rpm_x64: ($base + "/ClawX-" + $version + "-linux-x86_64.rpm")
+                  deb_amd64: ($base + "/SmartX-" + $version + "-linux-amd64.deb"),
+                  deb_arm64: ($base + "/SmartX-" + $version + "-linux-arm64.deb"),
+                  appimage_x64: ($base + "/SmartX-" + $version + "-linux-x86_64.AppImage"),
+                  appimage_arm64: ($base + "/SmartX-" + $version + "-linux-arm64.AppImage"),
+                  rpm_x64: ($base + "/SmartX-" + $version + "-linux-x86_64.rpm")
                 }
               },
               changelog: $changelog
@@ -495,14 +669,20 @@ jobs:
         env:
           OSS_ACCESS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
           OSS_ACCESS_KEY_SECRET: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
+          OSS_ENDPOINT: ${{ env.OSS_ENDPOINT }}
         run: |
+          if [ -z "${OSS_ENDPOINT}" ]; then
+            echo "::error::OSS_ENDPOINT repository variable is not set"
+            exit 1
+          fi
+
           curl -sL https://gosspublic.alicdn.com/ossutil/install.sh | sudo bash
 
           # Write config file for non-interactive use
           cat > $HOME/.ossutilconfig << EOF
           [Credentials]
           language=EN
-          endpoint=oss-cn-hangzhou.aliyuncs.com
+          endpoint=${OSS_ENDPOINT}
           accessKeyID=${OSS_ACCESS_KEY_ID}
           accessKeySecret=${OSS_ACCESS_KEY_SECRET}
           EOF
@@ -513,14 +693,12 @@ jobs:
         run: |
           CHANNEL="${{ steps.version.outputs.channel }}"
 
-          # Only clean the current channel's directory — never touch other channels
-          ossutil rm -r -f oss://valuecell-clawx/${CHANNEL}/ || true
-
-          # Upload all files with no-cache so clients always get the freshest version
+          # Overwrite same-name objects in-place (-f). Do not rm the prefix first:
+          # the CI OSS principal may lack DeleteObject ACL on this bucket.
           ossutil cp -r -f \
             --meta="Cache-Control:no-cache,no-store,must-revalidate" \
             staging/${CHANNEL}/ \
-            oss://valuecell-clawx/${CHANNEL}/
+            oss://${{ env.OSS_BUCKET }}/${CHANNEL}/
 
           echo "Uploaded to ${CHANNEL}/"
 
@@ -528,10 +706,10 @@ jobs:
         run: |
           TAG="${{ steps.version.outputs.tag }}"
 
-          # Upload to permanent archive (long cache, immutable)
-          ossutil cp -r \
+          # -f: overwrite existing archive objects (re-runs / hotfix re-uploads)
+          ossutil cp -r -f \
             staging/releases/${TAG}/ \
-            oss://valuecell-clawx/releases/${TAG}/ \
+            oss://${{ env.OSS_BUCKET }}/releases/${TAG}/ \
             --meta "Cache-Control:public,max-age=31536000,immutable"
 
           echo "Uploaded to releases/${TAG}/"
@@ -542,15 +720,15 @@ jobs:
           CHANNEL="${{ steps.version.outputs.channel }}"
 
           echo "=== ${CHANNEL}/ ==="
-          ossutil ls oss://valuecell-clawx/${CHANNEL}/ --short
+          ossutil ls oss://${{ env.OSS_BUCKET }}/${CHANNEL}/ --short
 
           echo ""
           echo "=== releases/${TAG}/ ==="
-          ossutil ls oss://valuecell-clawx/releases/${TAG}/ --short
+          ossutil ls oss://${{ env.OSS_BUCKET }}/releases/${TAG}/ --short
 
           echo ""
           echo "=== Verify release-info.json ==="
-          ossutil cp oss://valuecell-clawx/${CHANNEL}/release-info.json /tmp/release-info.json -f
+          ossutil cp oss://${{ env.OSS_BUCKET }}/${CHANNEL}/release-info.json /tmp/release-info.json -f
           jq . /tmp/release-info.json
 
           echo ""
@@ -561,7 +739,7 @@ jobs:
             YML_PREFIX="${CHANNEL}"
           fi
           echo "electron-updater expects ${YML_PREFIX}-mac.yml, ${YML_PREFIX}.yml, etc. in ${CHANNEL}/:"
-          ossutil ls oss://valuecell-clawx/${CHANNEL}/ --short | grep "${YML_PREFIX}.*\\.yml" || echo "(none found)"
+          ossutil ls oss://${{ env.OSS_BUCKET }}/${CHANNEL}/ --short | grep "${YML_PREFIX}.*\\.yml" || echo "(none found)"
           
           echo ""
           echo "All files uploaded and verified successfully!"

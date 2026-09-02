@@ -15,7 +15,7 @@ const {
   deleteChannelConfigMock,
   ensureFeishuPluginInstalledMock,
   ensureScopedChannelBindingMock,
-  ensureClawXContextMock,
+  ensureSmartXContextMock,
   ensureWeChatPluginInstalledMock,
   getAllSettingsMock,
   getChannelFormValuesMock,
@@ -60,13 +60,13 @@ const {
   deleteChannelConfigMock: vi.fn(),
   ensureFeishuPluginInstalledMock: vi.fn(),
   ensureScopedChannelBindingMock: vi.fn(),
-  ensureClawXContextMock: vi.fn(),
+  ensureSmartXContextMock: vi.fn(),
   ensureWeChatPluginInstalledMock: vi.fn(),
   getAllSettingsMock: vi.fn(),
   getChannelFormValuesMock: vi.fn(),
   getSettingMock: vi.fn(),
   listLogFilesMock: vi.fn(),
-  logDir: '/tmp/clawx-host-services-test-logs',
+  logDir: '/tmp/smartx-host-services-test-logs',
   listAgentsSnapshotFromConfigMock: vi.fn(),
   listAgentsSnapshotMock: vi.fn(),
   listConfiguredChannelAccountsFromConfigMock: vi.fn(),
@@ -120,7 +120,7 @@ const {
   syncSavedProviderToRuntimeMock: vi.fn(),
   syncLaunchAtStartupSettingFromStoreMock: vi.fn(),
   syncProxyConfigToOpenClawMock: vi.fn(),
-  testOpenClawConfigDir: '/tmp/clawx-host-services-openclaw',
+  testOpenClawConfigDir: '/tmp/smartx-host-services-openclaw',
   updateAgentNameMock: vi.fn(),
   validateApiKeyWithProviderMock: vi.fn(),
   saveWeChatAccountStateMock: vi.fn(),
@@ -154,7 +154,7 @@ vi.mock('@electron/utils/logger', async (importOriginal) => {
       info: vi.fn(),
       warn: vi.fn(),
       getLogDir: () => logDir,
-      getLogFilePath: () => join(logDir, 'clawx-current.log'),
+      getLogFilePath: () => join(logDir, 'smartx-current.log'),
       getRecentLogs: vi.fn(),
       listLogFiles: (...args: unknown[]) => listLogFilesMock(...args),
       readLogFile: (...args: unknown[]) => readLogFileMock(...args),
@@ -207,7 +207,7 @@ vi.mock('@electron/utils/plugin-install', () => ({
 }));
 
 vi.mock('@electron/utils/openclaw-workspace', () => ({
-  ensureClawXContext: (...args: unknown[]) => ensureClawXContextMock(...args),
+  ensureSmartXContext: (...args: unknown[]) => ensureSmartXContextMock(...args),
 }));
 
 vi.mock('@electron/services/providers/provider-runtime-sync', () => ({
@@ -345,7 +345,7 @@ describe('host services', () => {
     validateApiKeyWithProviderMock.mockResolvedValue({ valid: true });
     ensureFeishuPluginInstalledMock.mockResolvedValue({ installed: true, peerLinkOk: true });
     ensureWeChatPluginInstalledMock.mockResolvedValue({ installed: true });
-    ensureClawXContextMock.mockResolvedValue(undefined);
+    ensureSmartXContextMock.mockResolvedValue(undefined);
     rmSync(logDir, { recursive: true, force: true });
     rmSync(testOpenClawConfigDir, { recursive: true, force: true });
     mkdirSync(logDir, { recursive: true });
@@ -399,10 +399,10 @@ describe('host services', () => {
       restart: vi.fn(),
     } as never);
 
-    await expect(api.set({ key: 'chatWorkspacePath', value: '/Users/alex/workspace/ClawX' })).resolves.toEqual({ success: true });
-    await expect(api.set({ key: 'recentWorkspacePaths', value: ['/Users/alex/workspace/ClawX'] })).resolves.toEqual({ success: true });
-    expect(setSettingMock).toHaveBeenCalledWith('chatWorkspacePath', '/Users/alex/workspace/ClawX');
-    expect(setSettingMock).toHaveBeenCalledWith('recentWorkspacePaths', ['/Users/alex/workspace/ClawX']);
+    await expect(api.set({ key: 'chatWorkspacePath', value: '/Users/alex/workspace/SmartX' })).resolves.toEqual({ success: true });
+    await expect(api.set({ key: 'recentWorkspacePaths', value: ['/Users/alex/workspace/SmartX'] })).resolves.toEqual({ success: true });
+    expect(setSettingMock).toHaveBeenCalledWith('chatWorkspacePath', '/Users/alex/workspace/SmartX');
+    expect(setSettingMock).toHaveBeenCalledWith('recentWorkspacePaths', ['/Users/alex/workspace/SmartX']);
   });
 
   it('routes validated non-Talk gateway rpc directly to the manager and blocks Talk methods', async () => {
@@ -1158,7 +1158,7 @@ describe('host services', () => {
 
   it('returns diagnostics snapshot with channel view and log tails', async () => {
     writeFileSync(join(testOpenClawConfigDir, 'logs', 'gateway.log'), 'gateway-one\ngateway-two\n');
-    readLogFileMock.mockResolvedValue('clawx-log-tail');
+    readLogFileMock.mockResolvedValue('smartx-log-tail');
     readOpenClawConfigMock.mockResolvedValue({
       channels: {
         feishu: {
@@ -1233,7 +1233,7 @@ describe('host services', () => {
           accounts: [expect.objectContaining({ accountId: 'default', agentId: 'main' })],
         }),
       ],
-      clawxLogTail: 'clawx-log-tail',
+      smartxLogTail: 'smartx-log-tail',
       gateway: expect.objectContaining({
         state: 'degraded',
         port: 18789,
@@ -1299,9 +1299,9 @@ describe('host services', () => {
   });
 
   it('reads only selected log files from the log directory', async () => {
-    const selectedLog = join(logDir, 'clawx-selected.log');
+    const selectedLog = join(logDir, 'smartx-selected.log');
     writeFileSync(selectedLog, 'one\ntwo\nthree\n');
-    listLogFilesMock.mockResolvedValue([{ name: 'clawx-selected.log', path: selectedLog, size: 14, modified: 'now' }]);
+    listLogFilesMock.mockResolvedValue([{ name: 'smartx-selected.log', path: selectedLog, size: 14, modified: 'now' }]);
     const { createLogsApi } = await import('@electron/services/logs-api');
 
     await expect(createLogsApi().readFile({ path: selectedLog, tailLines: 2 })).resolves.toEqual({

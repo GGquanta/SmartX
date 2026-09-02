@@ -7,7 +7,7 @@ import { existsSync, readFileSync } from 'fs';
 
 function getExtensionPackages(): Set<string> {
   try {
-    const manifestPath = resolve(__dirname, 'clawx-extensions.json');
+    const manifestPath = resolve(__dirname, 'smartx-extensions.json');
     if (!existsSync(manifestPath)) return new Set();
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'));
     const allIds: string[] = [
@@ -81,6 +81,20 @@ export default defineConfig({
             outDir: 'dist-electron/preload',
             rollupOptions: {
               external: ['electron'],
+            },
+          },
+        },
+      },
+      {
+        entry: 'electron/preload/company-knowledge-webview.ts',
+        vite: {
+          build: {
+            outDir: 'dist-electron/preload',
+            rollupOptions: {
+              external: ['electron'],
+              output: {
+                entryFileNames: 'company-knowledge-webview.js',
+              },
             },
           },
         },

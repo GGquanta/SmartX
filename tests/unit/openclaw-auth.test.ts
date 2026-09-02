@@ -7,8 +7,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { testHome, testUserData, getSettingMock, setSettingMock } = vi.hoisted(() => {
   const suffix = Math.random().toString(36).slice(2);
   return {
-    testHome: `/tmp/clawx-openclaw-auth-${suffix}`,
-    testUserData: `/tmp/clawx-openclaw-auth-user-data-${suffix}`,
+    testHome: `/tmp/smartx-openclaw-auth-${suffix}`,
+    testUserData: `/tmp/smartx-openclaw-auth-user-data-${suffix}`,
     getSettingMock: vi.fn(),
     setSettingMock: vi.fn(),
   };
@@ -50,7 +50,7 @@ vi.mock('@electron/utils/paths', async () => {
   };
 });
 
-const CLAWX_DESKTOP_TOOL_DENY = [
+const SMARTX_DESKTOP_TOOL_DENY = [
   'skill_workshop',
   'web_search',
   'gateway',
@@ -442,7 +442,7 @@ describe('sanitizeOpenClawConfig', () => {
 
   it('properly sanitizes a genuinely empty {} config (fresh install)', async () => {
     // A fresh install with {} is a valid config — sanitize should proceed
-    // and enforce the ClawX tool and skill defaults.
+    // and enforce the SmartX tool and skill defaults.
     await writeOpenClawJson({});
 
     const { sanitizeOpenClawConfig } = await import('@electron/utils/openclaw-auth');
@@ -455,10 +455,10 @@ describe('sanitizeOpenClawConfig', () => {
     // Fresh install should get tools settings enforced
     const tools = result.tools as Record<string, unknown>;
     expect(tools.profile).toBe('full');
-    expect(tools.deny).toEqual(CLAWX_DESKTOP_TOOL_DENY);
+    expect(tools.deny).toEqual(SMARTX_DESKTOP_TOOL_DENY);
     const gateway = result.gateway as Record<string, unknown>;
     const gatewayTools = gateway.tools as Record<string, unknown>;
-    expect(gatewayTools.deny).toEqual(CLAWX_DESKTOP_TOOL_DENY);
+    expect(gatewayTools.deny).toEqual(SMARTX_DESKTOP_TOOL_DENY);
     const skills = result.skills as Record<string, unknown>;
     const workshop = skills.workshop as Record<string, unknown>;
     const autonomous = workshop.autonomous as Record<string, unknown>;
@@ -493,9 +493,9 @@ describe('sanitizeOpenClawConfig', () => {
     // tools settings should now be enforced
     const tools = result.tools as Record<string, unknown>;
     expect(tools.profile).toBe('full');
-    expect(tools.deny).toEqual(CLAWX_DESKTOP_TOOL_DENY);
+    expect(tools.deny).toEqual(SMARTX_DESKTOP_TOOL_DENY);
     const gateway = result.gateway as Record<string, unknown>;
-    expect((gateway.tools as Record<string, unknown>).deny).toEqual(CLAWX_DESKTOP_TOOL_DENY);
+    expect((gateway.tools as Record<string, unknown>).deny).toEqual(SMARTX_DESKTOP_TOOL_DENY);
     const skills = result.skills as Record<string, unknown>;
     expect(((skills.workshop as Record<string, unknown>).autonomous as Record<string, unknown>).enabled).toBe(false);
     expect((skills.entries as Record<string, Record<string, unknown>>)['skill-creator'].enabled).toBe(true);
@@ -503,7 +503,7 @@ describe('sanitizeOpenClawConfig', () => {
     logSpy.mockRestore();
   });
 
-  it('preserves existing denied tools while adding ClawX-required deny entries', async () => {
+  it('preserves existing denied tools while adding SmartX-required deny entries', async () => {
     await writeOpenClawJson({
       tools: {
         deny: ['browser'],
@@ -521,11 +521,11 @@ describe('sanitizeOpenClawConfig', () => {
 
     const result = await readOpenClawJson();
     const tools = result.tools as Record<string, unknown>;
-    expect(tools.deny).toEqual(['browser', ...CLAWX_DESKTOP_TOOL_DENY]);
+    expect(tools.deny).toEqual(['browser', ...SMARTX_DESKTOP_TOOL_DENY]);
     const gateway = result.gateway as Record<string, unknown>;
     expect((gateway.tools as Record<string, unknown>).deny).toEqual([
       'custom_gateway_tool',
-      ...CLAWX_DESKTOP_TOOL_DENY,
+      ...SMARTX_DESKTOP_TOOL_DENY,
     ]);
   });
 
@@ -2392,7 +2392,7 @@ describe('syncOpenAiCompatibleImageRelay', () => {
     await rm(testUserData, { recursive: true, force: true });
   });
 
-  it('writes a ClawX-owned provider with a custom image base URL without changing OpenAI chat config', async () => {
+  it('writes a SmartX-owned provider with a custom image base URL without changing OpenAI chat config', async () => {
     await writeOpenClawJson({
       models: {
         providers: {
@@ -2412,7 +2412,7 @@ describe('syncOpenAiCompatibleImageRelay', () => {
     const result = await readOpenClawJson();
     const providers = (result.models as Record<string, unknown>).providers as Record<string, unknown>;
     const openai = providers.openai as Record<string, unknown>;
-    const imageRelay = providers['clawx-openai-image'] as Record<string, unknown>;
+    const imageRelay = providers['smartx-openai-image'] as Record<string, unknown>;
     expect(openai.baseUrl).toBe('https://api.openai.com/v1');
     expect(openai.api).toBe('openai-responses');
     expect(imageRelay.baseUrl).toBe('https://relay.example.com/v1');
@@ -2422,17 +2422,17 @@ describe('syncOpenAiCompatibleImageRelay', () => {
 
     const plugins = result.plugins as Record<string, unknown>;
     const entries = plugins.entries as Record<string, unknown>;
-    expect((entries['clawx-openai-image'] as Record<string, unknown>).enabled).toBe(true);
+    expect((entries['smartx-openai-image'] as Record<string, unknown>).enabled).toBe(true);
 
     const auth = await readAuthProfiles('main');
-    expect((auth.profiles['clawx-openai-image:default'] as Record<string, unknown>).key).toBe('sk-relay-test');
+    expect((auth.profiles['smartx-openai-image:default'] as Record<string, unknown>).key).toBe('sk-relay-test');
   });
 
   it('preserves metadata for retained relay models while dropping deselected models', async () => {
     await writeOpenClawJson({
       models: {
         providers: {
-          'clawx-openai-image': {
+          'smartx-openai-image': {
             baseUrl: 'https://old-relay.example.com/v1',
             api: 'openai-completions',
             models: [
@@ -2453,26 +2453,26 @@ describe('syncOpenAiCompatibleImageRelay', () => {
 
     const result = await readOpenClawJson();
     const providers = (result.models as Record<string, unknown>).providers as Record<string, unknown>;
-    const imageRelay = providers['clawx-openai-image'] as Record<string, unknown>;
+    const imageRelay = providers['smartx-openai-image'] as Record<string, unknown>;
     expect(imageRelay.models).toEqual([
       { id: 'gpt-image-2', name: 'GPT Image 2', contextWindow: 1234 },
     ]);
   });
 
-  it('removes only the ClawX image provider when relay is disabled', async () => {
+  it('removes only the SmartX image provider when relay is disabled', async () => {
     await writeOpenClawJson({
       models: {
         providers: {
           openai: { baseUrl: 'https://api.openai.com/v1', api: 'openai-responses', models: [] },
-          'clawx-openai-image': { baseUrl: 'https://relay.example.com/v1', api: 'openai-completions', models: [] },
+          'smartx-openai-image': { baseUrl: 'https://relay.example.com/v1', api: 'openai-completions', models: [] },
         },
       },
       agents: {
         defaults: {
           imageGenerationModel: {
-            primary: 'clawx-openai-image/gpt-image-2',
+            primary: 'smartx-openai-image/gpt-image-2',
             fallbacks: [
-              'clawx-openai-image/old-image',
+              'smartx-openai-image/old-image',
               'google/gemini-3.1-flash-image-preview',
             ],
             timeoutMs: 180000,
@@ -2481,8 +2481,8 @@ describe('syncOpenAiCompatibleImageRelay', () => {
         },
       },
       plugins: {
-        allow: ['clawx-openai-image'],
-        entries: { 'clawx-openai-image': { enabled: true } },
+        allow: ['smartx-openai-image'],
+        entries: { 'smartx-openai-image': { enabled: true } },
       },
     });
 
@@ -2492,7 +2492,7 @@ describe('syncOpenAiCompatibleImageRelay', () => {
     const result = await readOpenClawJson();
     const providers = (result.models as Record<string, unknown>).providers as Record<string, unknown>;
     expect(providers.openai).toEqual({ baseUrl: 'https://api.openai.com/v1', api: 'openai-responses', models: [] });
-    expect(providers['clawx-openai-image']).toBeUndefined();
+    expect(providers['smartx-openai-image']).toBeUndefined();
     const defaults = (result.agents as Record<string, unknown>).defaults as Record<string, unknown>;
     expect(defaults.imageGenerationModel).toEqual({
       primary: 'google/gemini-3.1-flash-image-preview',
@@ -2910,7 +2910,7 @@ describe('batchSyncConfigFields', () => {
     });
   });
 
-  it('overrides ClawX-managed compaction values while preserving unrelated settings', async () => {
+  it('overrides SmartX-managed compaction values while preserving unrelated settings', async () => {
     await writeOpenClawJson({
       gateway: { auth: { mode: 'token', token: 'old' } },
       agents: {
@@ -3036,7 +3036,7 @@ describe('batchSyncConfigFields', () => {
             timeoutSeconds: 0,
             models: [{ id: 'private-y', name: 'private-y' }],
           },
-          'clawx-openai-image': {
+          'smartx-openai-image': {
             baseUrl: 'https://images.example.com/v1',
             api: 'openai-completions',
             models: [{ id: 'gpt-image-2', name: 'gpt-image-2' }],
@@ -3058,7 +3058,7 @@ describe('batchSyncConfigFields', () => {
     const customEntry = providers['custom-enterpri'] as Record<string, unknown>;
     const custom = customEntry.models as Array<Record<string, unknown>>;
     const explicitCustom = providers['custom-explicit'] as Record<string, unknown>;
-    const imageEntry = providers['clawx-openai-image'] as Record<string, unknown>;
+    const imageEntry = providers['smartx-openai-image'] as Record<string, unknown>;
     const moonshotEntry = providers.moonshot as Record<string, unknown>;
     const moonshot = moonshotEntry.models as Array<Record<string, unknown>>;
 

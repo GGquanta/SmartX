@@ -28,4 +28,4 @@ docs:
   required: false
 ---
 
-Historical task superseded by `three-minute-gateway-liveness-recovery`. Its four-miss direct-restart proposal is retained only as context; the current policy is one 180-second no-liveness deadline, followed by a single `system-presence` verification before ClawX may restart only a Gateway process it owns.
+Historical task superseded by `three-minute-gateway-liveness-recovery`. Its four-miss direct-restart proposal is retained only as context; the current policy is one 180-second no-liveness deadline, followed by a single `system-presence` verification before SmartX may restart only a Gateway process it owns.

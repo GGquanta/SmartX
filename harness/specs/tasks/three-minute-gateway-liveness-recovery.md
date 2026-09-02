@@ -3,7 +3,7 @@ id: three-minute-gateway-liveness-recovery
 title: Recover an owned Gateway after three minutes without liveness
 scenario: gateway-backend-communication
 taskType: runtime-bridge
-intent: Eliminate pong-only Gateway restarts while retaining bounded automatic recovery for an unavailable ClawX-owned Gateway.
+intent: Eliminate pong-only Gateway restarts while retaining bounded automatic recovery for an unavailable SmartX-owned Gateway.
 touchedAreas:
   - docs/**
   - harness/specs/tasks/three-minute-gateway-liveness-recovery.md
@@ -48,9 +48,9 @@ touchedAreas:
 expectedUserBehavior:
   - Missed Gateway pong frames do not automatically restart the Gateway before the three-minute liveness deadline.
   - A pong, any incoming Gateway frame, or a successful Gateway RPC resets the liveness deadline.
-  - At the three-minute deadline, ClawX verifies the core RPC router with system-presence before restarting an owned Gateway.
+  - At the three-minute deadline, SmartX verifies the core RPC router with system-presence before restarting an owned Gateway.
   - A successful deadline probe does not reconnect or restart Gateway.
-  - A failed deadline probe restarts only a Gateway process owned by ClawX.
+  - A failed deadline probe restarts only a Gateway process owned by SmartX.
   - A failed deadline probe for an external Gateway does not stop or restart it automatically.
   - Process exit, WebSocket close, explicit restart, and code-1012 reconnect behavior remain unchanged.
 requiredProfiles:
@@ -83,7 +83,7 @@ acceptance:
   - Consecutive heartbeat misses remain diagnostic evidence and do not directly terminate a socket, process, or call GatewayManager.restart on any platform.
   - A successful deadline system-presence probe records liveness and cancels recovery without reconnecting or restarting.
   - A failed deadline probe calls the guarded restart path exactly once for an owned Gateway when auto-recovery is enabled and lifecycle state permits it.
-  - Automatic recovery never calls stop, shutdown, or restart for an external Gateway; it may only reconnect ClawX's transport and report unavailable diagnostics.
+  - Automatic recovery never calls stop, shutdown, or restart for an external Gateway; it may only reconnect SmartX's transport and report unavailable diagnostics.
   - A pong, any incoming message, or successful RPC before the deadline resets the silence sequence.
   - Code 1012 reload, child-process exit, explicit restart, and normal socket-close recovery do not race or duplicate deadline escalation.
   - Diagnostics include sanitized liveness recovery state and reason through the existing host API.
@@ -92,4 +92,4 @@ docs:
   required: true
 ---
 
-This task supersedes the current four-consecutive-misses process-restart policy. The one three-minute liveness deadline is intentional: it prevents a short missed-pong sequence from interrupting a functioning Gateway while keeping automatic recovery bounded for a ClawX-owned process that cannot serve its core RPC router.
+This task supersedes the current four-consecutive-misses process-restart policy. The one three-minute liveness deadline is intentional: it prevents a short missed-pong sequence from interrupting a functioning Gateway while keeping automatic recovery bounded for a SmartX-owned process that cannot serve its core RPC router.

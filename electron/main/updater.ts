@@ -13,7 +13,7 @@ import { EventEmitter } from 'events';
 import { setQuitting } from './app-state';
 
 /** Base CDN URL (without trailing channel path) */
-const OSS_BASE_URL = 'https://oss.intelli-spectrum.com';
+const OSS_BASE_URL = 'https://smartx.qubitlab.cc';
 
 export interface UpdateStatus {
   status: 'idle' | 'checking' | 'available' | 'not-available' | 'downloading' | 'downloaded' | 'error';
@@ -268,7 +268,7 @@ export class AppUpdater extends EventEmitter {
   /**
    * Set auto-download preference.
    *
-   * ClawX uses a prompt-first update flow: finding an update shows a UI prompt,
+   * SmartX uses a prompt-first update flow: finding an update shows a UI prompt,
    * and downloads/installations only start after the user chooses an action.
    * Keep this legacy IPC method as a no-op-compatible setter so stale renderer
    * settings cannot re-enable electron-updater's implicit auto-download path.

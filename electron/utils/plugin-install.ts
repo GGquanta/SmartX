@@ -934,11 +934,11 @@ export function ensureWhatsAppPluginInstalled(): Promise<PluginInstallResult> {
   return ensurePluginInstalled('whatsapp', buildCandidateSources('whatsapp'), 'WhatsApp');
 }
 
-export function ensureClawXOpenAiImagePluginInstalled(): Promise<PluginInstallResult> {
+export function ensureSmartXOpenAiImagePluginInstalled(): Promise<PluginInstallResult> {
   return ensurePluginInstalled(
-    'clawx-openai-image',
-    buildCandidateSources('clawx-openai-image'),
-    'ClawX OpenAI Image',
+    'smartx-openai-image',
+    buildCandidateSources('smartx-openai-image'),
+    'SmartX OpenAI Image',
   );
 }
 
@@ -956,7 +956,7 @@ const ALL_BUNDLED_PLUGINS = [
   { fn: ensureDiscordPluginInstalled, label: 'Discord' },
   { fn: ensureQQBotPluginInstalled, label: 'QQBot' },
   { fn: ensureWhatsAppPluginInstalled, label: 'WhatsApp' },
-  { fn: ensureClawXOpenAiImagePluginInstalled, label: 'ClawX OpenAI Image' },
+  { fn: ensureSmartXOpenAiImagePluginInstalled, label: 'SmartX OpenAI Image' },
 ] as const;
 
 /**

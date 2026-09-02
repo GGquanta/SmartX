@@ -16,7 +16,7 @@ let settingsStoreInstance: any = null;
  * Generate a random token for gateway authentication
  */
 function generateToken(): string {
-  return `clawx-${randomBytes(16).toString('hex')}`;
+  return `smartx-${randomBytes(16).toString('hex')}`;
 }
 
 /**
@@ -53,6 +53,7 @@ export interface AppSettings {
   // UI State
   sidebarCollapsed: boolean;
   devModeUnlocked: boolean;
+  bubbleVisibility: 'always' | 'whenMinimized' | 'never';
   chatWorkspacePath: string;
   recentWorkspacePaths: string[];
   workspaceLabels: Record<string, string>;
@@ -108,6 +109,7 @@ function createDefaultSettings(): AppSettings {
     // UI State
     sidebarCollapsed: false,
     devModeUnlocked: false,
+    bubbleVisibility: 'always',
     chatWorkspacePath: DEFAULT_WORKSPACE_CWD,
     recentWorkspacePaths: [DEFAULT_WORKSPACE_CWD],
     workspaceLabels: {},

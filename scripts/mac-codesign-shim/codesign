@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Retry wrapper for Apple timestamp.apple.com flakes during deep codesign.
+# electron-builder invokes `codesign` from PATH; this shim must come first.
+set -u
+
+CODESIGN=/usr/bin/codesign
+MAX_ATTEMPTS=8
+SLEEP=2
+attempt=1
+tmp="$(mktemp -t smartx-codesign.XXXXXX)"
+
+cleanup() { rm -f "$tmp"; }
+trap cleanup EXIT
+
+while true; do
+  set +e
+  "$CODESIGN" "$@" >"$tmp" 2>&1
+  status=$?
+  set -e
+  cat "$tmp" >&2
+
+  if [ "$status" -eq 0 ]; then
+    exit 0
+  fi
+
+  if grep -q "The timestamp service is not available" "$tmp" \
+    && [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
+    echo "codesign: timestamp service unavailable, retry ${attempt}/${MAX_ATTEMPTS} in ${SLEEP}s" >&2
+    sleep "$SLEEP"
+    SLEEP=$((SLEEP * 2))
+    if [ "$SLEEP" -gt 30 ]; then
+      SLEEP=30
+    fi
+    attempt=$((attempt + 1))
+    continue
+  fi
+
+  exit "$status"
+done

@@ -16,7 +16,8 @@ arm64 native payloads for the same platform. This includes scoped optional
 packages such as `@openai/codex-darwin-x64` and
 `@openai/codex-darwin-arm64`, plus per-arch native prebuild directories such
 as `tree-sitter-bash/prebuilds/darwin-x64` and
-`tree-sitter-bash/prebuilds/darwin-arm64`.
+`tree-sitter-bash/prebuilds/darwin-arm64`. Nested per-platform trees such as
+`@earendil-works/pi-tui/native/win32` must still be removed on macOS builds.
 
 Any change to `scripts/after-pack.cjs` or `scripts/bundle-openclaw.mjs` that
 adds native-package pruning or known-runtime-junk cleanup must include a unit

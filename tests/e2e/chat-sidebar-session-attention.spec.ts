@@ -153,7 +153,7 @@ async function emitSessionSnapshot(
   }, input);
 }
 
-test.describe('ClawX sidebar session attention', () => {
+test.describe('SmartX sidebar session attention', () => {
   test('marks native subagent sessions and cleans only their displayed context prefix', async ({ launchElectronApp }) => {
     const app = await launchElectronApp({ skipSetup: true });
 

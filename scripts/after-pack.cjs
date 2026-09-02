@@ -71,6 +71,7 @@ function cleanupUnnecessaryFiles(dir) {
 
   const REMOVE_DIRS = new Set([
     'test', 'tests', '__tests__', '.github', 'examples', 'example',
+    '__image_snapshots__', '__snapshots__', '__fixtures__',
   ]);
   // .d.mts / .d.cts are TypeScript declaration files for ESM/CJS dual-package
   // builds. They are useless at runtime but show up in huge volumes from
@@ -283,6 +284,10 @@ function cleanupNodeModulesRuntimeJunk(nodeModulesDir, platform, arch) {
   return removed;
 }
 
+const NATIVE_PLATFORM_DIRS = new Set([
+  'darwin', 'linux', 'win32', 'mac', 'win', 'windows', 'linuxmusl',
+]);
+
 function cleanupKnownRuntimeJunk(rootDir, platform, arch) {
   let removed = 0;
   const stack = [rootDir];
@@ -292,8 +297,48 @@ function cleanupKnownRuntimeJunk(rootDir, platform, arch) {
     let entries;
     try { entries = readdirSync(normWin(dir), { withFileTypes: true }); } catch { continue; }
 
-    if (basename(dir) === 'node_modules') {
+    const dirName = basename(dir);
+
+    if (dirName === 'node_modules') {
       removed += cleanupNodeModulesRuntimeJunk(dir, platform, arch);
+    }
+
+    // node-pre-gyp / prebuildify layouts: prebuilds/darwin-arm64, prebuilds/win32-x64, …
+    if (dirName === 'prebuilds') {
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const [entryPlatform, ...entryArchParts] = entry.name.split('-');
+        const entryArch = baseArch(entryArchParts.join('-'));
+        const pkgPlatform = PLATFORM_ALIASES[entryPlatform] || entryPlatform;
+        if (pkgPlatform === platform && matchesTargetArch(entryArch, arch)) continue;
+        try {
+          rmSync(normWin(join(dir, entry.name)), { recursive: true, force: true });
+          removed++;
+        } catch { /* */ }
+      }
+      continue;
+    }
+
+    // Packages such as @earendil-works/pi-tui ship native/<platform>/prebuilds/…
+    if (dirName === 'native') {
+      const hasPlatformKids = entries.some((entry) => entry.isDirectory() && NATIVE_PLATFORM_DIRS.has(entry.name));
+      if (hasPlatformKids) {
+        for (const entry of entries) {
+          if (!entry.isDirectory()) continue;
+          if (NATIVE_PLATFORM_DIRS.has(entry.name)) {
+            const pkgPlatform = PLATFORM_ALIASES[entry.name] || entry.name;
+            if (pkgPlatform !== platform) {
+              try {
+                rmSync(normWin(join(dir, entry.name)), { recursive: true, force: true });
+                removed++;
+              } catch { /* */ }
+              continue;
+            }
+          }
+          stack.push(join(dir, entry.name));
+        }
+        continue;
+      }
     }
 
     for (const entry of entries) {
@@ -308,6 +353,7 @@ function cleanupKnownRuntimeJunk(rootDir, platform, arch) {
 exports.__test = {
   cleanupNativePlatformPackages,
   cleanupNodeModulesRuntimeJunk,
+  cleanupKnownRuntimeJunk,
 };
 
 // ── Broken module patcher ─────────────────────────────────────────────────────
@@ -435,7 +481,7 @@ function patchBrokenModules(nodeModulesDir) {
               const patched = [
                 original,
                 '',
-                '// ClawX patch: add LRUCache named export for Node.js 22+ ESM interop',
+                '// SmartX patch: add LRUCache named export for Node.js 22+ ESM interop',
                 'if (typeof module.exports === "function" && !module.exports.LRUCache) {',
                 '  module.exports.LRUCache = module.exports;',
                 '}',
@@ -736,7 +782,7 @@ exports.default = async function afterPack(context) {
   //     the top-level node_modules/ as well.
   const buildExtDir = join(__dirname, '..', 'build', 'openclaw', 'dist', 'extensions');
   const packExtDir = join(openclawRoot, 'dist', 'extensions');
-  // ClawX always uses the official @larksuite/openclaw-lark plugin for Feishu.
+  // SmartX always uses the official @larksuite/openclaw-lark plugin for Feishu.
   // The built-in openclaw dist/extensions/feishu tree is redundant, and on macOS
   // its mirrored runtime deps significantly increase codesign file pressure.
   rmSync(join(packExtDir, 'feishu'), { recursive: true, force: true });
@@ -913,7 +959,7 @@ exports.default = async function afterPack(context) {
               const patched = [
                 original,
                 '',
-                '// ClawX patch: add LRUCache named export for Node.js 22+ ESM interop',
+                '// SmartX patch: add LRUCache named export for Node.js 22+ ESM interop',
                 'if (typeof module.exports === "function" && !module.exports.LRUCache) {',
                 '  module.exports.LRUCache = module.exports;',
                 '}',

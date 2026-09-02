@@ -79,7 +79,7 @@ const getDefaultSkills = (t: TFunction): DefaultSkill[] => [
   { id: 'terminal', name: t('defaultSkills.terminal.name'), description: t('defaultSkills.terminal.description') },
 ];
 
-import clawxIcon from '@/assets/logo.svg';
+import smartxIcon from '@/assets/logo.svg';
 
 // NOTE: Channel types moved to Settings > Channels page
 // NOTE: Skill bundles moved to Settings > Skills page - auto-install essential skills during setup
@@ -94,6 +94,8 @@ export function Setup() {
   const [installedSkills, setInstalledSkills] = useState<string[]>([]);
   // Runtime check status
   const [runtimeChecksPassed, setRuntimeChecksPassed] = useState(false);
+  const [providerSetupReady, setProviderSetupReady] = useState(false);
+  const [providerSummary, setProviderSummary] = useState<{ name: string; model?: string } | null>(null);
 
   const steps = getSteps(t);
   const safeStepIndex = Number.isInteger(currentStep)
@@ -111,7 +113,7 @@ export function Setup() {
       case STEP.WELCOME:
         return true;
       case STEP.RUNTIME:
-        return runtimeChecksPassed;
+        return runtimeChecksPassed && providerSetupReady;
       case STEP.INSTALLING:
         return false; // Cannot manually proceed, auto-proceeds when done
       case STEP.COMPLETE:
@@ -119,7 +121,7 @@ export function Setup() {
       default:
         return true;
     }
-  }, [safeStepIndex, runtimeChecksPassed]);
+  }, [safeStepIndex, runtimeChecksPassed, providerSetupReady]);
 
   const handleNext = async () => {
     if (isLastStep) {
@@ -206,7 +208,13 @@ export function Setup() {
             {/* Step-specific content */}
             <div className="rounded-xl bg-card text-card-foreground border shadow-sm p-8 mb-8">
               {safeStepIndex === STEP.WELCOME && <WelcomeContent />}
-              {safeStepIndex === STEP.RUNTIME && <RuntimeContent onStatusChange={setRuntimeChecksPassed} />}
+              {safeStepIndex === STEP.RUNTIME && (
+                <RuntimeContent
+                  onStatusChange={setRuntimeChecksPassed}
+                  onProviderReadyChange={setProviderSetupReady}
+                  onProviderSummaryChange={setProviderSummary}
+                />
+              )}
               {safeStepIndex === STEP.INSTALLING && (
                 <InstallingContent
                   skills={getDefaultSkills(t)}
@@ -217,6 +225,7 @@ export function Setup() {
               {safeStepIndex === STEP.COMPLETE && (
                 <CompleteContent
                   installedSkills={installedSkills}
+                  providerSummary={providerSummary}
                 />
               )}
             </div>
@@ -267,7 +276,7 @@ function WelcomeContent() {
   return (
     <div data-testid="setup-welcome-step" className="text-center space-y-4">
       <div className="mb-4 flex justify-center">
-        <img src={clawxIcon} alt="ClawX" className="h-16 w-16" />
+        <img src={smartxIcon} alt="SmartX" className="h-16 w-16" />
       </div>
       <h2 className="text-xl font-serif font-normal tracking-tight">{t('welcome.title')}</h2>
       <p className="text-muted-foreground">
@@ -318,22 +327,92 @@ function WelcomeContent() {
 
 interface RuntimeContentProps {
   onStatusChange: (canProceed: boolean) => void;
+  onProviderReadyChange: (ready: boolean) => void;
+  onProviderSummaryChange: (summary: { name: string; model?: string } | null) => void;
 }
 
-function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
+type RuntimeCheckStatus = 'checking' | 'success' | 'error' | 'skipped';
+
+function RuntimeContent({
+  onStatusChange,
+  onProviderReadyChange,
+  onProviderSummaryChange,
+}: RuntimeContentProps) {
   const { t } = useTranslation('setup');
   const gatewayStatus = useGatewayStore((state) => state.status);
   const startGateway = useGatewayStore((state) => state.start);
 
   const [checks, setChecks] = useState({
-    nodejs: { status: 'checking' as 'checking' | 'success' | 'error', message: '' },
-    openclaw: { status: 'checking' as 'checking' | 'success' | 'error', message: '' },
-    gateway: { status: 'checking' as 'checking' | 'success' | 'error', message: '' },
+    nodejs: { status: 'checking' as RuntimeCheckStatus, message: '' },
+    openclaw: { status: 'checking' as RuntimeCheckStatus, message: '' },
+    gateway: { status: 'checking' as RuntimeCheckStatus, message: '' },
+    provider: { status: 'checking' as RuntimeCheckStatus, message: '' },
   });
   const [showLogs, setShowLogs] = useState(false);
   const [logContent, setLogContent] = useState('');
   const [openclawDir, setOpenclawDir] = useState('');
   const gatewayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const runProviderCheck = useCallback(async () => {
+    setChecks((prev) => ({
+      ...prev,
+      provider: { status: 'checking', message: t('runtime.provider.status.checking') },
+    }));
+    onProviderReadyChange(false);
+    onProviderSummaryChange(null);
+
+    try {
+      const preview = await hostApi.app.getProviderEnvDefaults();
+      if (!preview) {
+        setChecks((prev) => ({
+          ...prev,
+          provider: { status: 'skipped', message: t('runtime.provider.status.skip') },
+        }));
+        onProviderReadyChange(true);
+        return;
+      }
+
+      const result = await hostApi.app.seedProviderFromEnv();
+      if (result.status === 'seeded' || result.status === 'already-configured') {
+        const providerName = result.providerName || preview.providerName;
+        const model = result.model || preview.model;
+        const message = model
+          ? t('runtime.provider.status.successWithModel', { name: providerName, model })
+          : t('runtime.provider.status.success', { name: providerName });
+        setChecks((prev) => ({
+          ...prev,
+          provider: { status: 'success', message },
+        }));
+        onProviderSummaryChange({ name: providerName, model });
+        onProviderReadyChange(true);
+        return;
+      }
+
+      if (result.status === 'missing-env' || result.status === 'skipped') {
+        setChecks((prev) => ({
+          ...prev,
+          provider: { status: 'skipped', message: t('runtime.provider.status.skip') },
+        }));
+        onProviderReadyChange(true);
+        return;
+      }
+
+      setChecks((prev) => ({
+        ...prev,
+        provider: {
+          status: 'error',
+          message: result.error || t('runtime.provider.status.error'),
+        },
+      }));
+      onProviderReadyChange(false);
+    } catch (error) {
+      setChecks((prev) => ({
+        ...prev,
+        provider: { status: 'error', message: String(error) },
+      }));
+      onProviderReadyChange(false);
+    }
+  }, [onProviderReadyChange, onProviderSummaryChange, t]);
 
   const runChecks = useCallback(async () => {
     // Reset checks
@@ -341,7 +420,10 @@ function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
       nodejs: { status: 'checking', message: '' },
       openclaw: { status: 'checking', message: '' },
       gateway: { status: 'checking', message: '' },
+      provider: { status: 'checking', message: t('runtime.provider.status.checking') },
     });
+    onProviderReadyChange(false);
+    onProviderSummaryChange(null);
 
     // Check Node.js — always available in Electron
     setChecks((prev) => ({
@@ -412,7 +494,9 @@ function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
         },
       }));
     }
-  }, [t]);
+
+    await runProviderCheck();
+  }, [runProviderCheck, t]);
 
   useEffect(() => {
     runChecks();
@@ -512,12 +596,20 @@ function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
 
   const ERROR_TRUNCATE_LEN = 30;
 
-  const renderStatus = (status: 'checking' | 'success' | 'error', message: string) => {
+  const renderStatus = (status: RuntimeCheckStatus, message: string) => {
     if (status === 'checking') {
       return (
         <span className="flex items-center gap-2 text-yellow-700 dark:text-yellow-400 whitespace-nowrap">
           <Loader2 className="h-5 w-5 flex-shrink-0 animate-spin" />
           {message || 'Checking...'}
+        </span>
+      );
+    }
+    if (status === 'skipped') {
+      return (
+        <span className="flex items-center gap-2 text-muted-foreground whitespace-nowrap">
+          <AlertCircle className="h-5 w-5 flex-shrink-0" />
+          {message}
         </span>
       );
     }
@@ -552,7 +644,7 @@ function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div data-testid="setup-runtime-step" className="space-y-4">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-serif font-normal tracking-tight">{t('runtime.title')}</h2>
         <div className="flex gap-2">
@@ -598,6 +690,17 @@ function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
             {renderStatus(checks.gateway.status, checks.gateway.message)}
           </div>
         </div>
+        <div
+          data-testid="setup-runtime-provider-row"
+          className="grid grid-cols-[1fr_auto] items-center gap-4 p-3 rounded-lg bg-surface-input/50"
+        >
+          <div className="text-left min-w-0">
+            <span>{t('runtime.provider.label')}</span>
+          </div>
+          <div className="flex justify-end">
+            {renderStatus(checks.provider.status, checks.provider.message)}
+          </div>
+        </div>
       </div>
 
       {(checks.nodejs.status === 'error' || checks.openclaw.status === 'error') && (
@@ -638,7 +741,7 @@ function RuntimeContent({ onStatusChange }: RuntimeContentProps) {
   );
 }
 
-// NOTE: ProviderContent component removed - configure providers via Settings > AI Providers
+// NOTE: Full provider configuration remains available in Settings > AI Providers
 
 
 // Installation status for each skill
@@ -822,9 +925,10 @@ function InstallingContent({ skills, onComplete, onSkip }: InstallingContentProp
 }
 interface CompleteContentProps {
   installedSkills: string[];
+  providerSummary: { name: string; model?: string } | null;
 }
 
-function CompleteContent({ installedSkills }: CompleteContentProps) {
+function CompleteContent({ installedSkills, providerSummary }: CompleteContentProps) {
   const { t } = useTranslation(['setup', 'settings']);
   const gatewayStatus = useGatewayStore((state) => state.status);
 
@@ -842,6 +946,16 @@ function CompleteContent({ installedSkills }: CompleteContentProps) {
       </p>
 
       <div className="space-y-3 text-left max-w-md mx-auto">
+        {providerSummary && (
+          <div className="flex items-center justify-between p-3 rounded-lg bg-surface-input/50">
+            <span>{t('complete.provider')}</span>
+            <span className="text-green-700 dark:text-green-400 text-right">
+              {providerSummary.model
+                ? `${providerSummary.name} · ${providerSummary.model}`
+                : providerSummary.name}
+            </span>
+          </div>
+        )}
         <div className="flex items-center justify-between p-3 rounded-lg bg-surface-input/50">
           <span>{t('complete.components')}</span>
           <span className="text-green-700 dark:text-green-400">

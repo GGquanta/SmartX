@@ -159,7 +159,7 @@ async function openChat(app: ElectronApplication) {
   return page;
 }
 
-test.describe('ClawX chat run state events', () => {
+test.describe('SmartX chat run state events', () => {
   test('renders ACP tool run-state updates inline', async ({ launchElectronApp }) => {
     const app = await launchElectronApp({ skipSetup: true });
 
@@ -496,7 +496,7 @@ test.describe('ClawX chat run state events', () => {
 
   test('replays OpenClaw image-generation previews from historical assistant MEDIA text', async ({ launchElectronApp }) => {
     const app = await launchElectronApp({ skipSetup: true });
-    const generatedPath = '/Users/me/.openclaw/media/tool-image-generation/clawx-image-1.png';
+    const generatedPath = '/Users/me/.openclaw/media/tool-image-generation/smartx-image-1.png';
 
     try {
       await installAcpChatMocks(

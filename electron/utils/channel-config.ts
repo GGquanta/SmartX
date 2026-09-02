@@ -27,12 +27,12 @@ const DEFAULT_ACCOUNT_ID = 'default';
 // Channels whose top-level schema (additionalProperties:false) does NOT
 // include `defaultAccount`.  We still use the multi-account `accounts`
 // map, but strip `defaultAccount` before persisting to avoid plugin
-// schema validation errors.  ClawX falls back to DEFAULT_ACCOUNT_ID
+// schema validation errors.  SmartX falls back to DEFAULT_ACCOUNT_ID
 // when `defaultAccount` is absent.
 const CHANNELS_OMIT_DEFAULT_ACCOUNT_KEY = new Set(['dingtalk']);
 
 // Channels whose schema accepts a top-level default account and account map,
-// but whose account payload contains nested strict-schema objects that ClawX
+// but whose account payload contains nested strict-schema objects that SmartX
 // can accidentally make invalid by adding UI convenience fields.  Keep this
 // sanitization narrowly scoped to known nested maps so local config remains
 // OpenClaw-compatible after a save.
@@ -95,7 +95,7 @@ function sanitizeDiscordGuildChannelConfig(channelConfig: unknown): void {
 
     const record = channelConfig as Record<string, unknown>;
 
-    // Backward compatibility for the older ClawX-generated shape:
+    // Backward compatibility for the older SmartX-generated shape:
     //   channels: { "123": { allow: true, requireMention: true } }
     // OpenClaw's current DiscordGuildChannelConfig does not include `allow`;
     // represent deny/allow using `enabled` instead.

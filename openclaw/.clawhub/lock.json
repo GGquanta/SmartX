@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "skills": {
+    "writing-polish": {
+      "version": "1.0.0",
+      "installedAt": 1781072719861
+    },
+    "humanizer-zh": {
+      "version": "1.0.0",
+      "installedAt": 1781072725915
+    },
+    "ownpen": {
+      "version": "1.5.1",
+      "installedAt": 1781072731542
+    },
+    "chinese-writing-polish": {
+      "version": "1.0.0",
+      "installedAt": 1781072737923
+    },
+    "official-doc": {
+      "version": "2.0.0",
+      "installedAt": 1781072743802
+    },
+    "official-document": {
+      "version": "1.0.5",
+      "installedAt": 1781072750062
+    },
+    "docx-formatter": {
+      "version": "1.0.1",
+      "installedAt": 1781072756397
+    },
+    "huo15-openclaw-office-doc": {
+      "version": "7.9.1",
+      "installedAt": 1781072764321
+    },
+    "ai-report": {
+      "version": "1.1.0",
+      "installedAt": 1781072770048
+    },
+    "weekly-report": {
+      "version": "1.0.0",
+      "installedAt": 1781072776089
+    },
+    "weekly-report-generator": {
+      "version": "1.0.0",
+      "installedAt": 1781072782087
+    },
+    "chartgen": {
+      "version": "1.0.22",
+      "installedAt": 1781072788018
+    },
+    "analysis-data": {
+      "version": "1.0.6",
+      "installedAt": 1781072793891
+    },
+    "data-analysis-partner": {
+      "version": "1.0.2",
+      "installedAt": 1781072799243
+    },
+    "data-report-generator": {
+      "version": "1.0.0",
+      "installedAt": 1781072805985
+    },
+    "tender-bid-generator": {
+      "version": "1.0.0",
+      "installedAt": 1781072812847
+    },
+    "tender-bidding-assistant": {
+      "version": "3.2.0",
+      "installedAt": 1781072819045
+    },
+    "bid-review-lite": {
+      "version": "1.0.0",
+      "installedAt": 1781072825644
+    },
+    "zeelin-meetinginstructions": {
+      "version": "1.0.0",
+      "installedAt": 1781072832219
+    },
+    "ai-meeting-minutes": {
+      "version": "1.0.0",
+      "installedAt": 1781072839350
+    }
+  }
+}

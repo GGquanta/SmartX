@@ -16,6 +16,7 @@ import {
 
 type Theme = 'light' | 'dark' | 'system';
 type UpdateChannel = 'stable' | 'beta' | 'dev';
+type BubbleVisibility = 'always' | 'whenMinimized' | 'never';
 
 interface SettingsState {
   // General
@@ -43,6 +44,7 @@ interface SettingsState {
   sidebarCollapsed: boolean;
   sidebarWidth: number;
   devModeUnlocked: boolean;
+  bubbleVisibility: BubbleVisibility;
   chatWorkspacePath: string;
   recentWorkspacePaths: string[];
   workspaceLabels: Record<string, string>;
@@ -70,6 +72,7 @@ interface SettingsState {
   setSidebarCollapsed: (value: boolean) => void;
   setSidebarWidth: (value: number) => void;
   setDevModeUnlocked: (value: boolean) => void;
+  setBubbleVisibility: (value: BubbleVisibility) => void;
   setChatWorkspacePath: (workspacePath: string) => void;
   setWorkspaceLabel: (workspacePath: string, label: string) => void;
   removeWorkspace: (workspacePath: string, aliases?: readonly string[]) => Promise<void>;
@@ -96,6 +99,7 @@ const defaultSettings = {
   sidebarCollapsed: false,
   sidebarWidth: 280,
   devModeUnlocked: false,
+  bubbleVisibility: 'always' as BubbleVisibility,
   chatWorkspacePath: DEFAULT_WORKSPACE_CWD,
   recentWorkspacePaths: [DEFAULT_WORKSPACE_CWD],
   workspaceLabels: {},
@@ -177,6 +181,10 @@ export const useSettingsStore = create<SettingsState>()(
         set({ devModeUnlocked });
         void hostApi.settings.set('devModeUnlocked', devModeUnlocked).catch(() => { });
       },
+      setBubbleVisibility: (bubbleVisibility) => {
+        set({ bubbleVisibility });
+        void hostApi.settings.set('bubbleVisibility', bubbleVisibility).catch(() => { });
+      },
       setChatWorkspacePath: (chatWorkspacePath) => {
         const normalized = normalizeWorkspacePath(chatWorkspacePath) ?? DEFAULT_WORKSPACE_CWD;
         set((state) => {
@@ -253,7 +261,7 @@ export const useSettingsStore = create<SettingsState>()(
       resetSettings: () => set(defaultSettings),
     }),
     {
-      name: 'clawx-settings',
+      name: 'smartx-settings',
     }
   )
 );

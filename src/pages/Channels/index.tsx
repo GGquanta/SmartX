@@ -51,7 +51,7 @@ function isGatewayDiagnosticSnapshot(value: unknown): value is GatewayDiagnostic
     typeof snapshot.gateway === 'object' &&
     snapshot.gateway !== null &&
     Array.isArray(snapshot.channels) &&
-    typeof snapshot.clawxLogTail === 'string' &&
+    typeof snapshot.smartxLogTail === 'string' &&
     typeof snapshot.gatewayLogTail === 'string' &&
     typeof snapshot.gatewayErrLogTail === 'string'
   );

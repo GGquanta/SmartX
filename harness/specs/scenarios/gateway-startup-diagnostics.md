@@ -20,20 +20,20 @@ requiredRules:
   - docs-sync
 ---
 
-Use this spec when ClawX shows the Gateway as starting/running but UI data does not refresh, memory-backed data cannot load, or Gateway RPC calls time out after a restart.
+Use this spec when SmartX shows the Gateway as starting/running but UI data does not refresh, memory-backed data cannot load, or Gateway RPC calls time out after a restart.
 
-ClawX should prefer OpenClaw-native signals over stderr string matching:
+SmartX should prefer OpenClaw-native signals over stderr string matching:
 
 - `system-presence` proves the core RPC router is serving requests.
 - `health` provides the Gateway health snapshot; use cached `probe:false` first.
 - `status` provides presence, health, stateVersion, uptime, and session defaults.
 - `channels.status` is the channel capability signal.
 - `doctor.memory.status` is the memory capability signal.
-- `gateway.ready`, `health`, and `presence` events should update ClawX's main-process capability cache.
+- `gateway.ready`, `health`, and `presence` events should update SmartX's main-process capability cache.
 
 stderr is supporting evidence only. It should not be the primary source for deciding whether the Gateway is ready, blocked, or should be restarted.
 
-WebSocket heartbeat misses show that the Gateway control plane did not answer within the observation window, but are diagnostic-only and never directly restart a process. A pong, any incoming Gateway frame, or a successful Gateway RPC is trusted liveness evidence and resets the 180 seconds deadline. At that deadline, Main runs one 5000ms `system-presence` probe. A successful probe records liveness and cancels recovery; a failed probe may request guarded restart only for a ClawX-owned Gateway. For an externally managed Gateway, ClawX may reconnect its own transport and report `external-unavailable`, but never automatically stop, shut down, or restart it. This liveness path has no workload tracking. Process exit, ordinary socket close, code 1012, and manual restart retain their existing independent lifecycle paths.
+WebSocket heartbeat misses show that the Gateway control plane did not answer within the observation window, but are diagnostic-only and never directly restart a process. A pong, any incoming Gateway frame, or a successful Gateway RPC is trusted liveness evidence and resets the 180 seconds deadline. At that deadline, Main runs one 5000ms `system-presence` probe. A successful probe records liveness and cancels recovery; a failed probe may request guarded restart only for a SmartX-owned Gateway. For an externally managed Gateway, SmartX may reconnect its own transport and report `external-unavailable`, but never automatically stop, shut down, or restart it. This liveness path has no workload tracking. Process exit, ordinary socket close, code 1012, and manual restart retain their existing independent lifecycle paths.
 
 Liveness diagnostics are sanitized and include `state`, `lastAliveAt`, `deadlineAt`, `lastDeadlineProbeAt`, `lastDeadlineProbeResult`, `lastDeadlineProbeError`, `escalationReason`, and `externallyManaged`. Do not record RPC payloads, credentials, tokens, or raw transport errors.
 
@@ -53,7 +53,7 @@ Treat these as the same incident family until proven otherwise:
 Important distinction:
 
 - **Port ready** only means the process is listening.
-- **Handshake ready** only means ClawX connected to the Gateway socket.
+- **Handshake ready** only means SmartX connected to the Gateway socket.
 - **RPC ready** means a cheap call such as `system-presence` succeeds.
 
 UI features that depend on Gateway runtime data must prefer RPC-ready evidence over port-ready evidence.
@@ -73,13 +73,13 @@ lsof -nP -iTCP:18789 -sTCP:LISTEN || true
 lsof -nP -iTCP:5173 -sTCP:LISTEN || true
 ```
 
-2. Read recent ClawX logs:
+2. Read recent SmartX logs:
 
 ```bash
-tail -n 160 "$HOME/Library/Application Support/clawx/logs/clawx-$(date +%F).log"
+tail -n 160 "$HOME/Library/Application Support/smartx/logs/smartx-$(date +%F).log"
 ```
 
-ClawX-owned Gateway children enable `OPENCLAW_GATEWAY_STARTUP_TRACE=1` automatically. Normal duration-bearing trace lines are normalized as informational records:
+SmartX-owned Gateway children enable `OPENCLAW_GATEWAY_STARTUP_TRACE=1` automatically. Normal duration-bearing trace lines are normalized as informational records:
 
 ```text
 [gateway-startup] stage=plugins.bootstrap durationMs=... totalMs=...
@@ -90,18 +90,18 @@ Stages taking at least 10 seconds are marked `slow=true`. A spawn-to-handshake d
 3. Probe OpenClaw-native signals in this order. Redirect output for memory-related calls because successful responses may contain user data:
 
 ```bash
-pnpm exec openclaw gateway call system-presence >/tmp/clawx-system-presence.json
-pnpm exec openclaw gateway call health --params '{"probe":false}' >/tmp/clawx-health.json
-pnpm exec openclaw gateway call status >/tmp/clawx-status.json
-pnpm exec openclaw gateway call channels.status --params '{"probe":false}' >/tmp/clawx-channels-status.json
-pnpm exec openclaw gateway call doctor.memory.status >/tmp/clawx-memory-status.json
-pnpm exec openclaw gateway call doctor.memory.dreamDiary >/tmp/clawx-dream-diary.json
+pnpm exec openclaw gateway call system-presence >/tmp/smartx-system-presence.json
+pnpm exec openclaw gateway call health --params '{"probe":false}' >/tmp/smartx-health.json
+pnpm exec openclaw gateway call status >/tmp/smartx-status.json
+pnpm exec openclaw gateway call channels.status --params '{"probe":false}' >/tmp/smartx-channels-status.json
+pnpm exec openclaw gateway call doctor.memory.status >/tmp/smartx-memory-status.json
+pnpm exec openclaw gateway call doctor.memory.dreamDiary >/tmp/smartx-dream-diary.json
 ```
 
 4. Only if port is listening and the core RPC probe (`system-presence`) times out, agree on the sampling scope, then sample the Gateway process on macOS:
 
 ```bash
-sample <gateway-pid> 3 -mayDie >/tmp/clawx-gateway.sample.txt
+sample <gateway-pid> 3 -mayDie >/tmp/smartx-gateway.sample.txt
 ```
 
 Look for heavy main-thread stacks around `uv_fs_open`, `uv_fs_scandir`, `open`, `read`, `write`, `mkdir`, or repeated plugin/skill initialization frames. This usually means the Gateway event loop is busy with synchronous file work and cannot service RPCs yet.
@@ -115,12 +115,12 @@ Before sampling, state:
 - Which process will be sampled, including PID and why it is believed to be the Gateway.
 - The sampling command and duration. Default to `sample <pid> 3 -mayDie`; increase duration only after explaining why.
 - Expected impact. A short macOS sample is read-only and usually low impact, but it can produce a large file and may briefly add system load.
-- Where the artifact will be written, usually `/tmp/clawx-gateway.sample.txt`.
+- Where the artifact will be written, usually `/tmp/smartx-gateway.sample.txt`.
 - What will be inspected and what will not be shared verbatim.
 
 Do not proceed without explicit user agreement when:
 
-- Sampling a process that is not clearly the ClawX-owned Gateway child.
+- Sampling a process that is not clearly the SmartX-owned Gateway child.
 - Increasing sample duration above 5 seconds or repeating samples many times.
 - Collecting process environment, open files, memory dumps, trace archives, or any artifact likely to contain secrets.
 - Killing, restarting, or force-cleaning Gateway while active tasks, cron jobs, or user-visible work may be running.
@@ -130,7 +130,7 @@ Safe-by-default commands:
 ```bash
 lsof -nP -iTCP:18789 -sTCP:LISTEN || true
 ps -axo pid,ppid,etime,command | rg -i "openclaw-gateway|Electron|vite" | rg -v "rg -i"
-sample <gateway-pid> 3 -mayDie >/tmp/clawx-gateway.sample.txt
+sample <gateway-pid> 3 -mayDie >/tmp/smartx-gateway.sample.txt
 ```
 
 Avoid by default:
@@ -144,7 +144,7 @@ When analyzing a sample, report a compact summary:
 
 - Main-thread state: idle, synchronous fs I/O, network connect, CPU-bound JS, or unknown.
 - Dominant stack signature, such as `uv_fs_open` under plugin runtime setup.
-- Whether the finding points to ClawX-owned prelaunch cleanup, OpenClaw runtime startup cost, active user work, or inconclusive data.
+- Whether the finding points to SmartX-owned prelaunch cleanup, OpenClaw runtime startup cost, active user work, or inconclusive data.
 - Recommended next action and whether it requires another user approval.
 
 ## Known Causes
@@ -200,7 +200,7 @@ Expected behavior:
 
 - Do not mark Gateway fully ready from a pure timer fallback.
 - The fallback must probe `system-presence` before emitting ready.
-- Heartbeat misses remain observable during startup work, but only the 180 seconds no-liveness deadline followed by a failed `system-presence` probe may request guarded process recovery for a ClawX-owned Gateway.
+- Heartbeat misses remain observable during startup work, but only the 180 seconds no-liveness deadline followed by a failed `system-presence` probe may request guarded process recovery for a SmartX-owned Gateway.
 
 ### Capability Degraded But Core Alive
 
@@ -259,14 +259,14 @@ pnpm exec tsx -e "import { sanitizeOpenClawConfig } from './electron/utils/openc
 5. Confirm core RPC readiness:
 
 ```bash
-pnpm exec openclaw gateway call system-presence >/tmp/clawx-system-presence.json
+pnpm exec openclaw gateway call system-presence >/tmp/smartx-system-presence.json
 ```
 
 6. Confirm cached OpenClaw health before deeper probes:
 
 ```bash
-pnpm exec openclaw gateway call health --params '{"probe":false}' >/tmp/clawx-health.json
-pnpm exec openclaw gateway call status >/tmp/clawx-status.json
+pnpm exec openclaw gateway call health --params '{"probe":false}' >/tmp/smartx-health.json
+pnpm exec openclaw gateway call status >/tmp/smartx-status.json
 ```
 
 7. Only after `system-presence` succeeds, verify feature-specific RPCs such as memory doctor calls or channel probes.
@@ -279,8 +279,8 @@ pnpm exec openclaw gateway call status >/tmp/clawx-status.json
 - `health` and `status` are captured in Gateway diagnostics when available.
 - Memory doctor calls return when the memory capability is available.
 - `doctor.memory.*` and `channels.status` failures degrade their capability only and do not trigger Gateway restart.
-- Missed pongs remain diagnostic-only. Only 180 seconds without trusted liveness followed by a failed 5000ms `system-presence` probe can request one guarded restart for a ClawX-owned Gateway; externally managed Gateways are never stopped or restarted automatically.
-- Logs no longer repeat stale runtime cache or escaped managed-skill symlink warnings for entries ClawX can safely clean.
+- Missed pongs remain diagnostic-only. Only 180 seconds without trusted liveness followed by a failed 5000ms `system-presence` probe can request one guarded restart for a SmartX-owned Gateway; externally managed Gateways are never stopped or restarted automatically.
+- Logs no longer repeat stale runtime cache or escaped managed-skill symlink warnings for entries SmartX can safely clean.
 
 ## Required Regression Coverage
 
@@ -307,4 +307,4 @@ When sharing findings:
 - Quote log patterns and timing metrics, not full memory doctor output.
 - Redact tokens, account identifiers, device IDs, and channel recipients.
 - State whether the failure is port readiness, handshake readiness, or RPC readiness.
-- Separate ClawX-owned cleanup issues from OpenClaw runtime initialization cost.
+- Separate SmartX-owned cleanup issues from OpenClaw runtime initialization cost.

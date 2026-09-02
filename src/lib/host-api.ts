@@ -98,8 +98,10 @@ export type {
   OpenClawDoctorResult,
   OpenClawStatusResult,
   OpenAttachmentResult,
+  ProviderEnvDefaultsPreview,
   ProviderAccountKeyInfo,
   ProviderDefaultAccountResult,
+  SeedProviderFromEnvResponse,
   ProviderValidationResult,
   ReadAttachmentBinaryResult,
   ReadAttachmentTextResult,
@@ -133,6 +135,12 @@ export const hostApi = {
       ...(await invokeHost('app', 'openClawDoctor', { mode })),
       mode,
     }),
+    version: () => window.electron.ipcRenderer.invoke('app:version') as Promise<string>,
+    getCompanyKnowledgeWebviewPreloadPath: () => (
+      window.electron.ipcRenderer.invoke('app:getCompanyKnowledgeWebviewPreloadPath') as Promise<string>
+    ),
+    getProviderEnvDefaults: () => invokeHost('app', 'getProviderEnvDefaults'),
+    seedProviderFromEnv: () => invokeHost('app', 'seedProviderFromEnv'),
   },
   openclaw: {
     status: () => invokeHost('openclaw', 'status'),
@@ -449,6 +457,12 @@ export const hostApi = {
   usage: {
     recentTokenHistory: (limit?: number) => (
       invokeHost('usage', 'recentTokenHistory', { limit })
+    ),
+  },
+  bubble: {
+    openMainWindow: () => invokeHost('bubble', 'openMainWindow'),
+    syncForegroundRun: (active: boolean) => (
+      invokeHost('bubble', 'syncForegroundRun', { active })
     ),
   },
 };

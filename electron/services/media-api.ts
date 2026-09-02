@@ -6,8 +6,8 @@ import type { AttachmentFileRef } from '@shared/host-api/contract';
 import { resolveOutgoingMediaAttachment, type AttachmentAccess } from './attachment-access';
 import { resolveOpenClawStateDir } from '../utils/paths';
 import {
-  CLAWX_OPENAI_IMAGE_DEFAULT_MODEL,
-  CLAWX_OPENAI_IMAGE_PROVIDER_KEY,
+  SMARTX_OPENAI_IMAGE_DEFAULT_MODEL,
+  SMARTX_OPENAI_IMAGE_PROVIDER_KEY,
 } from '../utils/openclaw-image-relay-constants';
 import {
   applyOpenAiImageRelaySettings,
@@ -218,14 +218,14 @@ export function createMediaApi(dependencies: MediaApiDependencies = {}): Complet
       const normalizeRelayModel = (value: unknown): string => {
         const raw = typeof value === 'string' && value.trim()
           ? value.trim()
-          : (current.openAiRelay.model || CLAWX_OPENAI_IMAGE_DEFAULT_MODEL);
+          : (current.openAiRelay.model || SMARTX_OPENAI_IMAGE_DEFAULT_MODEL);
         const slash = raw.indexOf('/');
-        return (slash > 0 ? raw.slice(slash + 1) : raw).trim() || CLAWX_OPENAI_IMAGE_DEFAULT_MODEL;
+        return (slash > 0 ? raw.slice(slash + 1) : raw).trim() || SMARTX_OPENAI_IMAGE_DEFAULT_MODEL;
       };
       const relayModel = normalizeRelayModel(body.openAiRelayModel);
       let nextPrimary = current.config.primary;
       if (body.openAiRelayEnabled === true) {
-        nextPrimary = `${CLAWX_OPENAI_IMAGE_PROVIDER_KEY}/${relayModel}`;
+        nextPrimary = `${SMARTX_OPENAI_IMAGE_PROVIDER_KEY}/${relayModel}`;
       } else if (body.openAiRelayEnabled === false) {
         nextPrimary = null;
       }

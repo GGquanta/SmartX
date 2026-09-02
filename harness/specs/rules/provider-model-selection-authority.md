@@ -6,7 +6,7 @@ appliesTo:
   - gateway-backend-communication
 ---
 
-Provider model IDs created through the ClawX settings UI are immutable. Existing
+Provider model IDs created through the SmartX settings UI are immutable. Existing
 provider edit forms must not submit model changes and must direct users to delete
 and recreate the provider when they need a different model ID.
 

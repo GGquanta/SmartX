@@ -61,6 +61,24 @@ describe('provider-model-sync', () => {
     });
   });
 
+  it('builds bailian payload with OpenAI-compatible DashScope base URL', () => {
+    expect(
+      buildNonOAuthAgentProviderUpdate(
+        providerConfig({ type: 'bailian', id: 'bailian' }),
+        'bailian',
+        'bailian/qwen3.7-max',
+      ),
+    ).toEqual({
+      providerKey: 'bailian',
+      entry: {
+        baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        api: 'openai-completions',
+        apiKey: 'DASHSCOPE_API_KEY',
+        models: [{ id: 'qwen3.7-max', name: 'qwen3.7-max', cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } }],
+      },
+    });
+  });
+
   it('builds modelstudio payload and returns null for multi-instance providers', () => {
     expect(
       buildNonOAuthAgentProviderUpdate(

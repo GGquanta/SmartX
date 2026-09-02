@@ -12,7 +12,7 @@ import { ClawHubService } from '../gateway/clawhub';
 import {
   type ProviderConfig,
 } from '../utils/secure-storage';
-import { getOpenClawStatus, getOpenClawSkillsDir, ensureDir, expandPath } from '../utils/paths';
+import { getOpenClawStatus, getOpenClawSkillsDir, ensureDir, expandPath, getCompanyKnowledgeWebviewPreloadPath } from '../utils/paths';
 import { getOpenClawCliCommand } from '../utils/openclaw-cli';
 import { getAllSettings, getSetting, resetSettings, setSetting, type AppSettings } from '../utils/store';
 import {
@@ -23,6 +23,7 @@ import { syncProxyConfigToOpenClaw } from '../utils/openclaw-proxy';
 import { logger } from '../utils/logger';
 import { resolveAgentIdFromChannel } from '../utils/agent-config';
 import { resolveAccountIdFromSessionHistory } from '../utils/session-util';
+import { bindCompanyKnowledgeFromWebview } from '../utils/skill-config';
 import { whatsAppLoginManager } from '../utils/whatsapp-login';
 import { getProviderConfig } from '../utils/provider-registry';
 import { applyProxySettings } from './proxy';
@@ -51,6 +52,7 @@ import { createUvApi } from '../services/uv-api';
 import { createGatewayApi } from '../services/gateway-api';
 import { createLogsApi } from '../services/logs-api';
 import { createSettingsApi } from '../services/settings-api';
+import { createBubbleApi } from '../services/bubble-api';
 import { createChannelsApi } from '../services/channels-api';
 import { createAgentsApi } from '../services/agents-api';
 import { createChatApi } from '../services/chat-api';
@@ -86,6 +88,7 @@ export function registerIpcHandlers(
   hostApiRegistry: HostApiRegistry,
   browserSession: Session,
   registry: WebBrowserGuestRegistry,
+  focusMainWindow: () => void,
 ): TalkRelayOwnership {
   // Unified request protocol (non-breaking: legacy channels remain available)
   registerUnifiedRequestHandlers(gatewayManager);
@@ -98,6 +101,7 @@ export function registerIpcHandlers(
     hostApiRegistry,
     browserSession,
     registry,
+    focusMainWindow,
   );
 
   // Gateway handlers
@@ -146,6 +150,7 @@ function registerTypedHostHandlers(
   hostApiRegistry: HostApiRegistry,
   browserSession: Session,
   registry: WebBrowserGuestRegistry,
+  focusMainWindow: () => void,
 ): TalkRelayOwnership {
   const acpSessionAccessRegistry = new AcpSessionAccessRegistry();
   const stagedAttachments = new StagedAttachmentRegistry();
@@ -166,6 +171,7 @@ function registerTypedHostHandlers(
     updates: createUpdatesApi(appUpdater),
     uv: createUvApi(),
     settings: createSettingsApi(gatewayManager),
+    bubble: createBubbleApi({ focusMainWindow }),
     gateway: createGatewayApi(gatewayManager),
     talk: createTalkApi(gatewayManager, talkRelayOwnership),
     logs: createLogsApi(),
@@ -1001,7 +1007,7 @@ function registerProviderHandlers(gatewayManager: GatewayManager): void {
         const resolvedBaseUrl = options?.baseUrl || provider?.baseUrl || registryBaseUrl;
         const resolvedProtocol = options?.apiProtocol || provider?.apiProtocol;
 
-        console.log(`[clawx-validate] validating provider type: ${providerType}`);
+        console.log(`[smartx-validate] validating provider type: ${providerType}`);
         return await validateApiKeyWithProvider(providerType, apiKey, {
           baseUrl: resolvedBaseUrl,
           apiProtocol: resolvedProtocol,
@@ -1076,6 +1082,12 @@ function registerAppHandlers(): void {
   // Get platform
   ipcMain.handle('app:platform', () => {
     return process.platform;
+  });
+
+  ipcMain.handle('app:getCompanyKnowledgeWebviewPreloadPath', () => getCompanyKnowledgeWebviewPreloadPath());
+
+  ipcMain.handle('company-knowledge:bindWebview', async (_, raw: unknown) => {
+    return await bindCompanyKnowledgeFromWebview(raw);
   });
 
 }

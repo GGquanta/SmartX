@@ -22,6 +22,9 @@ import {
   Check,
   X,
   Cpu,
+  ImagePlus,
+  Microscope,
+  Library,
   ChevronRight,
   ChevronsUpDown,
   ChevronsDownUp,
@@ -55,7 +58,7 @@ import { hostApi } from '@/lib/host-api';
 import { formatSessionRelativeTime } from '@/lib/relative-time';
 import { SIDEBAR_COLLAPSED_WIDTH, MAC_SIDEBAR_CHROME_HEIGHT } from '@shared/sidebar-layout';
 import { useTranslation } from 'react-i18next';
-import logoSvg from '@/assets/logo.svg';
+import logoPng from '@/assets/logo.png';
 import { useNewChatAction } from './use-new-chat-action';
 import { isDefaultWorkspacePath } from '@/lib/workspace-context';
 import { useWorkspaceAvailability } from '@/hooks/use-workspace-availability';
@@ -65,6 +68,9 @@ import { DEFAULT_SESSION_KEY } from '@shared/chat/types';
 import { realtimeTalkController } from '@/lib/talk/realtime-talk-controller';
 import { useRealtimeTalkStore } from '@/stores/realtime-talk';
 
+/** Set to true to hide the Company Knowledge sidebar entry. */
+const COMPANY_KNOWLEDGE_NAV_DISABLED = false;
+
 interface NavItemProps {
   to: string;
   icon: React.ReactNode;
@@ -73,9 +79,38 @@ interface NavItemProps {
   collapsed?: boolean;
   onClick?: () => void;
   testId?: string;
+  disabled?: boolean;
 }
 
-function NavItem({ to, icon, label, badge, collapsed, onClick, testId }: NavItemProps) {
+function NavItem({ to, icon, label, badge, collapsed, onClick, testId, disabled }: NavItemProps) {
+  if (disabled) {
+    return (
+      <div
+        data-testid={testId}
+        aria-disabled="true"
+        className={cn(
+          'sidebar-nav-text flex cursor-not-allowed items-center gap-2 rounded-lg px-2.5 py-1.5',
+          'text-muted-foreground/40',
+          collapsed && 'justify-center px-0',
+        )}
+      >
+        <div className="flex shrink-0 items-center justify-center text-current [&_svg]:size-4">
+          {icon}
+        </div>
+        {!collapsed && (
+          <>
+            <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{label}</span>
+            {badge && (
+              <Badge variant="secondary" className="ml-auto shrink-0">
+                {badge}
+              </Badge>
+            )}
+          </>
+        )}
+      </div>
+    );
+  }
+
   return (
     <NavLink
       to={to}
@@ -462,36 +497,24 @@ export function Sidebar() {
   const extraNavItems = rendererExtensionRegistry.getExtraNavItems();
 
   const coreNavItems = [
+    { to: '/models', icon: <Cpu className="h-4 w-4" strokeWidth={2} />, label: t('sidebar.models'), testId: 'sidebar-nav-models' },
+    { to: '/agents', icon: <Bot className="h-4 w-4" strokeWidth={2} />, label: t('sidebar.agents'), testId: 'sidebar-nav-agents' },
+    { to: '/channels', icon: <Network className="h-4 w-4" strokeWidth={2} />, label: t('sidebar.channels'), testId: 'sidebar-nav-channels' },
+    { to: '/skills', icon: <Puzzle className="h-4 w-4" strokeWidth={2} />, label: t('sidebar.skills'), testId: 'sidebar-nav-skills' },
+    { to: '/cron', icon: <Clock className="h-4 w-4" strokeWidth={2} />, label: t('sidebar.cronTasks'), testId: 'sidebar-nav-cron' },
+    { to: '/research-tools', icon: <Microscope className="h-4 w-4" strokeWidth={2} />, label: t('sidebar.researchTools'), testId: 'sidebar-nav-research-tools' },
     {
-      to: '/models',
-      icon: <Cpu className="h-4 w-4" strokeWidth={2} />,
-      label: t('sidebar.models'),
-      testId: 'sidebar-nav-models',
+      to: '/company-knowledge',
+      icon: <Library className="h-4 w-4" strokeWidth={2} />,
+      label: t('sidebar.companyKnowledge'),
+      testId: 'sidebar-nav-company-knowledge',
+      disabled: COMPANY_KNOWLEDGE_NAV_DISABLED,
     },
-    {
-      to: '/agents',
-      icon: <Bot className="h-4 w-4" strokeWidth={2} />,
-      label: t('sidebar.agents'),
-      testId: 'sidebar-nav-agents',
-    },
-    {
-      to: '/channels',
-      icon: <Network className="h-4 w-4" strokeWidth={2} />,
-      label: t('sidebar.channels'),
-      testId: 'sidebar-nav-channels',
-    },
-    {
-      to: '/skills',
-      icon: <Puzzle className="h-4 w-4" strokeWidth={2} />,
-      label: t('sidebar.skills'),
-      testId: 'sidebar-nav-skills',
-    },
-    {
-      to: '/cron',
-      icon: <Clock className="h-4 w-4" strokeWidth={2} />,
-      label: t('sidebar.cronTasks'),
-      testId: 'sidebar-nav-cron',
-    },
+    ...(devModeUnlocked
+      ? [
+        { to: '/image-generation', icon: <ImagePlus className="h-4 w-4" strokeWidth={2} />, label: t('common:sidebar.imageGeneration'), testId: 'sidebar-nav-image-generation' },
+      ]
+      : []),
   ];
 
   const navItems = [
@@ -528,8 +551,10 @@ export function Sidebar() {
       >
         {!sidebarCollapsed && (
           <div className="flex items-center gap-2 px-2 overflow-hidden">
-            <img src={logoSvg} alt="ClawX" className="h-5 w-auto shrink-0" />
-            <span className="text-sm font-semibold truncate whitespace-nowrap text-foreground/90">ClawX</span>
+            <img src={logoPng} alt="SmartX" className="h-5 w-auto shrink-0" />
+            <span className="text-sm font-semibold truncate whitespace-nowrap text-foreground/90">
+              {t('sidebar.title')}
+            </span>
           </div>
         )}
         <Button
@@ -551,13 +576,13 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex flex-col gap-1 px-2 mt-2">
+      <nav className="mt-3 flex flex-col gap-1 px-2">
         <button
           type="button"
           data-testid="sidebar-new-chat"
           onClick={handleNewChat}
           className={cn(
-            'sidebar-nav-text flex items-center gap-2 rounded-lg px-2.5 py-1.5 transition-colors',
+            'sidebar-nav-text mb-3 flex items-center gap-2 rounded-lg px-2.5 py-2 transition-colors',
             'hover:bg-black/5 dark:hover:bg-white/5 text-foreground/80',
             sidebarCollapsed && 'justify-center px-0',
           )}

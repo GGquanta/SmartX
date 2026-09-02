@@ -50,7 +50,7 @@ docs:
 
 ## Incident
 
-An accepted prompt produced tool activity, then the Gateway stopped responding to WebSocket pong and core RPC traffic. ClawX's three-minute liveness deadline and five-second verification probe intentionally restarted the owned Gateway. OpenClaw persisted an internal `role: user` recovery instruction with `provenance.kind: internal_system` before finishing the original turn.
+An accepted prompt produced tool activity, then the Gateway stopped responding to WebSocket pong and core RPC traffic. SmartX's three-minute liveness deadline and five-second verification probe intentionally restarted the owned Gateway. OpenClaw persisted an internal `role: user` recovery instruction with `provenance.kind: internal_system` before finishing the original turn.
 
 The Main transcript timing extractor treated that internal instruction as a real user boundary. It therefore ended the visible turn at the last pre-restart tool result, producing roughly ten seconds even though the original prompt remained active for more than four minutes. Renderer initially retained the correct live timer, but post-settlement transcript reconciliation replaced it with the truncated historical duration.
 

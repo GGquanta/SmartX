@@ -50,10 +50,10 @@ docs:
 
 ## Background
 
-ClawX previously inferred `contextWindow` from model-family names. That guess
+SmartX previously inferred `contextWindow` from model-family names. That guess
 can differ from the effective limit selected by OpenClaw, making the compaction
 reserve larger than the usable prompt budget. Missing metadata must therefore
-remain unknown to ClawX, with the conservative reserve fallback handling that
+remain unknown to SmartX, with the conservative reserve fallback handling that
 case. Users also need an `agents.defaults.compaction` safeguard configuration.
 
 ## Scope

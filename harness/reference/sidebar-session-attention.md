@@ -10,9 +10,9 @@ Related task: `sidebar-session-attention`
 
 ## Authority And Rationale
 
-OpenClaw Gateway session rows are the sole authority for sidebar run state. The existing `useChatStore.sessions` collection remains the Renderer session catalog; attention adds presentation state, not a second catalog. This lets one projection cover ClawX prompts, channel-triggered work, and other Gateway clients whenever the Gateway projects the run onto the same catalog session key.
+OpenClaw Gateway session rows are the sole authority for sidebar run state. The existing `useChatStore.sessions` collection remains the Renderer session catalog; attention adds presentation state, not a second catalog. This lets one projection cover SmartX prompts, channel-triggered work, and other Gateway clients whenever the Gateway projects the run onto the same catalog session key.
 
-ACP prompt state and ACP timeline updates are scoped to an initialized agent connection and cannot observe the whole shared session catalog. Gateway `agent` lifecycle events and ClawX's local `sending` state describe other concerns and can be incomplete for work initiated elsewhere. None of them may derive or override sidebar busy or unread state. Renderer code continues to use the Main-owned Gateway connection through `hostApi`, `useGatewayStore.rpc`, and `hostEvents`; it does not open another transport.
+ACP prompt state and ACP timeline updates are scoped to an initialized agent connection and cannot observe the whole shared session catalog. Gateway `agent` lifecycle events and SmartX's local `sending` state describe other concerns and can be incomplete for work initiated elsewhere. None of them may derive or override sidebar busy or unread state. Renderer code continues to use the Main-owned Gateway connection through `hostApi`, `useGatewayStore.rpc`, and `hostEvents`; it does not open another transport.
 
 The bundled OpenClaw 2026.6.10 behavior supporting this authority is:
 
@@ -72,7 +72,7 @@ The transition table is normative:
 | No observed busy | Idle | Any | Do not create unread; retain existing unread state. |
 | Any | Unknown | Any | Preserve both attention fields. |
 
-Retaining unread when another run becomes busy is intentional. The spinner hides the older dot while busy, but completion reveals unread again unless the conversation became visible. Persisting `observedBusy` also proves the restart-recovery case where ClawX observed busy, exited, and later receives an idle canonical row.
+Retaining unread when another run becomes busy is intentional. The spinner hides the older dot while busy, but completion reveals unread again unless the conversation became visible. Persisting `observedBusy` also proves the restart-recovery case where SmartX observed busy, exited, and later receives an idle canonical row.
 
 Filtered, partial, or temporarily incomplete lists do not prune missing attention entries. Only an exact deletion or explicit local session removal deletes one. Ordered transition folds commit one final attention map, avoiding intermediate spinner/dot renders.
 
@@ -144,9 +144,9 @@ Deletion also calls `clearSessionLabelHydrationTracking`. `src/stores/chat/sessi
 
 ## Limitations
 
-- A run that starts and finishes while ClawX is fully closed is unobserved and cannot produce a justified unread marker with OpenClaw 2026.6.10.
+- A run that starts and finishes while SmartX is fully closed is unobserved and cannot produce a justified unread marker with OpenClaw 2026.6.10.
 - Run-scoped cron keys cannot drive base-row attention until `sessions.list` exposes a recoverable canonical relationship. They may still affect existing activity sorting.
-- Local attention is presentation state, not a Gateway-wide read receipt. Another client opening a conversation does not clear ClawX's local unread bit.
+- Local attention is presentation state, not a Gateway-wide read receipt. Another client opening a conversation does not clear SmartX's local unread bit.
 - Missing rows in partial or filtered lists cannot prove deletion and therefore do not prune attention.
 - Unknown Gateway state deliberately favors preserving the last indicator over guessing idle.
 - The local attention store contains no messages, tool state, timelines, runtime graph, or route visibility.
@@ -163,11 +163,11 @@ When the bundled OpenClaw release provides durable row-level `hasActiveRun` and 
 6. Remove the local transition store and retire the `clawx.session-attention` persistence key through an explicit versioned cleanup so old local bits cannot reappear.
 7. Preserve `busy > unread > timeago`, visible-Chat semantics, accessibility, and exact deletion behavior in unit and Electron E2E coverage.
 
-Do not begin this migration merely because a type exists in an unbundled upstream branch. The bundled Gateway must expose and persist the complete contract used by ClawX.
+Do not begin this migration merely because a type exists in an unbundled upstream branch. The bundled Gateway must expose and persist the complete contract used by SmartX.
 
 ## Rejected Alternatives
 
-- ACP prompt/timeline state: scoped to ClawX-owned agent connections and misses channel or other-client runs.
+- ACP prompt/timeline state: scoped to SmartX-owned agent connections and misses channel or other-client runs.
 - Gateway `agent` events or local `sending`: transport/runtime lifecycle is not the canonical session catalog projection.
 - `updatedAt` inference: rename, metadata, transcript maintenance, and unrelated activity would fabricate unread completions.
 - `currentSessionKey` as visibility: non-Chat routes retain it and would incorrectly mark hidden conversations read.

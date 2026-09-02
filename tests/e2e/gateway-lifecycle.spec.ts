@@ -16,7 +16,7 @@ const SESSIONS_LIST_PAYLOAD = {
 const MAIN_SESSION_KEY = 'agent:main:main';
 const DEFAULT_WORKSPACE = '~/.openclaw/workspace';
 
-test.describe('ClawX gateway lifecycle resilience', () => {
+test.describe('SmartX gateway lifecycle resilience', () => {
   test('app remains fully navigable while gateway is disconnected', async ({ page }) => {
     // In E2E mode, gateway auto-start is skipped, so the app starts
     // with gateway in "stopped" state — simulating the disconnected scenario.
@@ -195,7 +195,7 @@ test.describe('ClawX gateway lifecycle resilience', () => {
                 },
               },
               channels: [],
-              clawxLogTail: 'clawx-log',
+              smartxLogTail: 'clawx-log',
               gatewayLogTail: 'gateway-log',
               gatewayErrLogTail: '',
             },
@@ -219,7 +219,7 @@ test.describe('ClawX gateway lifecycle resilience', () => {
 
     await page.getByTestId('sidebar-nav-channels').click();
     await expect(page.getByTestId('channels-health-banner')).toBeVisible();
-    await expect(page.getByTestId('channels-recovery-status')).toContainText(/ClawX is restarting its Gateway/i);
+    await expect(page.getByTestId('channels-recovery-status')).toContainText(/SmartX is restarting its Gateway/i);
     await expect(page.getByText('Gateway control plane appears unresponsive.')).toBeVisible();
     await page.getByTestId('channels-toggle-diagnostics').click();
     await expect(page.getByTestId('channels-diagnostics')).toContainText('"state": "restart-executing"');

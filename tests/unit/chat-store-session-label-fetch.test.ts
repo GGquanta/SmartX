@@ -124,7 +124,7 @@ describe('chat store session label summary hydration', () => {
     expect(getSessionLabelHydrationCandidate(
       {
         key: 'agent:main:main',
-        displayName: 'ClawX',
+        displayName: 'SmartX',
         derivedTitle: '[Working directory: ~/.openclaw/workspace]…',
         workspacePath: '~/.openclaw/workspace',
         updatedAt: 1001,
@@ -266,7 +266,7 @@ describe('chat store session label summary hydration', () => {
 
   it('hydrates a cwd-only truncated derived title from the session summary', async () => {
     const sessionKey = 'agent:main:session-cwd-truncated';
-    const workspacePath = '/Users/zhuoxu/workspace/clawx-playground';
+    const workspacePath = '/Users/zhuoxu/workspace/smartx-playground';
     gatewayRpcMock.mockImplementation(async (method: string) => {
       if (method === 'sessions.list') {
         return {
@@ -274,7 +274,7 @@ describe('chat store session label summary hydration', () => {
             {
               key: sessionKey,
               displayName: 'ACP',
-              derivedTitle: '[Working directory: ~/workspace/clawx-playground]…',
+              derivedTitle: '[Working directory: ~/workspace/smartx-playground]…',
               updatedAt: 1_783_791_638_956,
             },
             { key: 'agent:main:main', displayName: 'Main', updatedAt: 1_783_791_638_957 },
@@ -340,7 +340,7 @@ describe('chat store session label summary hydration', () => {
         return {
           sessions: [{
             key: sessionKey,
-            displayName: 'ClawX',
+            displayName: 'SmartX',
             derivedTitle: '[Working directory: ~/.openclaw/workspace]…',
             workspacePath,
             updatedAt: 1_787_722_940_140,
@@ -895,10 +895,10 @@ describe('chat store session label summary hydration', () => {
       if (method === 'sessions.list') {
         return {
           sessions: [
-            { key: 'agent:main:session-a', displayName: 'ClawX', updatedAt: 1000 },
-            { key: 'agent:main:session-b', displayName: 'ClawX', updatedAt: 1001 },
+            { key: 'agent:main:session-a', displayName: 'SmartX', updatedAt: 1000 },
+            { key: 'agent:main:session-b', displayName: 'SmartX', updatedAt: 1001 },
             { key: 'agent:research:main', displayName: 'ACP', workspacePath: '/research-workspace', updatedAt: 1002 },
-            { key: 'agent:main:main', displayName: 'ClawX', updatedAt: 1003 },
+            { key: 'agent:main:main', displayName: 'SmartX', updatedAt: 1003 },
           ],
         };
       }
@@ -915,10 +915,10 @@ describe('chat store session label summary hydration', () => {
           success: true,
           result: {
             sessions: [
-              { key: 'agent:main:session-a', displayName: 'ClawX', updatedAt: 1000 },
-              { key: 'agent:main:session-b', displayName: 'ClawX', updatedAt: 1001 },
+              { key: 'agent:main:session-a', displayName: 'SmartX', updatedAt: 1000 },
+              { key: 'agent:main:session-b', displayName: 'SmartX', updatedAt: 1001 },
               { key: 'agent:research:main', displayName: 'ACP', workspacePath: '/research-workspace', updatedAt: 1002 },
-              { key: 'agent:main:main', displayName: 'ClawX', updatedAt: 1003 },
+              { key: 'agent:main:main', displayName: 'SmartX', updatedAt: 1003 },
             ],
           },
         };

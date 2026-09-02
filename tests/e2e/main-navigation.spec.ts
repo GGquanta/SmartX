@@ -13,7 +13,7 @@ async function readNativeMenuLabels(app: ElectronApplication) {
   });
 }
 
-test.describe('ClawX main navigation without setup flow', () => {
+test.describe('SmartX main navigation without setup flow', () => {
   test('keeps reload menu commands without application accelerators', async ({ launchElectronApp }) => {
     const app = await launchElectronApp({ skipSetup: true });
 
@@ -55,6 +55,10 @@ test.describe('ClawX main navigation without setup flow', () => {
       await expect(page.getByTestId('sidebar-resize-handle')).toBeVisible();
       await expect(page.getByTestId('main-content')).toHaveCSS('border-top-left-radius', '16px');
 
+      const newChatButton = page.getByTestId('sidebar-new-chat');
+      await expect(newChatButton).toBeVisible();
+      await expect(newChatButton).toHaveCSS('justify-content', 'normal');
+
       await page.getByTestId('sidebar-nav-models').click();
       await expect(page.getByTestId('models-page')).toBeVisible();
       await expect(page.getByTestId('models-page-title')).toBeVisible();
@@ -64,6 +68,15 @@ test.describe('ClawX main navigation without setup flow', () => {
 
       await page.getByTestId('sidebar-nav-channels').click();
       await expect(page.getByTestId('channels-page')).toBeVisible();
+
+      await page.getByTestId('sidebar-nav-research-tools').click();
+      await expect(page.getByTestId('research-tools-page')).toBeVisible();
+      await expect(page.getByTestId('research-tools-hero-card')).toBeVisible();
+      await expect(page.getByTestId('research-tools-quafu-login-button')).toBeVisible();
+
+      await page.getByTestId('sidebar-nav-company-knowledge').click();
+      await expect(page.getByTestId('company-knowledge-page')).toBeVisible();
+      await expect(page.getByTestId('company-knowledge-page-title')).toBeVisible();
     } finally {
       await closeElectronApp(app);
     }

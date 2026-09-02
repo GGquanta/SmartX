@@ -10,7 +10,7 @@ touchedAreas:
   - tests/unit/acp-chat-service.test.ts
   - tests/e2e/chat-acp-slash-command-replies.spec.ts
 expectedUserBehavior:
-  - Sending /status in ClawX produces a visible assistant status reply.
+  - Sending /status in SmartX produces a visible assistant status reply.
   - Existing slash commands such as /compact continue to produce visible replies.
   - Ordinary prompts continue to receive the working-directory prefix used by OpenClaw ACP.
 requiredProfiles:

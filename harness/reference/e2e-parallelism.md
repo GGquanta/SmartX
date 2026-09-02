@@ -1,6 +1,6 @@
 # Electron E2E Parallelism
 
-ClawX launches one Electron process per Playwright test with a test-scoped HOME and user-data directory. Ordinary specs can therefore run in separate workers without sharing application stores or OpenClaw files.
+SmartX launches one Electron process per Playwright test with a test-scoped HOME and user-data directory. Ordinary specs can therefore run in separate workers without sharing application stores or OpenClaw files.
 
 The Playwright project graph has three ordered lanes:
 

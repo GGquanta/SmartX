@@ -108,7 +108,7 @@
         "reasons": {
             "gateway_degraded": "ゲートウェイのハートビートに劣化が見られます。",
             "gateway_unresponsive": "ゲートウェイの制御プレーンが無応答です。",
-            "gateway_verifying": "ClawX がゲートウェイの応答を確認しています。",
+            "gateway_verifying": "SmartX がゲートウェイの応答を確認しています。",
             "external_gateway_unavailable": "外部管理のゲートウェイを利用できません。",
             "channels_status_timeout": "チャンネル状態の問い合わせがタイムアウトしました。",
             "rpc_timeout": "最近のゲートウェイ RPC がタイムアウトしました。",
@@ -117,10 +117,10 @@
             "runtime_error": "チャンネルランタイムがエラーを返しました。"
         },
         "recovery": {
-            "verifying": "ClawX がゲートウェイの応答を確認しています。",
-            "restart-pending": "ClawX はゲートウェイの再起動を待機しています。",
-            "restart-executing": "ClawX はゲートウェイを再起動しています。",
-            "external-unavailable": "外部管理のゲートウェイを利用できません。ClawX は再接続中です。必要に応じて「ゲートウェイを再起動」を使用してください。"
+            "verifying": "SmartX がゲートウェイの応答を確認しています。",
+            "restart-pending": "SmartX はゲートウェイの再起動を待機しています。",
+            "restart-executing": "SmartX はゲートウェイを再起動しています。",
+            "external-unavailable": "外部管理のゲートウェイを利用できません。SmartX は再接続中です。必要に応じて「ゲートウェイを再起動」を使用してください。"
         },
         "restartGateway": "ゲートウェイを再起動",
         "copyDiagnostics": "診断をコピー",
@@ -197,7 +197,7 @@
             "description": "Tencent 公式の OpenClaw プラグインを使い、QRコードをスキャンして個人 WeChat に接続します",
             "docsUrl": "https://icnnp7d0dymg.feishu.cn/wiki/GHYZwuPCriF0gWkXwkFcJ9zon3b",
             "instructions": [
-                "QRコードを生成すると、ClawX が OpenClaw に公式 WeChat プラグインをインストールして有効化します",
+                "QRコードを生成すると、SmartX が OpenClaw に公式 WeChat プラグインをインストールして有効化します",
                 "以下の QR コードを WeChat でスキャンし、スマートフォン側で接続を確認します",
                 "接続が完了すると、WeChat に新しい「WeChat ClawBot」チャットが自動で表示されます",
                 "後から同じ QR フローを使って、別の WeChat アカウントを追加したり既存アカウントを再接続したりできます"

@@ -1,0 +1,121 @@
+{
+  "productName": "小光",
+  "version": "0.5.5",
+  "updatedAt": "2026-08-31",
+  "assetBaseUrl": "https://smartx.qubitlab.cc",
+  "ossBaseUrl": "https://smartx-assets.oss-cn-hongkong.aliyuncs.com",
+  "platforms": [
+    {
+      "id": "macos",
+      "label": "macOS",
+      "icon": "apple",
+      "variants": [
+        {
+          "id": "macos-arm64-dmg",
+          "label": "Apple Silicon",
+          "format": "DMG",
+          "arch": "arm64",
+          "path": "/latest/SmartX-0.5.5-mac-arm64.dmg",
+          "size": "226.4 MB",
+          "recommended": true
+        },
+        {
+          "id": "macos-x64-dmg",
+          "label": "Intel",
+          "format": "DMG",
+          "arch": "x64",
+          "path": "/latest/SmartX-0.5.5-mac-x64.dmg",
+          "size": "236.9 MB"
+        },
+        {
+          "id": "macos-arm64-zip",
+          "label": "Apple Silicon",
+          "format": "ZIP",
+          "arch": "arm64",
+          "path": "/latest/SmartX-0.5.5-mac-arm64.zip",
+          "size": "258.3 MB"
+        },
+        {
+          "id": "macos-x64-zip",
+          "label": "Intel",
+          "format": "ZIP",
+          "arch": "x64",
+          "path": "/latest/SmartX-0.5.5-mac-x64.zip",
+          "size": "270.8 MB"
+        }
+      ]
+    },
+    {
+      "id": "windows",
+      "label": "Windows",
+      "icon": "windows",
+      "variants": [
+        {
+          "id": "windows-x64-nsis",
+          "label": "Windows 10+",
+          "format": "安装包",
+          "arch": "x64",
+          "path": "/latest/SmartX-0.5.5-win-x64.exe",
+          "size": "252.7 MB",
+          "recommended": true
+        },
+        {
+          "id": "windows-arm64-nsis",
+          "label": "Windows on ARM",
+          "format": "安装包",
+          "arch": "arm64",
+          "path": "/latest/SmartX-0.5.5-win-arm64.exe",
+          "size": "252.7 MB"
+        }
+      ]
+    },
+    {
+      "id": "linux",
+      "label": "Linux",
+      "icon": "linux",
+      "variants": [
+        {
+          "id": "linux-arm64-appimage",
+          "label": "通用",
+          "format": "AppImage",
+          "arch": "arm64",
+          "path": "/latest/SmartX-0.5.5-linux-arm64.AppImage",
+          "size": "192.2 MB"
+        },
+        {
+          "id": "linux-x64-appimage",
+          "label": "通用",
+          "format": "AppImage",
+          "arch": "x64",
+          "path": "/latest/SmartX-0.5.5-linux-x86_64.AppImage",
+          "size": "199.0 MB",
+          "recommended": true
+        },
+        {
+          "id": "linux-arm64-deb",
+          "label": "Debian / Ubuntu",
+          "format": "deb",
+          "arch": "arm64",
+          "path": "/latest/SmartX-0.5.5-linux-arm64.deb",
+          "size": "194.1 MB"
+        },
+        {
+          "id": "linux-x64-deb",
+          "label": "Debian / Ubuntu",
+          "format": "deb",
+          "arch": "x64",
+          "path": "/latest/SmartX-0.5.5-linux-amd64.deb",
+          "size": "203.9 MB"
+        },
+        {
+          "id": "linux-x64-rpm",
+          "label": "Fedora / RHEL",
+          "format": "rpm",
+          "arch": "x64",
+          "path": "/latest/SmartX-0.5.5-linux-x86_64.rpm",
+          "size": "174.9 MB"
+        }
+      ]
+    }
+  ]
+}

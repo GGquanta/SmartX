@@ -53,8 +53,8 @@ expectedUserBehavior:
   - If the deleted agent owns the selected conversation, Chat selects a safe surviving conversation, preferring the main agent, or creates a main-agent local placeholder when no safe conversation remains.
   - Renderer-only labels, activity, composer drafts, pending catalog state, label hydration state, and persisted attention for removed sessions are cleared.
   - The deleted Agent ID remains an in-memory session-catalog tombstone so delayed `sessions.changed` events, buffered events, and stale `sessions.list` rows cannot recreate orphan conversations.
-  - When Main confirms that it removed the Agent's ClawX-managed workspace directory, Renderer also removes that path from the persisted recent-workspace menu and custom workspace labels, resetting the global new-chat workspace when it targeted the removed path.
-  - On Chat startup, unavailable recent workspaces that are no longer referenced by the current selection, an Agent, or a conversation are pruned, so metadata left by deletions from older ClawX versions does not remain in the new-chat menu.
+  - When Main confirms that it removed the Agent's SmartX-managed workspace directory, Renderer also removes that path from the persisted recent-workspace menu and custom workspace labels, resetting the global new-chat workspace when it targeted the removed path.
+  - On Chat startup, unavailable recent workspaces that are no longer referenced by the current selection, an Agent, or a conversation are pruned, so metadata left by deletions from older SmartX versions does not remain in the new-chat menu.
   - Unmanaged workspace paths that still exist, are selected, or remain referenced by an Agent or conversation stay available in the recent-workspace menu.
   - An authoritative Agent snapshot containing a recreated Agent ID clears its tombstone so new conversations for that Agent can appear normally.
   - An Agent-list request that began before a confirmed mutation cannot publish or reconcile afterward, so a stale pre-deletion snapshot cannot clear the deleted Agent tombstone.

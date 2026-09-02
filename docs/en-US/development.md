@@ -1,4 +1,4 @@
-# ClawX Development Guide
+# SmartX Development Guide
 
 This document provides the detailed version of the Development section in the README.
 
@@ -15,7 +15,7 @@ This document provides the detailed version of the Development section in the RE
 ### Project Structure
 
 ```text
-ClawX/
+SmartX/
 ├── electron/                 # Electron Main Process
 │   ├── services/            # Typed Host API, provider, secrets, and runtime services
 │   │   ├── providers/       # Provider/account model sync logic
@@ -66,7 +66,7 @@ pnpm run build:vite       # Build the frontend only
 pnpm build                # Full production build with packaging assets
 pnpm package              # Package for the current platform with bundled skills
 pnpm package:mac          # Package for macOS
-pnpm package:win          # Package for Windows
+pnpm package:win          # Package for Windows (x64 and ARM64 NSIS)
 pnpm package:linux        # Package for Linux
 ```
 
@@ -84,7 +84,7 @@ Open a CPU profile in Chrome DevTools. The artifacts contain generated fixture t
 
 For a live Renderer recording, start development with `CLAWX_REMOTE_DEBUGGING_PORT=9223 pnpm dev` and attach Playwright or Chrome DevTools to `localhost:9223`. For a live Electron Main recording, run `pnpm run profile:main`, open `chrome://inspect`, configure `localhost:9229`, and select the Electron Main target. Leave `CLAWX_GATEWAY_WS_TRACE` unset unless WebSocket tracing itself is being measured.
 
-ClawX leaves Chromium hardware acceleration enabled by default so long documents, scrolling, and layout animations can use GPU compositing and rasterization. Chromium still honors the native `--disable-gpu` command-line switch as a troubleshooting fallback for a machine with a broken graphics driver.
+SmartX leaves Chromium hardware acceleration enabled by default so long documents, scrolling, and layout animations can use GPU compositing and rasterization. Chromium still honors the native `--disable-gpu` command-line switch as a troubleshooting fallback for a machine with a broken graphics driver.
 
 ### Communication Regression Checks
 
@@ -105,7 +105,7 @@ The Playwright Electron suite launches the packaged renderer and Main process fr
 
 - builds the renderer and Electron bundles with `pnpm run build:vite`
 - starts Electron in an isolated E2E mode with a temporary `HOME`
-- uses a temporary ClawX `userData` directory
+- uses a temporary SmartX `userData` directory
 - runs ordinary spec files concurrently while fencing OS-global and performance tests
 - skips heavy startup side effects such as Gateway auto-start, bundled skill installation, tray creation, and CLI auto-install
 

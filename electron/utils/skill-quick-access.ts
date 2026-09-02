@@ -2,6 +2,7 @@ import { access, lstat, readdir, readFile, realpath, stat } from 'node:fs/promis
 import { constants } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join, relative, resolve } from 'node:path';
+import YAML from 'yaml';
 import { expandPath, getOpenClawResolvedDir, getOpenClawSkillsDir, getResourcesDir } from './paths';
 
 export type QuickAccessSkillSource = 'workspace' | 'openclaw' | 'agents' | 'legacy';
@@ -67,13 +68,17 @@ function isInsideRoot(rootPath: string, candidatePath: string): boolean {
 }
 
 function parseFrontmatterDescription(content: string): string | null {
-  if (!content.startsWith('---')) return null;
-  const endIndex = content.indexOf('\n---', 3);
-  if (endIndex === -1) return null;
-  const frontmatter = content.slice(3, endIndex);
-  const match = frontmatter.match(/^\s*description\s*:\s*(.+)\s*$/m);
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   if (!match) return null;
-  return match[1]?.trim().replace(/^['"]|['"]$/g, '') || null;
+  try {
+    const parsed = YAML.parse(match[1]);
+    if (!parsed || typeof parsed !== 'object') return null;
+    const description = (parsed as Record<string, unknown>).description;
+    if (typeof description !== 'string' || !description.trim()) return null;
+    return description.trim();
+  } catch {
+    return null;
+  }
 }
 
 function parseBodyDescription(content: string): string {

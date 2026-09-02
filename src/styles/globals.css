@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* ──────────────────────────────────────────────────────────────────────────
- * ClawX design tokens — CSS variable layer
+ * SmartX design tokens — CSS variable layer
  * ──────────────────────────────────────────────────────────────────────────
  *
  * This file is the *CSS variable layer only*. HSL channel triplets are
@@ -16,9 +16,9 @@
  *      / ...). The standard shadcn/ui palette — do not rename or remove,
  *      Radix-driven components read these directly.
  *
- *   2. ClawX surface tokens (--surface-modal / --surface-input /
- *      --surface-sidebar). Three light-mode neutral layers added
- *      by ClawX. In dark mode each one is redirected to an existing
+ *   2. SmartX surface tokens (--surface-modal / --surface-input /
+ *      --surface-sidebar). Three light-mode "cream paper" layers added
+ *      by SmartX. In dark mode each one is redirected to an existing
  *      shadcn token (--card / --muted / --background) so we don't have
  *      to maintain a second dark surface palette.
  *
@@ -114,8 +114,8 @@
 @layer base {
   :root {
     /* ── shadcn semantic tokens (light) ─────────────────────────── */
-    /* Clean neutral page background matching the white/gray light theme. */
-    --background: 0 0% 100%;
+    /* Light blue page background — coordinated with primary blue accents. */
+    --background: 214 28% 97.5%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
@@ -135,8 +135,9 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.5rem;
+    --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 
-    /* ── ClawX neutral surfaces (light) ───────────────────────────
+    /* ── SmartX cream surfaces (light) ────────────────────────────
      *
      * Three stacked neutral layers. The app shell stays white while
      * recessed controls and the sidebar use subtle gray contrast.
@@ -146,11 +147,11 @@
      *   --surface-input   = recessed neutral inputs / selects / code panes
      *   --surface-sidebar = sidebar neutral navigation rail (often /60)
      * ─────────────────────────────────────────────────────────── */
-    --surface-modal: 0 0% 100%;
-    --surface-input: 0 0% 96.5%;
-    --surface-sidebar: 0 0% 96%;
+    --surface-modal: 214 28% 98.5%;
+    --surface-input: 214 22% 95%;
+    --surface-sidebar: 214 33% 93.5%;
 
-    /* ── ClawX usage accents (light) ─────────────────────────────
+    /* ── SmartX usage accents (light) ─────────────────────────────
      *
      * Three semantic accents reused everywhere that we visualise
      * token usage / activity. Mirrors the Cron page convention so
@@ -230,44 +231,44 @@
     @apply text-sm font-normal leading-4;
   }
 
-  .clawx-skill-token-overlay {
+  .smartx-skill-token-overlay {
     background-color: color-mix(in srgb, #2f6bff 14%, hsl(var(--surface-modal)));
   }
 
-  .dark .clawx-skill-token-overlay {
+  .dark .smartx-skill-token-overlay {
     background-color: color-mix(in srgb, #2f6bff 18%, hsl(var(--surface-modal)));
   }
 
-  .clawx-dialog-overlay {
+  .smartx-dialog-overlay {
     @apply fixed inset-0 z-50 bg-black/30 dark:bg-black/60;
   }
 
-  .clawx-dialog-content {
+  .smartx-dialog-content {
     @apply fixed left-1/2 top-1/2 z-50 w-full outline-none;
     transform: translate(-50%, -50%);
     transform-origin: center;
     will-change: opacity, transform;
   }
 
-  .clawx-dialog-overlay[data-state='open'] {
-    animation: clawx-dialog-overlay-in 100ms ease-out both;
+  .smartx-dialog-overlay[data-state='open'] {
+    animation: smartx-dialog-overlay-in 100ms ease-out both;
   }
 
-  .clawx-dialog-overlay[data-state='closed'] {
-    animation: clawx-dialog-overlay-out 80ms ease-in both;
+  .smartx-dialog-overlay[data-state='closed'] {
+    animation: smartx-dialog-overlay-out 80ms ease-in both;
   }
 
-  .clawx-dialog-content[data-state='open'] {
-    animation: clawx-dialog-content-in 100ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  .smartx-dialog-content[data-state='open'] {
+    animation: smartx-dialog-content-in 100ms cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
-  .clawx-dialog-content[data-state='closed'] {
-    animation: clawx-dialog-content-out 80ms ease-in both;
+  .smartx-dialog-content[data-state='closed'] {
+    animation: smartx-dialog-content-out 80ms ease-in both;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .clawx-dialog-overlay[data-state],
-    .clawx-dialog-content[data-state] {
+    .smartx-dialog-overlay[data-state],
+    .smartx-dialog-content[data-state] {
       animation: none;
     }
   }
@@ -368,7 +369,7 @@
   }
 }
 
-@keyframes clawx-dialog-overlay-in {
+@keyframes smartx-dialog-overlay-in {
   from {
     opacity: 0;
   }
@@ -378,7 +379,7 @@
   }
 }
 
-@keyframes clawx-dialog-overlay-out {
+@keyframes smartx-dialog-overlay-out {
   from {
     opacity: 1;
   }
@@ -388,7 +389,7 @@
   }
 }
 
-@keyframes clawx-dialog-content-in {
+@keyframes smartx-dialog-content-in {
   from {
     opacity: 0;
     transform: translate(-50%, -50%) scale(0.985);
@@ -400,7 +401,7 @@
   }
 }
 
-@keyframes clawx-dialog-content-out {
+@keyframes smartx-dialog-content-out {
   from {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
@@ -443,13 +444,13 @@
   @apply bg-muted-foreground/30;
 }
 
-/* Monaco's default light diff theme is pure white; keep it aligned with ClawX's light app background. */
-:root:not(.dark) .clawx-diff-editor .monaco-diff-editor,
-:root:not(.dark) .clawx-diff-editor .monaco-editor,
-:root:not(.dark) .clawx-diff-editor .monaco-editor-background,
-:root:not(.dark) .clawx-diff-editor .monaco-editor .margin,
-:root:not(.dark) .clawx-diff-editor .monaco-editor .gutter,
-:root:not(.dark) .clawx-diff-editor .diffOverview {
+/* Monaco's default light diff theme is pure white; keep it aligned with SmartX's cream app background. */
+:root:not(.dark) .smartx-diff-editor .monaco-diff-editor,
+:root:not(.dark) .smartx-diff-editor .monaco-editor,
+:root:not(.dark) .smartx-diff-editor .monaco-editor-background,
+:root:not(.dark) .smartx-diff-editor .monaco-editor .margin,
+:root:not(.dark) .smartx-diff-editor .monaco-editor .gutter,
+:root:not(.dark) .smartx-diff-editor .diffOverview {
   background-color: hsl(var(--background)) !important;
 }
 
@@ -700,5 +701,150 @@
 
   30% {
     transform: translateY(-4px);
+  }
+}
+
+/* Research tools — quantum hero card ambient motion */
+@keyframes research-tools-quantum-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes research-tools-quantum-particle-twinkle {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes research-tools-quantum-aurora-shift {
+  0%,
+  100% {
+    opacity: 0.28;
+    transform: scale(1) translate(0, 0);
+  }
+
+  50% {
+    opacity: 0.42;
+    transform: scale(1.04) translate(1%, -1%);
+  }
+}
+
+@keyframes research-tools-quantum-grid-drift {
+  from {
+    background-position: 0 0, 14px 18px;
+  }
+
+  to {
+    background-position: 28px 28px, 42px 46px;
+  }
+}
+
+.research-tools-quantum-glow-pulse {
+  animation: research-tools-quantum-glow-pulse 7s ease-in-out infinite;
+}
+
+.research-tools-quantum-glow-pulse-delayed {
+  animation: research-tools-quantum-glow-pulse 9s ease-in-out infinite;
+  animation-delay: -3s;
+}
+
+.research-tools-quantum-particle-twinkle {
+  animation: research-tools-quantum-particle-twinkle 3.2s ease-in-out infinite;
+}
+
+.research-tools-quantum-particle-twinkle-delayed {
+  animation: research-tools-quantum-particle-twinkle 4.1s ease-in-out infinite;
+  animation-delay: -1.4s;
+}
+
+.research-tools-quantum-aurora {
+  animation: research-tools-quantum-aurora-shift 12s ease-in-out infinite;
+}
+
+.research-tools-quantum-grid-drift {
+  animation: research-tools-quantum-grid-drift 24s linear infinite;
+}
+
+@keyframes research-tools-quantum-btn-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 18px rgba(56, 189, 248, 0.45),
+      0 0 36px rgba(14, 165, 233, 0.28),
+      0 0 56px rgba(59, 130, 246, 0.16);
+  }
+
+  50% {
+    box-shadow:
+      0 0 26px rgba(125, 211, 252, 0.7),
+      0 0 52px rgba(56, 189, 248, 0.45),
+      0 0 80px rgba(37, 99, 235, 0.28);
+  }
+}
+
+@keyframes research-tools-quantum-btn-halo {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1.05);
+  }
+
+  50% {
+    opacity: 0.85;
+    transform: scale(1.2);
+  }
+}
+
+.research-tools-quantum-btn-wrap {
+  isolation: isolate;
+}
+
+.research-tools-quantum-btn-halo {
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.55) 0%, rgba(14, 165, 233, 0.2) 45%, transparent 72%);
+  animation: research-tools-quantum-btn-halo 3.2s ease-in-out infinite;
+}
+
+.research-tools-quantum-btn-shell {
+  animation: research-tools-quantum-btn-glow 3.2s ease-in-out infinite;
+}
+
+.research-tools-quantum-btn-wrap:hover .research-tools-quantum-btn-halo,
+.research-tools-quantum-btn-wrap:hover .research-tools-quantum-btn-shell {
+  animation-duration: 2.2s;
+}
+
+.research-tools-quantum-btn-wrap:hover .research-tools-quantum-btn-halo {
+  opacity: 0.95;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .research-tools-quantum-glow-pulse,
+  .research-tools-quantum-glow-pulse-delayed,
+  .research-tools-quantum-particle-twinkle,
+  .research-tools-quantum-particle-twinkle-delayed,
+  .research-tools-quantum-aurora,
+  .research-tools-quantum-grid-drift,
+  .research-tools-quantum-btn-halo,
+  .research-tools-quantum-btn-shell {
+    animation: none;
+  }
+
+  .research-tools-quantum-btn-shell {
+    box-shadow:
+      0 0 22px rgba(56, 189, 248, 0.5),
+      0 0 44px rgba(14, 165, 233, 0.3);
   }
 }

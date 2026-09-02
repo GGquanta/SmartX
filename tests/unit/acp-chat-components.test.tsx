@@ -94,7 +94,7 @@ vi.mock('react-i18next', () => ({
         'acp.attachment.openFailed': 'Could not open attachment',
         'fileCard.openWith': 'Open with',
         'fileCard.openWithFile': 'Open {{name}} with',
-        'fileCard.openInBuiltInBrowser': 'Open in ClawX Preview',
+        'fileCard.openInBuiltInBrowser': 'Open in SmartX Preview',
         'fileCard.openInSystemBrowser': 'Open in system browser',
         'fileCard.searchingApplications': 'Searching for applications',
         'fileCard.showInFinder': 'Show in Finder',
@@ -887,7 +887,7 @@ describe('ACP chat timeline components', () => {
 
     await openAttachmentMenu('site/report #1.html');
     const items = screen.getAllByRole('menuitem');
-    expect(items[0]).toHaveTextContent('Open in ClawX Preview');
+    expect(items[0]).toHaveTextContent('Open in SmartX Preview');
     expect(items[1]).toHaveTextContent('Open in system browser');
     fireEvent.click(items[0]);
 
@@ -1498,7 +1498,7 @@ describe('ACP chat timeline components', () => {
 
     await openAttachmentMenu('site one.html');
     const items = screen.getAllByRole('menuitem');
-    expect(items[0]).toHaveTextContent('Open in ClawX Preview');
+    expect(items[0]).toHaveTextContent('Open in SmartX Preview');
     expect(items[1]).toHaveTextContent('Open in system browser');
     fireEvent.click(items[0]);
 
