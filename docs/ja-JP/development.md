@@ -66,7 +66,7 @@ pnpm run build:vite       # フロントエンドのみをビルド
 pnpm build                # パッケージアセットを含む本番ビルド
 pnpm package              # 現在のプラットフォーム向けにパッケージ化（同梱スキルを含む）
 pnpm package:mac          # macOS向けにパッケージ化
-pnpm package:win          # Windows向けにパッケージ化
+pnpm package:win          # Windows向けにパッケージ化（x64 と ARM64 の NSIS）
 pnpm package:linux        # Linux向けにパッケージ化
 ```
 

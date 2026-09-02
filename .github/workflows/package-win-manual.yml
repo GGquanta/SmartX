@@ -75,7 +75,7 @@ jobs:
         with:
           name: windows-installer-arm64
           path: release/*-win-arm64.exe
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 7
 
       - name: Upload Windows Blockmap Files

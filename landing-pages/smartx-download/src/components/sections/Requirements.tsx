@@ -5,7 +5,7 @@ import { SectionHeading } from '../ui/SectionHeading';
 
 const requirements = [
   { os: 'macOS', version: '11 或更高版本' },
-  { os: 'Windows', version: '10 或更高版本' },
+  { os: 'Windows', version: '10 或更高版本（x64 / ARM64）' },
   { os: 'Linux', version: 'Ubuntu 20.04+ 或同等发行版' },
   { os: '内存', version: '最低 4 GB（推荐 8 GB）' },
   { os: '磁盘', version: '约 1 GB 可用空间' },

@@ -21,6 +21,7 @@ const VARIANT_SUFFIXES = {
   'macos-arm64-zip': '-mac-arm64.zip',
   'macos-x64-zip': '-mac-x64.zip',
   'windows-x64-nsis': '-win-x64.exe',
+  'windows-arm64-nsis': '-win-arm64.exe',
   'linux-arm64-appimage': '-linux-arm64.AppImage',
   'linux-x64-appimage': '-linux-x86_64.AppImage',
   'linux-arm64-deb': '-linux-arm64.deb',

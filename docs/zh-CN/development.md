@@ -64,7 +64,7 @@ pnpm run build:vite       # 仅构建前端
 pnpm build                # 完整生产构建（含打包资源）
 pnpm package              # 为当前平台打包（包含预装技能资源）
 pnpm package:mac          # 为 macOS 打包
-pnpm package:win          # 为 Windows 打包
+pnpm package:win          # 为 Windows 打包（同时产出 x64 与 ARM64 NSIS）
 pnpm package:linux        # 为 Linux 打包
 ```
 

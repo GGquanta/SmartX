@@ -56,6 +56,30 @@ jobs:
       - name: Build Windows
         run: pnpm run package:win
 
+      - name: Assert Windows x64 and arm64 installers
+        shell: pwsh
+        run: |
+          $x64 = Get-ChildItem -Path "release" -Filter "*-win-x64.exe" -File
+          $arm64 = Get-ChildItem -Path "release" -Filter "*-win-arm64.exe" -File
+          if (-not $x64) { throw "Missing Windows x64 installer (release/*-win-x64.exe)" }
+          if (-not $arm64) { throw "Missing Windows ARM64 installer (release/*-win-arm64.exe)" }
+          Write-Host "Found x64: $($x64.Name)"
+          Write-Host "Found arm64: $($arm64.Name)"
+
+          $ymlFiles = Get-ChildItem -Path "release" -Filter "*.yml" -File | Where-Object { $_.Name -ne "builder-debug.yml" }
+          if (-not $ymlFiles) { throw "No update manifest yml files found in release/" }
+          $hasX64 = $false
+          $hasArm64 = $false
+          foreach ($yml in $ymlFiles) {
+            $content = Get-Content $yml.FullName -Raw
+            Write-Host "--- $($yml.Name) ---"
+            Write-Host $content
+            if ($content -match 'win-x64\.exe') { $hasX64 = $true }
+            if ($content -match 'win-arm64\.exe') { $hasArm64 = $true }
+          }
+          if (-not $hasX64) { throw "Update manifest is missing win-x64.exe" }
+          if (-not $hasArm64) { throw "Update manifest is missing win-arm64.exe" }
+
       - name: Validate unsigned Windows artifacts before SignPath
         shell: pwsh
         run: |

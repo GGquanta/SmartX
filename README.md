@@ -91,7 +91,7 @@ Four modules cover the workflow from quantum experiments to knowledge retrieval,
 ### System Requirements
 
 - **macOS**: 11 or later
-- **Windows**: 10 or later
+- **Windows**: 10 or later (x64 / ARM64)
 - **Linux**: Ubuntu 20.04+ or equivalent
 - **Memory**: 4 GB minimum (8 GB recommended)
 - **Disk**: about 1 GB free space

@@ -280,9 +280,58 @@ jobs:
           }
 
       # Windows specific steps
+      - name: Free disk space (Windows)
+        if: matrix.platform == 'win'
+        shell: pwsh
+        run: |
+          Write-Host "=== Disk usage before cleanup ==="
+          Get-PSDrive -Name C | Format-List Used,Free
+          $paths = @(
+            "C:\Android",
+            "$env:ProgramFiles\Android",
+            "$env:ProgramFiles\dotnet",
+            "C:\hostedtoolcache\windows\CodeQL",
+            "C:\hostedtoolcache\windows\go",
+            "C:\hostedtoolcache\windows\Java",
+            "C:\hostedtoolcache\windows\Ruby"
+          )
+          foreach ($p in $paths) {
+            if (Test-Path $p) {
+              Write-Host "Removing $p"
+              cmd /c "rmdir /s /q `"$p`""
+            }
+          }
+          Write-Host "=== Disk usage after cleanup ==="
+          Get-PSDrive -Name C | Format-List Used,Free
+
       - name: Build Windows
         if: matrix.platform == 'win'
         run: pnpm run package:win
+
+      - name: Assert Windows x64 and arm64 installers
+        if: matrix.platform == 'win'
+        shell: pwsh
+        run: |
+          $x64 = Get-ChildItem -Path "release" -Filter "*-win-x64.exe" -File
+          $arm64 = Get-ChildItem -Path "release" -Filter "*-win-arm64.exe" -File
+          if (-not $x64) { throw "Missing Windows x64 installer (release/*-win-x64.exe)" }
+          if (-not $arm64) { throw "Missing Windows ARM64 installer (release/*-win-arm64.exe)" }
+          Write-Host "Found x64: $($x64.Name)"
+          Write-Host "Found arm64: $($arm64.Name)"
+
+          $ymlFiles = Get-ChildItem -Path "release" -Filter "*.yml" -File | Where-Object { $_.Name -ne "builder-debug.yml" }
+          if (-not $ymlFiles) { throw "No update manifest yml files found in release/" }
+          $hasX64 = $false
+          $hasArm64 = $false
+          foreach ($yml in $ymlFiles) {
+            $content = Get-Content $yml.FullName -Raw
+            Write-Host "--- $($yml.Name) ---"
+            Write-Host $content
+            if ($content -match 'win-x64\.exe') { $hasX64 = $true }
+            if ($content -match 'win-arm64\.exe') { $hasArm64 = $true }
+          }
+          if (-not $hasX64) { throw "Update manifest is missing win-x64.exe" }
+          if (-not $hasArm64) { throw "Update manifest is missing win-arm64.exe" }
 
       - name: Validate unsigned Windows artifacts before SignPath
         if: matrix.platform == 'win' && steps.release-channel.outputs.is_stable == 'true'

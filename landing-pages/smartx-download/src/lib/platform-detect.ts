@@ -101,18 +101,20 @@ export async function detectCpuArchAsync(
   platform: DetectedPlatform = detectPlatform(),
 ): Promise<CpuArch> {
   const sync = detectCpuArchSync(platform);
-  if (sync !== 'unknown') return sync;
 
   const nav = getNavigator();
-  if (!nav?.userAgentData?.getHighEntropyValues) return 'unknown';
-
-  try {
-    const { architecture } = await nav.userAgentData.getHighEntropyValues(['architecture']);
-    if (architecture === 'arm') return 'arm64';
-    if (architecture === 'x86') return 'x64';
-  } catch {
-    // ignore
+  // Prefer Client Hints: Chrome on Windows on ARM often spoofs "Win64; x64" in UA.
+  if (nav?.userAgentData?.getHighEntropyValues) {
+    try {
+      const { architecture } = await nav.userAgentData.getHighEntropyValues(['architecture']);
+      if (architecture === 'arm') return 'arm64';
+      if (architecture === 'x86') return 'x64';
+    } catch {
+      // ignore
+    }
   }
+
+  if (sync !== 'unknown') return sync;
 
   if (platform === 'macos') {
     return inferMacArchFromRenderer(getWebGLRenderer());
@@ -164,14 +166,15 @@ export function formatDetectionLabel(ctx: PlatformRecommendationContext): string
     linux: 'Linux',
   };
 
-  const archLabels: Record<Exclude<CpuArch, 'unknown'>, string> = {
-    arm64: 'Apple Silicon / ARM64',
-    x64: 'Intel / x64',
+  const archLabels: Record<Exclude<DetectedPlatform, 'unknown'>, Record<Exclude<CpuArch, 'unknown'>, string>> = {
+    macos: { arm64: 'Apple Silicon', x64: 'Intel' },
+    windows: { arm64: 'ARM64', x64: 'x64' },
+    linux: { arm64: 'ARM64', x64: 'x64' },
   };
 
   const os = platformLabels[ctx.platform];
   if (ctx.cpuArch === 'unknown') {
     return `已识别系统：${os}（处理器架构检测中…）`;
   }
-  return `已识别系统：${os} · ${archLabels[ctx.cpuArch]}`;
+  return `已识别系统：${os} · ${archLabels[ctx.platform][ctx.cpuArch]}`;
 }

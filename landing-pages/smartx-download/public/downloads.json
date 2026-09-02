@@ -58,6 +58,14 @@
           "path": "/latest/SmartX-0.5.5-win-x64.exe",
           "size": "252.7 MB",
           "recommended": true
+        },
+        {
+          "id": "windows-arm64-nsis",
+          "label": "Windows on ARM",
+          "format": "安装包",
+          "arch": "arm64",
+          "path": "/latest/SmartX-0.5.5-win-arm64.exe",
+          "size": "252.7 MB"
         }
       ]
     },
