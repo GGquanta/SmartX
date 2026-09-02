@@ -70,6 +70,8 @@ pnpm package:win          # Упаковать для Windows (NSIS x64 и ARM64
 pnpm package:linux        # Упаковать для Linux
 ```
 
+Windows CI подписывает установщики Authenticode закрытым PKCS#12 (`WIN_CSC_LINK` / `WIN_CSC_KEY_PASSWORD`). Сертификат можно создать скриптом `scripts/generate-win-codesign-cert.sh`. Это самоподписанный сертификат, поэтому Windows SmartScreen по-прежнему может показывать предупреждение.
+
 В headless Linux тестам Electron нужен сервер отображения. Используйте `xvfb-run -a pnpm run test:e2e`.
 
 Функциональные E2E-тесты Electron локально и в CI по умолчанию используют два worker-процесса Playwright. Обычную параллельную группу можно настроить через `CLAWX_E2E_WORKERS=<положительное целое>`. Тесты, затрагивающие глобальное состояние ОС, используют однопоточный проект `exclusive`, а профили производительности хоста запускаются отдельно после них. Новые E2E-тесты по умолчанию параллельны; при использовании реального буфера обмена или другого общего ресурса машины применяйте `E2E_EXCLUSIVE_TAG` из `tests/e2e/parallel-policy.ts`.

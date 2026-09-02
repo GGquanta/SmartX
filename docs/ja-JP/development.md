@@ -70,6 +70,8 @@ pnpm package:win          # Windows向けにパッケージ化（x64 と ARM64 �
 pnpm package:linux        # Linux向けにパッケージ化
 ```
 
+Windows CI は秘密の PKCS#12（`WIN_CSC_LINK` / `WIN_CSC_KEY_PASSWORD`）で Authenticode 署名します。`scripts/generate-win-codesign-cert.sh` で証明書を生成できます。自己署名のため、Windows SmartScreen は引き続き警告を出すことがあります。
+
 ヘッドレスLinuxではElectronテストに表示サービスが必要です。`xvfb-run -a pnpm run test:e2e`を使用してください。
 
 Electron E2E機能テストはローカルとCIの両方で既定で2つのPlaywright workerを使用します。通常の並列レーンは`CLAWX_E2E_WORKERS=<正の整数>`で調整できます。OS全体の状態に触れるテストは1 workerの`exclusive`プロジェクトを使用し、ホストのパフォーマンスプロファイルはその後単独で実行されます。新しいE2Eテストは既定で並列です。実際のクリップボードなどマシン全体で共有されるリソースを使う場合は、`tests/e2e/parallel-policy.ts`の`E2E_EXCLUSIVE_TAG`を適用してください。

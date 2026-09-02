@@ -62,8 +62,11 @@ resources/bin
 
 # Secrets
 *.p12
+*.pfx
 *.pem
 *.key
+win-codesign.*
+scripts/generate-win-codesign-cert.sh
 
 build/
 artifacts/

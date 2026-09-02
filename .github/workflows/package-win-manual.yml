@@ -58,9 +58,34 @@ jobs:
         run: pnpm run agent-browser:download:win
 
       - name: Build Windows package (no publish)
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: pnpm run package:win
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        run: |
+          if [ -z "${WIN_CSC_LINK}" ] || [ -z "${WIN_CSC_KEY_PASSWORD}" ]; then
+            echo "::error::Missing WIN_CSC_LINK or WIN_CSC_KEY_PASSWORD"
+            exit 1
+          fi
+          echo "WIN_CSC_LINK length: ${#WIN_CSC_LINK}"
+          pnpm run package:win
+
+      - name: Verify Windows Authenticode signature
+        shell: pwsh
+        run: |
+          $exeFiles = Get-ChildItem -Path "release" -Filter *.exe -File
+          if (-not $exeFiles) { throw "No .exe files found in release/" }
+          foreach ($exe in $exeFiles) {
+            $sig = Get-AuthenticodeSignature -FilePath $exe.FullName
+            Write-Host "$($exe.Name): Status=$($sig.Status) Subject=$($sig.SignerCertificate.Subject)"
+            if (-not $sig.SignerCertificate) {
+              throw "$($exe.Name) is not Authenticode-signed"
+            }
+            if ($sig.Status -eq 'NotSigned' -or $sig.Status -eq 'HashMismatch') {
+              throw "$($exe.Name) signature status is $($sig.Status)"
+            }
+          }
 
       - name: Upload Windows Installer (x64)
         uses: actions/upload-artifact@v4

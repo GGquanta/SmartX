@@ -117,8 +117,9 @@ dmg:
 
 # Windows Configuration
 win:
-  # Skip update signature verification: we ship via OSS + GitHub without a
-  # code-signing certificate, so verifying would always fail on the updater.
+  # Skip update signature verification. CI Authenticode-signs with a private
+  # (self-signed) PKCS#12 via WIN_CSC_LINK; Windows does not trust that
+  # publisher, so updater verification would fail for existing unsigned installs.
   verifyUpdateCodeSignature: false
   extraResources:
     - from: resources/bin/win32-${arch}

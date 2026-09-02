@@ -70,6 +70,8 @@ pnpm package:win          # Package for Windows (x64 and ARM64 NSIS)
 pnpm package:linux        # Package for Linux
 ```
 
+Windows CI Authenticode-signs installers with a private PKCS#12 (`WIN_CSC_LINK` / `WIN_CSC_KEY_PASSWORD`). Generate one with `scripts/generate-win-codesign-cert.sh`. The certificate is self-signed, so Windows SmartScreen may still warn end users.
+
 On headless Linux, Electron tests need a display service. Use `xvfb-run -a pnpm run test:e2e`.
 
 Electron E2E functional tests use two Playwright workers by default both locally and in CI. Set `CLAWX_E2E_WORKERS=<positive integer>` to tune the ordinary parallel lane for the machine. Tests that touch OS-global state use the one-worker `exclusive` project, and host performance profiles run alone afterward. New E2E tests are parallel by default; apply `E2E_EXCLUSIVE_TAG` from `tests/e2e/parallel-policy.ts` when a test uses the real clipboard or another machine-global resource.
