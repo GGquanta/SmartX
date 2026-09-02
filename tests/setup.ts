@@ -2,7 +2,7 @@
  * Vitest Test Setup
  * Global test configuration and mocks
  */
-import { vi } from 'vitest';
+import { afterEach, vi } from 'vitest';
 import '@testing-library/jest-dom';
 
 // Provide a minimal `electron` mock so tests that transitively import
@@ -60,7 +60,12 @@ if (typeof window !== 'undefined') {
 if (typeof window !== 'undefined') {
   let needsLocalStorageMock: boolean;
   try {
-    needsLocalStorageMock = !window.localStorage;
+    const existing = window.localStorage;
+    needsLocalStorageMock = !existing || typeof existing.setItem !== 'function';
+    if (!needsLocalStorageMock) {
+      existing.setItem('__smartx_ls_probe__', '1');
+      existing.removeItem('__smartx_ls_probe__');
+    }
   } catch {
     needsLocalStorageMock = true;
   }

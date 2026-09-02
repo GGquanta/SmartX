@@ -1,4 +1,5 @@
 import type { Session, WebContents, WebPreferences } from 'electron';
+import { COMPANY_KNOWLEDGE_WEBVIEW_PARTITION } from '../../shared/company-knowledge';
 import {
   WEB_BROWSER_INITIAL_URL,
   WEB_BROWSER_PARTITION,
@@ -79,6 +80,29 @@ export function isExpectedWebBrowserAttachment(
     && params.preload === '';
 }
 
+export function isCompanyKnowledgeWebviewAttachment(
+  params: Record<string, unknown>,
+): boolean {
+  if (params.partition !== COMPANY_KNOWLEDGE_WEBVIEW_PARTITION) {
+    return false;
+  }
+  if (params.allowpopups === true) {
+    return false;
+  }
+
+  const src = typeof params.src === 'string' ? params.src.trim() : '';
+  if (!src || src === 'about:blank') {
+    return true;
+  }
+
+  try {
+    const url = new URL(src);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 export function hardenWebBrowserPreferences(preferences: WebPreferences): void {
   delete preferences.preload;
   preferences.nodeIntegration = false;
@@ -88,6 +112,16 @@ export function hardenWebBrowserPreferences(preferences: WebPreferences): void {
   preferences.allowRunningInsecureContent = false;
   preferences.contextIsolation = true;
   preferences.sandbox = true;
+  preferences.webSecurity = true;
+}
+
+export function hardenCompanyKnowledgePreferences(preferences: WebPreferences): void {
+  preferences.nodeIntegration = false;
+  preferences.nodeIntegrationInSubFrames = false;
+  preferences.nodeIntegrationInWorker = false;
+  preferences.plugins = false;
+  preferences.allowRunningInsecureContent = false;
+  preferences.contextIsolation = true;
   preferences.webSecurity = true;
 }
 
@@ -107,6 +141,11 @@ export function installWebBrowserGuestPolicy(
     preferences: WebPreferences,
     params: Record<string, unknown>,
   ): void => {
+    if (isCompanyKnowledgeWebviewAttachment(params)) {
+      hardenCompanyKnowledgePreferences(preferences);
+      return;
+    }
+
     if (!isExpectedWebBrowserAttachment(params)) {
       logger.warn('[WebBrowser] Rejected webview attachment with unexpected identity');
       event.preventDefault();
@@ -125,7 +164,6 @@ export function installWebBrowserGuestPolicy(
 
   const handleDidAttach = (_event: Electron.Event, guest: WebContents): void => {
     if (!attachmentPending) {
-      logger.warn('[WebBrowser] Ignored attached guest without a reserved slot');
       return;
     }
     attachmentPending = false;

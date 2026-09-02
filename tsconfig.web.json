@@ -22,13 +22,21 @@
     "noFallthroughCasesInSwitch": true,
 
     /* Paths */
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@electron/*": ["electron/*"],
-      "@shared/*": ["shared/*"]
+      "@/*": ["./src/*"],
+      "@electron/*": ["./electron/*"],
+      "@shared/*": ["./shared/*"]
     }
   },
-  "include": ["src", "shared"],
+  "include": [
+    "src",
+    "shared",
+    // Unit tests live outside `src/`. Include the files that import renderer
+    // modules so the language service and `typecheck:web` resolve `@/` aliases.
+    "tests/setup.ts",
+    "tests/unit/chat-acp-page.test.tsx",
+    "tests/unit/chat-load-sessions-startup.test.ts",
+    "tests/unit/gateway-status.test.ts"
+  ],
   "exclude": ["node_modules", "dist", "dist-electron"]
 }

@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 
 import { hostApi } from '@/lib/host-api';
 import { buildChromeUserAgentFromNavigator } from '@shared/chrome-user-agent';
+import { COMPANY_KNOWLEDGE_WEBVIEW_PARTITION } from '@shared/company-knowledge';
 
 const DEFAULT_COMPANY_KNOWLEDGE_URL = 'http://localhost:5001/';
 
@@ -125,6 +126,7 @@ export function CompanyKnowledge() {
           {webviewPrep ? (
             <webview
               ref={webviewRef}
+              partition={COMPANY_KNOWLEDGE_WEBVIEW_PARTITION}
               data-testid="company-knowledge-webview"
               className="w-full flex-1 min-h-0"
             />

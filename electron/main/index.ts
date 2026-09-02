@@ -35,6 +35,7 @@ import { getSetting } from '../utils/store';
 import { applyProxySettings } from './proxy';
 import { syncLaunchAtStartupSettingFromStore } from './launch-at-startup';
 import { WebBrowserGuestRegistry, installWebBrowserGuestPolicy } from './web-browser-policy';
+import { installRendererContentSecurityPolicy } from './renderer-csp';
 import { configureWebBrowserSession } from './web-browser-session';
 import {
   clearPendingSecondInstanceFocus,
@@ -360,6 +361,10 @@ async function initialize(): Promise<void> {
 
   // Create the main window
   const window = createMainWindow();
+
+  installRendererContentSecurityPolicy(session.defaultSession, {
+    devServerUrl: process.env.VITE_DEV_SERVER_URL,
+  });
 
   // Override security headers ONLY for the OpenClaw Gateway Control UI.
   // The URL filter ensures this callback only fires for gateway requests,

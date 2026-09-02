@@ -71,7 +71,13 @@ const { acpState, agentsState, artifactPanelState, artifactPanelProps, chatState
   },
   artifactPanelProps: [] as Array<{ fileGroups: unknown[]; uniqueFileCount: number; agent: unknown; runStartedAt?: number | null }>,
   chatState: {
-    sessions: [],
+    sessions: [] as Array<{
+      key: string;
+      workspacePath?: string;
+      createdLocally?: boolean;
+      displayName?: string;
+      updatedAt?: number;
+    }>,
     currentSessionKey: 'agent:main:main',
     currentAgentId: 'main',
     sessionLabels: {},
@@ -498,6 +504,25 @@ describe('ACP Chat page', () => {
         'agent:main:main',
         '/workspace',
       );
+    });
+  });
+
+  it('does not discover sessions until the Gateway is connected', async () => {
+    acpState.activeSessionKey = null;
+    chatState.sessions = [];
+    gatewayState.status = { state: 'stopped', gatewayReady: false, port: 18789 };
+
+    const { rerender } = render(<Chat />);
+
+    await Promise.resolve();
+    expect(chatState.loadSessions).not.toHaveBeenCalled();
+    expect(acpState.loadSession).not.toHaveBeenCalled();
+
+    gatewayState.status = { state: 'running', gatewayReady: true, port: 18789 };
+    rerender(<Chat />);
+
+    await waitFor(() => {
+      expect(chatState.loadSessions).toHaveBeenCalledTimes(1);
     });
   });
 

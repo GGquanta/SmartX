@@ -3,10 +3,13 @@ import type { Session, WebContents, WebPreferences } from 'electron';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   WebBrowserGuestRegistry,
+  hardenCompanyKnowledgePreferences,
   hardenWebBrowserPreferences,
   installWebBrowserGuestPolicy,
+  isCompanyKnowledgeWebviewAttachment,
   isExpectedWebBrowserAttachment,
 } from '@electron/main/web-browser-policy';
+import { COMPANY_KNOWLEDGE_WEBVIEW_PARTITION } from '@shared/company-knowledge';
 import {
   WEB_BROWSER_INITIAL_URL,
   WEB_BROWSER_PARTITION,
@@ -196,5 +199,53 @@ describe('local HTML preview guest policy', () => {
     const duplicate = event();
     embedder.emit('will-attach-webview', duplicate, {}, params());
     expect(duplicate.preventDefault).toHaveBeenCalledOnce();
+  });
+
+  it('accepts the company-knowledge webview without treating it as HTML preview', () => {
+    expect(isCompanyKnowledgeWebviewAttachment({
+      partition: COMPANY_KNOWLEDGE_WEBVIEW_PARTITION,
+      src: 'https://ck.qubitlab.cc/',
+      preload: 'file:///tmp/company-knowledge-webview.js',
+    })).toBe(true);
+    expect(isCompanyKnowledgeWebviewAttachment({
+      partition: COMPANY_KNOWLEDGE_WEBVIEW_PARTITION,
+      src: '',
+    })).toBe(true);
+    expect(isCompanyKnowledgeWebviewAttachment({
+      partition: COMPANY_KNOWLEDGE_WEBVIEW_PARTITION,
+      src: 'file:///etc/passwd',
+    })).toBe(false);
+    expect(isCompanyKnowledgeWebviewAttachment(params())).toBe(false);
+
+    const preferences: WebPreferences = {
+      nodeIntegration: true,
+      contextIsolation: false,
+      preload: '/tmp/company-knowledge-webview.js',
+    };
+    hardenCompanyKnowledgePreferences(preferences);
+    expect(preferences.nodeIntegration).toBe(false);
+    expect(preferences.contextIsolation).toBe(true);
+    expect(preferences.preload).toBe('/tmp/company-knowledge-webview.js');
+
+    const browserSession = {} as Session;
+    const embedder = new MockWebContents('window', {} as Session);
+    const registry = new WebBrowserGuestRegistry();
+    installWebBrowserGuestPolicy(embedder as unknown as WebContents, { browserSession, registry });
+
+    const attachEvent = event();
+    const companyPrefs: WebPreferences = { nodeIntegration: true };
+    embedder.emit('will-attach-webview', attachEvent, companyPrefs, {
+      partition: COMPANY_KNOWLEDGE_WEBVIEW_PARTITION,
+      src: 'https://ck.qubitlab.cc/',
+      preload: '/tmp/company-knowledge-webview.js',
+    });
+    expect(attachEvent.preventDefault).not.toHaveBeenCalled();
+    expect(companyPrefs.nodeIntegration).toBe(false);
+    expect(registry.hasLiveGuest()).toBe(false);
+
+    const guest = new MockWebContents('webview', {} as Session);
+    embedder.emit('did-attach-webview', {}, guest as unknown as WebContents);
+    expect(registry.current()).toBeNull();
+    expect(warn).not.toHaveBeenCalled();
   });
 });

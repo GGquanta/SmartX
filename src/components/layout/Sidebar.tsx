@@ -34,7 +34,7 @@ import {
   BotMessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { isGatewayRestarting } from '@/lib/gateway-status';
+import { isGatewayReady, isGatewayRestarting } from '@/lib/gateway-status';
 import { rendererExtensionRegistry } from '@/extensions/registry';
 import { useSettingsStore } from '@/stores/settings';
 import { useChatStore } from '@/stores/chat';
@@ -219,15 +219,14 @@ export function Sidebar() {
   }, [devModeUnlocked, talkActive]);
 
   const gatewayStatus = useGatewayStore((s) => s.status);
-  const isGatewayRunning = gatewayStatus.state === 'running';
-  const isGatewayReady = isGatewayRunning && gatewayStatus.gatewayReady !== false;
+  const gatewayReady = isGatewayReady(gatewayStatus);
   const gatewayRestarting = isGatewayRestarting(gatewayStatus);
   const gatewayRuntimeKey = `${gatewayStatus.pid ?? 'none'}:${gatewayStatus.connectedAt ?? 'none'}:${gatewayStatus.port}`;
 
   useEffect(() => {
-    if (!isGatewayReady) return;
+    if (!gatewayReady) return;
     void loadSessions();
-  }, [gatewayRuntimeKey, isGatewayReady, loadSessions]);
+  }, [gatewayRuntimeKey, gatewayReady, loadSessions]);
   const agents = useAgentsStore((s) => s.agents);
   const fetchAgents = useAgentsStore((s) => s.fetchAgents);
 

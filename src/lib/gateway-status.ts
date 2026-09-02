@@ -1,5 +1,9 @@
 import type { GatewayStatus } from '@/types/gateway';
 
+export function isGatewayReady(status: GatewayStatus): boolean {
+  return status.state === 'running' && status.gatewayReady !== false;
+}
+
 export function isGatewayRestarting(status: GatewayStatus): boolean {
   return status.state === 'starting'
     || status.state === 'reconnecting'

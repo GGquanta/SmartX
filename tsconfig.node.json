@@ -22,10 +22,9 @@
     "noFallthroughCasesInSwitch": true,
 
     /* Paths */
-    "baseUrl": ".",
     "paths": {
-      "@electron/*": ["electron/*"],
-      "@shared/*": ["shared/*"]
+      "@electron/*": ["./electron/*"],
+      "@shared/*": ["./shared/*"]
     }
   },
   "include": ["electron", "shared", "shared/**/*.json", "vite.config.ts"]

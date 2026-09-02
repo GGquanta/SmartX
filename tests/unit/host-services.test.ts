@@ -1508,6 +1508,7 @@ describe('host services', () => {
     const createMainWindowIndex = source.indexOf('const window = createMainWindow();');
     const registerHandlersIndex = source.indexOf('registerIpcHandlers(');
     const loadRendererIndex = source.indexOf('loadMainWindow(window);');
+    const rendererCspIndex = source.indexOf('installRendererContentSecurityPolicy(');
     const appReadySource = source.slice(
       source.indexOf('app.whenReady().then('),
       source.indexOf("app.on('window-all-closed'"),
@@ -1520,6 +1521,8 @@ describe('host services', () => {
     expect(configureIndex).toBeLessThan(firstInitializationAwaitIndex);
     expect(createMainWindowIndex).toBeGreaterThan(configureIndex);
     expect(registerHandlersIndex).toBeGreaterThan(createMainWindowIndex);
+    expect(rendererCspIndex).toBeGreaterThan(createMainWindowIndex);
+    expect(rendererCspIndex).toBeLessThan(loadRendererIndex);
     expect(loadRendererIndex).toBeGreaterThan(registerHandlersIndex);
     expect(initializeCompleteIndex).toBeGreaterThan(-1);
     expect(activateHandlerIndex).toBeGreaterThan(initializeCompleteIndex);
