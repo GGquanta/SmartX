@@ -36,6 +36,9 @@ import { applyProxySettings } from './proxy';
 import { syncLaunchAtStartupSettingFromStore } from './launch-at-startup';
 import { WebBrowserGuestRegistry, installWebBrowserGuestPolicy } from './web-browser-policy';
 import { installRendererContentSecurityPolicy } from './renderer-csp';
+import { installCompanyKnowledgeCookieShare } from './company-knowledge-cookies';
+import { resolveMainCompanyKnowledgeUrl } from '../utils/company-knowledge-resource';
+import { COMPANY_KNOWLEDGE_WEBVIEW_PARTITION } from '@shared/company-knowledge';
 import { configureWebBrowserSession } from './web-browser-session';
 import {
   clearPendingSecondInstanceFocus,
@@ -364,6 +367,10 @@ async function initialize(): Promise<void> {
 
   installRendererContentSecurityPolicy(session.defaultSession, {
     devServerUrl: process.env.VITE_DEV_SERVER_URL,
+  });
+
+  installCompanyKnowledgeCookieShare(session.fromPartition(COMPANY_KNOWLEDGE_WEBVIEW_PARTITION), {
+    embedUrl: resolveMainCompanyKnowledgeUrl(),
   });
 
   // Override security headers ONLY for the OpenClaw Gateway Control UI.

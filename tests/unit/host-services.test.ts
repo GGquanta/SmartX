@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DiagnosticsGatewaySnapshotResult } from '@shared/host-api/contract';
+import type { DiagnosticsGatewaySnapshotResult, ProviderAccount } from '@shared/host-api/contract';
 
 const {
   applyProxySettingsMock,
@@ -159,7 +159,7 @@ vi.mock('@electron/utils/logger', async (importOriginal) => {
       listLogFiles: (...args: unknown[]) => listLogFilesMock(...args),
       readLogFile: (...args: unknown[]) => readLogFileMock(...args),
     },
-    readLogFileTail: actual.readLogFileTail,
+    readLogFile: actual.readLogFile,
   };
 });
 
@@ -232,7 +232,7 @@ vi.mock('@electron/services/providers/provider-service', () => ({
 }));
 
 vi.mock('@electron/services/providers/provider-store', () => ({
-  providerAccountToConfig: (...args: unknown[]) => providerAccountToConfigMock(...args),
+  providerAccountToConfig: providerAccountToConfigMock,
 }));
 
 vi.mock('@electron/services/providers/provider-validation', () => ({
@@ -494,7 +494,7 @@ describe('host services', () => {
   });
 
   it('creates provider accounts and syncs runtime config through the typed providers service', async () => {
-    const account = {
+    const account: ProviderAccount = {
       id: 'custom-local',
       vendorId: 'custom',
       label: 'Local',
@@ -502,6 +502,7 @@ describe('host services', () => {
       baseUrl: 'http://127.0.0.1:1234/v1',
       model: 'local-model',
       enabled: true,
+      isDefault: false,
       createdAt: '2026-05-31T00:00:00.000Z',
       updatedAt: '2026-05-31T00:00:00.000Z',
     };
@@ -768,7 +769,7 @@ describe('host services', () => {
           },
         ],
       });
-    await expect(channelsApi.targets({ accountId: 'ding-main' })).rejects.toThrow('channelType is required');
+    await expect(channelsApi.targets({ accountId: 'ding-main' } as never)).rejects.toThrow('channelType is required');
   });
 
   it('saves channel binding for existing agents without scheduling lifecycle work', async () => {
@@ -1509,6 +1510,7 @@ describe('host services', () => {
     const registerHandlersIndex = source.indexOf('registerIpcHandlers(');
     const loadRendererIndex = source.indexOf('loadMainWindow(window);');
     const rendererCspIndex = source.indexOf('installRendererContentSecurityPolicy(');
+    const cookieShareIndex = source.indexOf('installCompanyKnowledgeCookieShare(');
     const appReadySource = source.slice(
       source.indexOf('app.whenReady().then('),
       source.indexOf("app.on('window-all-closed'"),
@@ -1523,6 +1525,11 @@ describe('host services', () => {
     expect(registerHandlersIndex).toBeGreaterThan(createMainWindowIndex);
     expect(rendererCspIndex).toBeGreaterThan(createMainWindowIndex);
     expect(rendererCspIndex).toBeLessThan(loadRendererIndex);
+    expect(cookieShareIndex).toBeGreaterThan(rendererCspIndex);
+    expect(cookieShareIndex).toBeLessThan(loadRendererIndex);
+    expect(source).toContain('session.fromPartition(COMPANY_KNOWLEDGE_WEBVIEW_PARTITION)');
+    expect(source).not.toContain('installCompanyKnowledgeCookieShare(session.defaultSession');
+    expect(source).not.toContain("appendSwitch('disable-features', 'TrackingProtection3pcd')");
     expect(loadRendererIndex).toBeGreaterThan(registerHandlersIndex);
     expect(initializeCompleteIndex).toBeGreaterThan(-1);
     expect(activateHandlerIndex).toBeGreaterThan(initializeCompleteIndex);

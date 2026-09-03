@@ -27,5 +27,13 @@
       "@shared/*": ["./shared/*"]
     }
   },
-  "include": ["electron", "shared", "shared/**/*.json", "vite.config.ts"]
+  "include": [
+    "electron",
+    "shared",
+    "shared/**/*.json",
+    "vite.config.ts",
+    "tests/unit/host-services.test.ts",
+    "tests/unit/web-browser-policy.test.ts",
+    "tests/unit/company-knowledge-cookies.test.ts"
+  ]
 }

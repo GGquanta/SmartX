@@ -141,6 +141,9 @@ export const hostApi = {
     ),
     getProviderEnvDefaults: () => invokeHost('app', 'getProviderEnvDefaults'),
     seedProviderFromEnv: () => invokeHost('app', 'seedProviderFromEnv'),
+    fetchCompanyKnowledgeResource: (url: string) => (
+      invokeHost('app', 'fetchCompanyKnowledgeResource', { url })
+    ),
   },
   openclaw: {
     status: () => invokeHost('openclaw', 'status'),

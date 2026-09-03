@@ -7,16 +7,10 @@ import { toast } from 'sonner';
 
 import { hostApi } from '@/lib/host-api';
 import { buildChromeUserAgentFromNavigator } from '@shared/chrome-user-agent';
-import { COMPANY_KNOWLEDGE_WEBVIEW_PARTITION } from '@shared/company-knowledge';
+import { COMPANY_KNOWLEDGE_WEBVIEW_PARTITION, resolveCompanyKnowledgeUrl } from '@shared/company-knowledge';
 
-const DEFAULT_COMPANY_KNOWLEDGE_URL = 'http://localhost:5001/';
-
-function resolveCompanyKnowledgeUrl(): string {
-  const fromEnv = import.meta.env.VITE_COMPANY_KNOWLEDGE_URL;
-  if (typeof fromEnv === 'string' && fromEnv.trim()) {
-    return fromEnv.trim();
-  }
-  return DEFAULT_COMPANY_KNOWLEDGE_URL;
+function embedCompanyKnowledgeUrl(): string {
+  return resolveCompanyKnowledgeUrl(import.meta.env.VITE_COMPANY_KNOWLEDGE_URL);
 }
 
 function buildCompanyKnowledgeWebviewUserAgent(): string {
@@ -44,7 +38,7 @@ type CompanyKnowledgeWebviewElement = HTMLElement & {
 
 export function CompanyKnowledge() {
   const { t } = useTranslation('common');
-  const embedUrl = resolveCompanyKnowledgeUrl();
+  const embedUrl = embedCompanyKnowledgeUrl();
   const webviewRef = useRef<CompanyKnowledgeWebviewElement | null>(null);
   const [webviewPrep, setWebviewPrep] = useState<WebviewPrep | null>(null);
 

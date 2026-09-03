@@ -29,7 +29,14 @@ vi.mock('electron', () => ({
   ipcMain: { on: vi.fn(), handle: vi.fn(), removeHandler: vi.fn() },
   dialog: { showOpenDialog: vi.fn(), showMessageBox: vi.fn() },
   shell: { openExternal: vi.fn() },
-  session: { defaultSession: { webRequest: { onBeforeSendHeaders: vi.fn() } } },
+  session: {
+    defaultSession: { webRequest: { onBeforeSendHeaders: vi.fn() } },
+    fromPartition: vi.fn(() => ({
+      fetch: vi.fn(),
+      cookies: { get: vi.fn().mockResolvedValue([]) },
+      webRequest: { onBeforeSendHeaders: vi.fn(), onHeadersReceived: vi.fn() },
+    })),
+  },
   utilityProcess: {},
 }));
 

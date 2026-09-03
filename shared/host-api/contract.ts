@@ -41,6 +41,11 @@ export type OpenClawDoctorResult = HostSuccess & {
   timedOut?: boolean;
 };
 export type OpenClawDoctorPayload = { mode: OpenClawDoctorMode };
+export type CompanyKnowledgeResourcePayload = { url: string };
+export type CompanyKnowledgeResourceResult = {
+  contentType: string;
+  base64: string;
+};
 
 export type ProviderEnvDefaultsPreview = {
   providerId: string;
@@ -889,6 +894,7 @@ export type HostApiContract = {
     openClawDoctor: (payload: OpenClawDoctorPayload) => Omit<OpenClawDoctorResult, 'mode'>;
     getProviderEnvDefaults: () => ProviderEnvDefaultsPreview | null;
     seedProviderFromEnv: () => SeedProviderFromEnvResponse;
+    fetchCompanyKnowledgeResource: (payload: CompanyKnowledgeResourcePayload) => CompanyKnowledgeResourceResult;
   };
   openclaw: {
     status: () => OpenClawStatusResult;
