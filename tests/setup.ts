@@ -4,6 +4,7 @@
  */
 import { afterEach, vi } from 'vitest';
 import '@testing-library/jest-dom';
+import { CHAT_DISPLAY_DEFAULTS, useChatDisplayStore } from '@/stores/chat-display';
 
 // Provide a minimal `electron` mock so tests that transitively import
 // main-process code (logger, store, etc.) don't blow up when the Electron
@@ -124,4 +125,5 @@ if (typeof window !== 'undefined') {
 // Reset mocks after each test
 afterEach(() => {
   vi.clearAllMocks();
+  useChatDisplayStore.setState({ ...CHAT_DISPLAY_DEFAULTS });
 });

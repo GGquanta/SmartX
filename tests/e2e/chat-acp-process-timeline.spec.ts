@@ -182,6 +182,62 @@ test.describe('SmartX ACP chat timeline', () => {
     }
   });
 
+  test('hides ACP thought and tool-call process blocks from the chat toolbar', async ({ launchElectronApp }) => {
+    const app = await launchElectronApp({ skipSetup: true });
+
+    try {
+      await installAcpChatMocks(app);
+      const page = await openChat(app);
+      await expect(page.getByTestId('acp-chat-empty-state')).toBeVisible({ timeout: 30_000 });
+
+      await emitAcpSessionUpdates(app, [
+        {
+          sessionUpdate: 'user_message',
+          messageId: 'msg-user',
+          content: [{ type: 'text', text: 'Read the file and propose changes' }],
+        },
+        {
+          sessionUpdate: 'agent_thought_chunk',
+          messageId: 'assistant-run',
+          content: { type: 'text', text: 'Need to inspect the current implementation first.' },
+        },
+        {
+          sessionUpdate: 'tool_call',
+          toolCallId: 'read-file',
+          title: 'Read file',
+          status: 'completed',
+          content: [{ type: 'content', content: { type: 'text', text: 'Loaded src/pages/Chat/index.tsx' } }],
+          locations: [],
+        },
+        {
+          sessionUpdate: 'agent_message',
+          messageId: 'msg-assistant',
+          content: [{ type: 'text', text: 'The Chat page now renders ACP timeline blocks inline.' }],
+        },
+      ]);
+
+      await expect(page.getByTestId('acp-thought-block')).toBeVisible();
+      await expect(page.getByTestId('acp-tool-call-card')).toBeVisible();
+      await expect(page.getByText('The Chat page now renders ACP timeline blocks inline.')).toBeVisible();
+
+      await page.getByTestId('chat-toggle-tool-calls').click();
+      await expect(page.getByTestId('acp-tool-call-card')).toHaveCount(0);
+      await expect(page.getByTestId('acp-thought-block')).toBeVisible();
+      await expect(page.getByText('The Chat page now renders ACP timeline blocks inline.')).toBeVisible();
+
+      await page.getByTestId('chat-toggle-thinking').click();
+      await expect(page.getByTestId('acp-thought-block')).toHaveCount(0);
+      await expect(page.getByText('The Chat page now renders ACP timeline blocks inline.')).toBeVisible();
+
+      await page.getByTestId('chat-toggle-tool-calls').click();
+      await page.getByTestId('chat-toggle-thinking').click();
+      await expect(page.getByTestId('acp-tool-call-card')).toBeVisible();
+      await expect(page.getByTestId('acp-thought-block')).toBeVisible();
+    } finally {
+      await closeElectronApp(app);
+    }
+  });
+
   test('renders long ACP process history inline and keeps the final answer separate', async ({ launchElectronApp }) => {
     const app = await launchElectronApp({ skipSetup: true });
 

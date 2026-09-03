@@ -1,13 +1,15 @@
 /**
  * Chat Toolbar
- * Session selector, question directory, and the workspace browser
- * entry point.  Rendered in the Header when on the Chat page.
+ * Session selector, question directory, workspace browser, and
+ * thinking / tool-call visibility toggles. Rendered in the Chat
+ * page header.
  */
 import { useMemo } from 'react';
-import { Bot, FolderTree, ListTree } from 'lucide-react';
+import { Bot, Brain, FolderTree, ListTree, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useChatStore } from '@/stores/chat';
+import { useChatDisplayStore } from '@/stores/chat-display';
 import { useAgentsStore } from '@/stores/agents';
 import { useArtifactPanel } from '@/stores/artifact-panel';
 import { cn } from '@/lib/utils';
@@ -28,6 +30,10 @@ export function ChatToolbar({
   workspaceAvailable = false,
 }: ChatToolbarProps = {}) {
   const currentAgentId = useChatStore((s) => s.currentAgentId);
+  const showThinking = useChatDisplayStore((s) => s.showThinking);
+  const toggleThinking = useChatDisplayStore((s) => s.toggleThinking);
+  const showToolCalls = useChatDisplayStore((s) => s.showToolCalls);
+  const toggleToolCalls = useChatDisplayStore((s) => s.toggleToolCalls);
   const agents = useAgentsStore((s) => s.agents);
   const openBrowser = useArtifactPanel((s) => s.openBrowser);
   const panelOpen = useArtifactPanel((s) => s.open);
@@ -49,6 +55,48 @@ export function ChatToolbar({
         <Bot className="h-3.5 w-3.5 text-primary" />
         <span>{t('toolbar.currentAgent', { agent: currentAgentName })}</span>
       </div>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            data-testid="chat-toggle-thinking"
+            variant="ghost"
+            size="icon"
+            className={cn(
+              'h-8 w-8 hover:bg-black/5 hover:text-foreground dark:hover:bg-white/10',
+              showThinking && 'bg-foreground/10 text-foreground',
+            )}
+            onClick={toggleThinking}
+            aria-label={showThinking ? t('toolbar.hideThinking') : t('toolbar.showThinking')}
+            aria-pressed={showThinking}
+          >
+            <Brain className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{showThinking ? t('toolbar.hideThinking') : t('toolbar.showThinking')}</p>
+        </TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            data-testid="chat-toggle-tool-calls"
+            variant="ghost"
+            size="icon"
+            className={cn(
+              'h-8 w-8 hover:bg-black/5 hover:text-foreground dark:hover:bg-white/10',
+              showToolCalls && 'bg-foreground/10 text-foreground',
+            )}
+            onClick={toggleToolCalls}
+            aria-label={showToolCalls ? t('toolbar.hideToolCalls') : t('toolbar.showToolCalls')}
+            aria-pressed={showToolCalls}
+          >
+            <Wrench className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{showToolCalls ? t('toolbar.hideToolCalls') : t('toolbar.showToolCalls')}</p>
+        </TooltipContent>
+      </Tooltip>
       {WORKSPACE_BROWSER_ENABLED && (
         <Tooltip>
           <TooltipTrigger asChild>

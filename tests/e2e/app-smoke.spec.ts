@@ -21,6 +21,8 @@ test.describe('SmartX Electron smoke flows', () => {
 
     await expect(page.getByTestId('main-layout')).toBeVisible();
     await expect(page.getByTestId('chat-toolbar-actions').getByRole('button', { name: 'Refresh chat' })).toHaveCount(0);
+    await expect(page.getByTestId('chat-toggle-thinking')).toBeVisible();
+    await expect(page.getByTestId('chat-toggle-tool-calls')).toBeVisible();
     await page.getByTestId('sidebar-nav-models').click();
 
     await expect(page.getByTestId('models-page')).toBeVisible();

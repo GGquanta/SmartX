@@ -14,6 +14,10 @@
     "scrollToLatest": "Back to bottom",
     "toolbar": {
         "refresh": "Refresh chat",
+        "showThinking": "Show thinking",
+        "hideThinking": "Hide thinking",
+        "showToolCalls": "Show tool calls",
+        "hideToolCalls": "Hide tool calls",
         "currentAgent": "{{agent}}",
         "workspace": "Workspace"
     },
