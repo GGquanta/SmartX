@@ -1,5 +1,8 @@
 import type { Session, WebContents, WebPreferences } from 'electron';
-import { COMPANY_KNOWLEDGE_WEBVIEW_PARTITION } from '../../shared/company-knowledge';
+import {
+  COMPANY_KNOWLEDGE_WEBVIEW_PARTITION,
+  COMPANY_KNOWLEDGE_WEBVIEW_ZOOM_FACTOR,
+} from '../../shared/company-knowledge';
 import {
   WEB_BROWSER_INITIAL_URL,
   WEB_BROWSER_PARTITION,
@@ -123,6 +126,7 @@ export function hardenCompanyKnowledgePreferences(preferences: WebPreferences): 
   preferences.allowRunningInsecureContent = false;
   preferences.contextIsolation = true;
   preferences.webSecurity = true;
+  preferences.zoomFactor = COMPANY_KNOWLEDGE_WEBVIEW_ZOOM_FACTOR;
 }
 
 export function installWebBrowserGuestPolicy(

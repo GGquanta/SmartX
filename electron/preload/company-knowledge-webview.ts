@@ -6,7 +6,14 @@
  * webpreferences. contextBridge.exposeInMainWorld only works when contextIsolation is enabled;
  * otherwise we fall back to assigning on window (same pattern as legacy preloads).
  */
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webFrame } from 'electron';
+import { COMPANY_KNOWLEDGE_WEBVIEW_ZOOM_FACTOR } from '../../shared/company-knowledge';
+
+try {
+  webFrame.setZoomFactor(COMPANY_KNOWLEDGE_WEBVIEW_ZOOM_FACTOR);
+} catch {
+  // Guest frame may not be ready; the host still applies zoom on dom-ready.
+}
 
 type BindResult = { success: boolean; error?: string };
 

@@ -913,6 +913,7 @@ function InstallingContent({ skills, onComplete, onSkip }: InstallingContentProp
       )}
       <div className="flex justify-end">
         <Button
+          data-testid="setup-installing-skip-button"
           variant="ghost"
           className="text-muted-foreground"
           onClick={onSkip}
@@ -923,12 +924,13 @@ function InstallingContent({ skills, onComplete, onSkip }: InstallingContentProp
     </div>
   );
 }
+
 interface CompleteContentProps {
   installedSkills: string[];
   providerSummary: { name: string; model?: string } | null;
 }
 
-function CompleteContent({ installedSkills, providerSummary }: CompleteContentProps) {
+export function CompleteContent({ installedSkills, providerSummary }: CompleteContentProps) {
   const { t } = useTranslation(['setup', 'settings']);
   const gatewayStatus = useGatewayStore((state) => state.status);
 
@@ -938,7 +940,7 @@ function CompleteContent({ installedSkills, providerSummary }: CompleteContentPr
     .join(', ');
 
   return (
-    <div className="text-center space-y-6">
+    <div data-testid="setup-complete-step" className="text-center space-y-6">
       <div className="text-6xl mb-4">🎉</div>
       <h2 className="text-xl font-serif font-normal tracking-tight">{t('complete.title')}</h2>
       <p className="text-muted-foreground">
@@ -947,24 +949,34 @@ function CompleteContent({ installedSkills, providerSummary }: CompleteContentPr
 
       <div className="space-y-3 text-left max-w-md mx-auto">
         {providerSummary && (
-          <div className="flex items-center justify-between p-3 rounded-lg bg-surface-input/50">
-            <span>{t('complete.provider')}</span>
-            <span className="text-green-700 dark:text-green-400 text-right">
+          <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-surface-input/50">
+            <span className="shrink-0">{t('complete.provider')}</span>
+            <span className="min-w-0 flex-1 text-right text-green-700 dark:text-green-400">
               {providerSummary.model
                 ? `${providerSummary.name} · ${providerSummary.model}`
                 : providerSummary.name}
             </span>
           </div>
         )}
-        <div className="flex items-center justify-between p-3 rounded-lg bg-surface-input/50">
-          <span>{t('complete.components')}</span>
-          <span className="text-green-700 dark:text-green-400">
+        <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-surface-input/50">
+          <span className="shrink-0">{t('complete.components')}</span>
+          <span
+            data-testid="setup-complete-components-value"
+            className="min-w-0 flex-1 text-right text-green-700 dark:text-green-400"
+          >
             {installedSkillNames || `${installedSkills.length} ${t('installing.status.installed')}`}
           </span>
         </div>
-        <div className="flex items-center justify-between p-3 rounded-lg bg-surface-input/50">
-          <span>{t('complete.gateway')}</span>
-          <span className={gatewayStatus.state === 'running' && gatewayStatus.gatewayReady !== false ? 'text-green-700 dark:text-green-400' : gatewayStatus.state === 'running' ? 'text-red-700 dark:text-red-400' : 'text-yellow-700 dark:text-yellow-400'}>
+        <div className="flex items-center justify-between gap-4 p-3 rounded-lg bg-surface-input/50">
+          <span className="shrink-0">{t('complete.gateway')}</span>
+          <span className={cn(
+            'min-w-0 flex-1 text-right',
+            gatewayStatus.state === 'running' && gatewayStatus.gatewayReady !== false
+              ? 'text-green-700 dark:text-green-400'
+              : gatewayStatus.state === 'running'
+                ? 'text-red-700 dark:text-red-400'
+                : 'text-yellow-700 dark:text-yellow-400',
+          )}>
             {gatewayStatus.state === 'running'
               ? gatewayStatus.gatewayReady !== false
                 ? `✓ ${t('complete.running')}`

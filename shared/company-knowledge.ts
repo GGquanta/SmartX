@@ -1,6 +1,9 @@
 /** Isolated session for the Company Knowledge embedded <webview>. */
 export const COMPANY_KNOWLEDGE_WEBVIEW_PARTITION = 'persist:company-knowledge' as const;
 
+/** Guest zoom so the dense knowledge UI fits the default SmartX content pane. */
+export const COMPANY_KNOWLEDGE_WEBVIEW_ZOOM_FACTOR = 0.75;
+
 export const DEFAULT_COMPANY_KNOWLEDGE_URL = 'http://localhost:5001/';
 
 export function resolveCompanyKnowledgeUrl(fromEnv?: string): string {

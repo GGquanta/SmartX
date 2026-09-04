@@ -225,6 +225,7 @@ describe('local HTML preview guest policy', () => {
     hardenCompanyKnowledgePreferences(preferences);
     expect(preferences.nodeIntegration).toBe(false);
     expect(preferences.contextIsolation).toBe(true);
+    expect(preferences.zoomFactor).toBe(0.75);
     expect(preferences.preload).toBe('/tmp/company-knowledge-webview.js');
 
     const browserSession = {} as Session;
@@ -241,6 +242,7 @@ describe('local HTML preview guest policy', () => {
     });
     expect(attachEvent.preventDefault).not.toHaveBeenCalled();
     expect(companyPrefs.nodeIntegration).toBe(false);
+    expect(companyPrefs.zoomFactor).toBe(0.75);
     expect(registry.hasLiveGuest()).toBe(false);
 
     const guest = new MockWebContents('webview', {} as Session);
