@@ -26,7 +26,7 @@ description: >-
 
 ## API 约定
 
-通过 **Base URL**（默认为 `https://ck.qubitlab.cc/library`）访问企业知识库。**程序化访问**须使用正确的API Key；文档中以占位符 **`<API_KEY>`** 表示，实际请求替换为真实密钥且**不得在对话中复述**。
+通过 **Base URL**（默认为 `https://ck.qubitlab.cc`）访问企业知识库。**程序化访问**须使用正确的API Key；文档中以占位符 **`<API_KEY>`** 表示，实际请求替换为真实密钥且**不得在对话中复述**。
 
 可以查看OpenClaw的配置文件来获取API Key，位置是skills.entries.company-knowledge.apiKey。
 
