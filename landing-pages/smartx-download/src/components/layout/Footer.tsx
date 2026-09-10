@@ -1,3 +1,5 @@
+import { Picture } from '../ui/Picture';
+
 export function Footer() {
   const year = new Date().getFullYear();
 
@@ -16,7 +18,7 @@ export function Footer() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            <img
+            <Picture
               src="./images/ai-research-logo.png"
               alt=""
               width={20}

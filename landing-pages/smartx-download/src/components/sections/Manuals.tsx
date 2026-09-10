@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import type { CSSProperties } from 'react';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { fadeUp, staggerContainer, defaultTransition } from '../../lib/motion';
+import { Picture } from '../ui/Picture';
 import { SectionHeading } from '../ui/SectionHeading';
 
 type ManualTheme = {
@@ -170,7 +171,7 @@ export function Manuals() {
                     className="overflow-hidden rounded-[12px] border"
                     style={{ borderColor: 'var(--line)' }}
                   >
-                    <img
+                    <Picture
                       src={manual.preview}
                       alt={manual.previewAlt}
                       width={1920}

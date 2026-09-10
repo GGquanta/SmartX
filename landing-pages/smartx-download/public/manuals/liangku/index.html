@@ -348,6 +348,16 @@
       box-shadow: 0 18px 42px -36px rgba(24, 33, 36, 0.55);
     }
 
+    picture > source {
+      display: none;
+    }
+
+    figure picture,
+    main picture {
+      display: block;
+      line-height: 0;
+    }
+
     figure img,
     main img {
       display: block;
@@ -612,7 +622,10 @@
 <h2 id="2-登录与注册">2. 登录与注册</h2>
 <p>未登录时，打开站点会看到落地页：</p>
 <figure>
-<img src="asset/login.png" alt="落地页：登录或注册" />
+<picture>
+  <source srcset="asset/login.webp" type="image/webp" />
+  <img src="asset/login.png" alt="落地页：登录或注册" />
+</picture>
 <figcaption aria-hidden="true">落地页：登录或注册</figcaption>
 </figure>
 <ol type="1">
@@ -681,8 +694,11 @@ Token）。</p>
 <h2 id="5-文档库">5. 文档库</h2>
 <p>文档库采用「左侧导航 + 右侧工作区」布局，类似网盘。</p>
 <figure>
-<img src="asset/docs.png"
+<picture>
+  <source srcset="asset/docs.webp" type="image/webp" />
+  <img src="asset/docs.png"
 alt="文档库：左侧上传与目录树，右侧文件列表" />
+</picture>
 <figcaption
 aria-hidden="true">文档库：左侧上传与目录树，右侧文件列表</figcaption>
 </figure>
@@ -777,7 +793,10 @@ Markdown（含图片）、查看元数据，以及（若已构图）实体—谓
 <strong>文档片段</strong>，并可同时纳入 <strong>企业问答</strong> 与
 <strong>知识图谱增强</strong>。</p>
 <figure>
-<img src="asset/检索.png" alt="检索中心：查询「量子」及检索设置" />
+<picture>
+  <source srcset="asset/检索.webp" type="image/webp" />
+  <img src="asset/检索.png" alt="检索中心：查询「量子」及检索设置" />
+</picture>
 <figcaption
 aria-hidden="true">检索中心：查询「量子」及检索设置</figcaption>
 </figure>
@@ -847,7 +866,10 @@ aria-hidden="true">检索中心：查询「量子」及检索设置</figcaption>
 <h2 id="7-知识图谱">7. 知识图谱</h2>
 <p>把文档、实体（公司、产品、人名、项目等）以及它们之间的关系画成网络图。</p>
 <figure>
-<img src="asset/知识图谱.png" alt="知识图谱：全库概览" />
+<picture>
+  <source srcset="asset/知识图谱.webp" type="image/webp" />
+  <img src="asset/知识图谱.png" alt="知识图谱：全库概览" />
+</picture>
 <figcaption aria-hidden="true">知识图谱：全库概览</figcaption>
 </figure>
 <h3 id="71-进入与筛选">7.1 进入与筛选</h3>
@@ -906,8 +928,11 @@ aria-hidden="true">检索中心：查询「量子」及检索设置</figcaption>
 <p>在左侧点某一篇文档后，进入
 <strong>文档子图</strong>：该文档居中，四周是它提到的机构、技术、地点，以及通过共享实体连到的其它文件。</p>
 <figure>
-<img src="asset/图谱相关.png"
+<picture>
+  <source srcset="asset/图谱相关.webp" type="image/webp" />
+  <img src="asset/图谱相关.png"
 alt="文档子图：一篇报告关联的实体与其它文档" />
+</picture>
 <figcaption
 aria-hidden="true">文档子图：一篇报告关联的实体与其它文档</figcaption>
 </figure>
@@ -926,8 +951,11 @@ aria-hidden="true">文档子图：一篇报告关联的实体与其它文档</fi
 <strong>摘要</strong> 或 <strong>打开</strong> 核对来源。</p>
 <p>点击输入框左侧 <strong>「+」</strong>，可选用：</p>
 <figure>
-<img src="asset/多功能对话.png"
+<picture>
+  <source srcset="asset/多功能对话.webp" type="image/webp" />
+  <img src="asset/多功能对话.png"
 alt="智能体「+」菜单：上传、资料库、网页搜索、论文写作" />
+</picture>
 <figcaption
 aria-hidden="true">智能体「+」菜单：上传、资料库、网页搜索、论文写作</figcaption>
 </figure>
@@ -962,8 +990,11 @@ aria-hidden="true">智能体「+」菜单：上传、资料库、网页搜索、
 带出处的产品问答与相关图片</h3>
 <p>问企业内部问题时，智能体会检索知识库，并在正文中用角标标出引用。</p>
 <figure>
-<img src="asset/输出图片.png"
+<picture>
+  <source srcset="asset/输出图片.webp" type="image/webp" />
+  <img src="asset/输出图片.png"
 alt="智能体回答公司产品介绍，并展示相关图片与文献" />
+</picture>
 <figcaption
 aria-hidden="true">智能体回答公司产品介绍，并展示相关图片与文献</figcaption>
 </figure>
@@ -991,8 +1022,11 @@ aria-hidden="true">智能体回答公司产品介绍，并展示相关图片与�
 </ul>
 <p>系统会按固定步骤执行，而不是一次性抛出成稿：</p>
 <figure>
-<img src="asset/流程严谨.png"
+<picture>
+  <source srcset="asset/流程严谨.webp" type="image/webp" />
+  <img src="asset/流程严谨.png"
 alt="论文写作：本轮流程、检索结果与校订稿" />
+</picture>
 <figcaption
 aria-hidden="true">论文写作：本轮流程、检索结果与校订稿</figcaption>
 </figure>
@@ -1012,7 +1046,10 @@ aria-hidden="true">论文写作：本轮流程、检索结果与校订稿</figca
 <h3 id="84-文献管理下载预览编辑">8.4 文献管理：下载、预览、编辑</h3>
 <p>右侧 <strong>文献管理</strong> 面板提供成稿操作：</p>
 <figure>
-<img src="asset/功能多样.png" alt="文献管理：校订稿与导出按钮" />
+<picture>
+  <source srcset="asset/功能多样.webp" type="image/webp" />
+  <img src="asset/功能多样.png" alt="文献管理：校订稿与导出按钮" />
+</picture>
 <figcaption aria-hidden="true">文献管理：校订稿与导出按钮</figcaption>
 </figure>
 <table>
@@ -1050,7 +1087,10 @@ aria-hidden="true">论文写作：本轮流程、检索结果与校订稿</figca
 <p>参考文献列表按编号排列，每条显示文件名、密级，以及 <strong>摘要 /
 打开</strong>：</p>
 <figure>
-<img src="asset/参考文献.png" alt="参考文献列表：摘要与打开" />
+<picture>
+  <source srcset="asset/参考文献.webp" type="image/webp" />
+  <img src="asset/参考文献.png" alt="参考文献列表：摘要与打开" />
+</picture>
 <figcaption aria-hidden="true">参考文献列表：摘要与打开</figcaption>
 </figure>
 <p>建议成稿前逐条打开核对，避免同名材料被引用两次时选错版本。</p>
@@ -1058,7 +1098,10 @@ aria-hidden="true">论文写作：本轮流程、检索结果与校订稿</figca
 <p>点击 <strong>预览 HTML</strong> 后，会打开独立预览（文件名形如
 <code>论文-校订稿.html</code>）：</p>
 <figure>
-<img src="asset/kami美化.png" alt="HTML 预览：白皮书排版稿" />
+<picture>
+  <source srcset="asset/kami美化.webp" type="image/webp" />
+  <img src="asset/kami美化.png" alt="HTML 预览：白皮书排版稿" />
+</picture>
 <figcaption aria-hidden="true">HTML 预览：白皮书排版稿</figcaption>
 </figure>
 <p>预览页提供：</p>

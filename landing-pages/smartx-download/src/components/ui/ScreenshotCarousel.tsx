@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { toWebpSrc } from '../../lib/image';
 
 const SLIDES = [
   {
@@ -52,30 +53,40 @@ export function ScreenshotCarousel() {
         aria-roledescription="carousel"
         aria-label="产品界面截图轮播"
       >
-        <img
-          src={SLIDES[0].src}
-          alt=""
-          className="pointer-events-none invisible h-auto w-full"
-          width={1400}
-          height={900}
-          aria-hidden
-        />
-
-        <AnimatePresence initial={false}>
-          <motion.img
-            key={slide.src}
-            src={slide.src}
-            alt={slide.alt}
-            className="absolute inset-0 h-full w-full object-contain object-center"
+        <picture className="block w-full leading-[0]">
+          <source srcSet={toWebpSrc(SLIDES[0].src)} type="image/webp" />
+          <img
+            src={SLIDES[0].src}
+            alt=""
+            className="pointer-events-none invisible block h-auto w-full"
             width={1400}
             height={900}
-            loading={index === 0 ? 'eager' : 'lazy'}
+            aria-hidden
+          />
+        </picture>
+
+        <AnimatePresence initial={false}>
+          <motion.div
+            key={slide.src}
+            className="absolute inset-0"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={fadeTransition}
-            aria-live="polite"
-          />
+          >
+            <picture className="block h-full w-full leading-[0]">
+              <source srcSet={toWebpSrc(slide.src)} type="image/webp" />
+              <img
+                src={slide.src}
+                alt={slide.alt}
+                className="block h-full w-full object-contain object-center"
+                width={1400}
+                height={900}
+                loading={index === 0 ? 'eager' : 'lazy'}
+                aria-live="polite"
+              />
+            </picture>
+          </motion.div>
         </AnimatePresence>
       </div>
 

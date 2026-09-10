@@ -3,6 +3,7 @@ import { ArrowDown, Download, Sparkles } from 'lucide-react';
 import { fadeUp, defaultTransition } from '../../lib/motion';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { Button } from '../ui/Button';
+import { Picture } from '../ui/Picture';
 
 export function Hero() {
   const reduced = useReducedMotion();
@@ -25,7 +26,7 @@ export function Hero() {
           </div>
 
           <h1 className="flex items-center gap-5 font-display text-4xl font-bold leading-[1.15] tracking-tight text-ink sm:gap-6 sm:text-5xl lg:text-[3.25rem]">
-            <img
+            <Picture
               src="./images/icon.png"
               alt=""
               className="h-16 w-16 shrink-0 sm:h-20 sm:w-20 lg:h-24 lg:w-24"
@@ -68,7 +69,7 @@ export function Hero() {
         >
           <div className="absolute -inset-4 rounded-4xl bg-gradient-to-br from-brand-sky/20 to-brand-violet/15 blur-2xl" aria-hidden />
           <div className="relative overflow-hidden rounded-4xl border border-white/50 shadow-soft">
-            <img
+            <Picture
               src="./images/mockup-02.jpg"
               alt="小光智能助理在 MacBook 上运行的界面展示"
               className="h-auto w-full object-cover"

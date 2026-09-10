@@ -116,6 +116,17 @@
       overflow: hidden;
     }
 
+    picture > source {
+      display: none;
+    }
+
+    .hero-logo picture {
+      display: block;
+      width: 100%;
+      height: 100%;
+      line-height: 0;
+    }
+
     .hero-logo img {
       display: block;
       width: 100%;
@@ -326,6 +337,11 @@
       box-shadow: 0 18px 42px -36px rgba(18, 24, 38, 0.55);
     }
 
+    figure picture {
+      display: block;
+      line-height: 0;
+    }
+
     figure img {
       display: block;
       width: 100%;
@@ -438,7 +454,10 @@
   <header class="hero">
     <div class="hero-inner">
       <div class="hero-logo">
-        <img src="./assets/小光-logo.png" alt="小光 · 智能助理 Logo" />
+        <picture>
+          <source srcset="./assets/小光-logo.webp" type="image/webp" />
+          <img src="./assets/小光-logo.png" alt="小光 · 智能助理 Logo" />
+        </picture>
       </div>
       <div>
         <h1>小光 · 智能助理用户说明书</h1>
@@ -497,7 +516,10 @@
       <p>首次启动会进入向导：欢迎 → 环境检查 → 配置 AI 提供商 →（可选）连接消息渠道 → 安装组件。完成后进入主界面。</p>
       <p>日常打开后，窗口分为左侧栏和右侧工作区。</p>
       <figure>
-        <img src="./assets/01-首页-dell工位.png" alt="主界面：左侧模块，中间空对话「我能为你做些什么？」" />
+        <picture>
+          <source srcset="./assets/01-首页-dell工位.webp" type="image/webp" />
+          <img src="./assets/01-首页-dell工位.png" alt="主界面：左侧模块，中间空对话「我能为你做些什么？」" />
+        </picture>
         <figcaption>图　主界面。侧栏从上到下是功能入口，中间是当前对话；输入框左侧可附加文件、选用技能。底栏显示当前工作空间和网关状态。</figcaption>
       </figure>
       <p>常见入口：</p>
@@ -511,7 +533,10 @@
       <h2 id="3-模型参数">3. 模型参数</h2>
       <p>管理 AI 提供商，并查看 Token 用量。至少要有一个 <strong>已配置</strong> 的默认提供商，对话才能调用模型。</p>
       <figure>
-        <img src="./assets/07-模型-深色工位.png" alt="模型参数：默认提供商与近期 Token 消耗" />
+        <picture>
+          <source srcset="./assets/07-模型-深色工位.webp" type="image/webp" />
+          <img src="./assets/07-模型-深色工位.png" alt="模型参数：默认提供商与近期 Token 消耗" />
+        </picture>
         <figcaption>图　模型。已配置的提供商会显示密钥状态、当前模型和「已配置」。下方可按模型或时间看近期用量。</figcaption>
       </figure>
       <p>添加提供商：</p>
@@ -520,7 +545,10 @@
         <li>在列表中选择一家（如 OpenRouter、DeepSeek、阿里云百炼、Ollama 等）。</li>
       </ol>
       <figure>
-        <img src="./assets/供应商选择.png" alt="添加 AI 提供商：选择服务商" />
+        <picture>
+          <source srcset="./assets/供应商选择.webp" type="image/webp" />
+          <img src="./assets/供应商选择.png" alt="添加 AI 提供商：选择服务商" />
+        </picture>
         <figcaption>图　添加 AI 提供商。</figcaption>
       </figure>
       <ol start="3">
@@ -537,7 +565,10 @@
         <li>需要换助理时，以顶栏 <strong>当前对话对象</strong> 为准；也可先到 <strong>智能体</strong> 里新建或调整后再回来问。</li>
       </ol>
       <figure>
-        <img src="./assets/02-问答-macbook.png" alt="对话示例：询问大坝形变监测方案，并展示检索与回答" />
+        <picture>
+          <source srcset="./assets/02-问答-macbook.webp" type="image/webp" />
+          <img src="./assets/02-问答-macbook.png" alt="对话示例：询问大坝形变监测方案，并展示检索与回答" />
+        </picture>
         <figcaption>图　对话。用户问「大坝的形变监测方案有哪些」。助理会先查记忆或企业知识库，再给出分条说明。过程可展开查看。</figcaption>
       </figure>
       <p>说明：</p>
@@ -556,7 +587,10 @@
         <li>需要改技能文件时，点右上角 <strong>打开技能文件夹</strong>。</li>
       </ol>
       <figure>
-        <img src="./assets/03-技能-imac.png" alt="技能管理：搜索、开关与已安装列表" />
+        <picture>
+          <source srcset="./assets/03-技能-imac.webp" type="image/webp" />
+          <img src="./assets/03-技能-imac.png" alt="技能管理：搜索、开关与已安装列表" />
+        </picture>
         <figcaption>图　技能。标题为「浏览和管理 AI 能力」。列表给出名称、简介、来源和开关。对话输入框的技能下拉只会出现当前已启用的项。</figcaption>
       </figure>
       <p>网关未运行时，仍可浏览本地技能，但运行时状态可能不完整。装好或打开开关后，回到对话再发一次请求。</p>
@@ -564,12 +598,18 @@
       <h2 id="6-定时任务">6. 定时任务</h2>
       <p>用来在指定时刻自动跑一段提示词，结果可留在小光内，或投递到已配置的消息频道。</p>
       <figure>
-        <img src="./assets/08-定时任务-木桌.png" alt="定时任务列表：统计卡片与空状态" />
+        <picture>
+          <source srcset="./assets/08-定时任务-木桌.webp" type="image/webp" />
+          <img src="./assets/08-定时任务-木桌.png" alt="定时任务列表：统计卡片与空状态" />
+        </picture>
         <figcaption>图　定时任务。上方为任务总数、运行中、已暂停、失败。尚未创建时，点「+ 创建第一个任务」或右上角「+ 新建任务」。</figcaption>
       </figure>
       <p>新建时填写：</p>
       <figure>
-        <img src="./assets/任务创建.png" alt="创建任务：名称、提示词、智能体、周期与时间" />
+        <picture>
+          <source srcset="./assets/任务创建.webp" type="image/webp" />
+          <img src="./assets/任务创建.png" alt="创建任务：名称、提示词、智能体、周期与时间" />
+        </picture>
         <figcaption>图　创建任务。</figcaption>
       </figure>
       <ol>
@@ -590,7 +630,10 @@
         <li>绑定成功后，回到 <strong>对话</strong> 提问即可引用库内资料。改密码后需要重新绑定。</li>
       </ol>
       <figure>
-        <img src="./assets/04-知识库-双屏.png" alt="企业知识库：内嵌量库工作台与资料概览" />
+        <picture>
+          <source srcset="./assets/04-知识库-双屏.webp" type="image/webp" />
+          <img src="./assets/04-知识库-双屏.png" alt="企业知识库：内嵌量库工作台与资料概览" />
+        </picture>
         <figcaption>图　企业知识库。内嵌「量库 · 企业知识库管理系统」工作台，可看资料条目、近七日检索等。上传、密级、图谱等细操作见量库说明书；在小光里只要会进、会绑、会在对话里问。</figcaption>
       </figure>
       <p>列表、检索和问答都受量库密级约束，看不到高于本人上限的内容。</p>
@@ -603,18 +646,27 @@
         <li>在打开的 Quafu 页面登录 SQCLab，再按卡片选择在线的量子处理器。</li>
       </ol>
       <figure>
-        <img src="./assets/05-科研入口-macbook.png" alt="科研工具入口：登陆量子计算实验平台" />
+        <picture>
+          <source srcset="./assets/05-科研入口-macbook.webp" type="image/webp" />
+          <img src="./assets/05-科研入口-macbook.png" alt="科研工具入口：登陆量子计算实验平台" />
+        </picture>
         <figcaption>图　科研工具。深色卡片中间为登录按钮。</figcaption>
       </figure>
       <figure>
-        <img src="./assets/量子web.png" alt="量子计算实验平台：QPU 卡片与在线状态" />
+        <picture>
+          <source srcset="./assets/量子web.webp" type="image/webp" />
+          <img src="./assets/量子web.png" alt="量子计算实验平台：QPU 卡片与在线状态" />
+        </picture>
         <figcaption>图　量子计算实验平台。登录后可查看各机器比特数、耦合器和校准状态（在线 / 校准中）。任务提交与结果回收以平台页面为准。</figcaption>
       </figure>
 
       <h2 id="9-频道配置">9. 频道配置</h2>
       <p>把小光接到常用即时通讯，便于在群里问、也便于定时任务往外投递。</p>
       <figure>
-        <img src="./assets/06-频道-会议室笔记本.png" alt="消息频道：支持的平台列表" />
+        <picture>
+          <source srcset="./assets/06-频道-会议室笔记本.webp" type="image/webp" />
+          <img src="./assets/06-频道-会议室笔记本.png" alt="消息频道：支持的平台列表" />
+        </picture>
         <figcaption>图　消息频道。统一管理频道、账号、账号与智能体的绑定，以及频道默认账号。</figcaption>
       </figure>
       <p>当前支持（部分标为「插件」）：</p>
@@ -642,7 +694,10 @@
       <h2 id="10-系统设置">10. 系统设置</h2>
       <p>侧栏底部进入 <strong>系统设置</strong>（页面标题为「设置」，副标题为「配置您的 SmartX 体验」）。</p>
       <figure>
-        <img src="./assets/settings.png" alt="系统设置：主题、语言、开机启动与桌面气泡" />
+        <picture>
+          <source srcset="./assets/settings.webp" type="image/webp" />
+          <img src="./assets/settings.png" alt="系统设置：主题、语言、开机启动与桌面气泡" />
+        </picture>
         <figcaption>图　设置 · 通用。</figcaption>
       </figure>
       <table>

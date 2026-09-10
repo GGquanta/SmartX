@@ -2,6 +2,7 @@ import { BookOpen, Download, LayoutGrid, Monitor } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '../ui/Button';
+import { Picture } from '../ui/Picture';
 
 const navItems: { href: string; label: string; icon: LucideIcon }[] = [
   { href: '#features', label: '核心功能', icon: LayoutGrid },
@@ -28,7 +29,7 @@ export function Header() {
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <a href="#" className="flex items-center gap-2.5 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue">
-          <img src="./images/logo.png" alt="" className="h-9 w-9 rounded-xl" width={36} height={36} />
+          <Picture src="./images/logo.png" alt="" className="h-9 w-9 rounded-xl" width={36} height={36} />
           <span className="font-display text-lg font-semibold text-ink whitespace-nowrap">
             小光 · 智能助理
           </span>

@@ -4,8 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "predev": "node scripts/sync-images.mjs",
-    "prebuild": "node scripts/sync-images.mjs",
+    "predev": "node scripts/sync-images.mjs && node scripts/generate-webp.mjs",
+    "prebuild": "node scripts/sync-images.mjs && node scripts/generate-webp.mjs",
+    "generate:webp": "node scripts/generate-webp.mjs",
     "sync:downloads": "node scripts/sync-downloads.mjs",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
