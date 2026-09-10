@@ -14,6 +14,10 @@
     "scrollToLatest": "最下部に戻る",
     "toolbar": {
         "refresh": "チャットを更新",
+        "showThinking": "思考過程を表示",
+        "hideThinking": "思考過程を非表示",
+        "showToolCalls": "ツール呼び出しを表示",
+        "hideToolCalls": "ツール呼び出しを非表示",
         "currentAgent": "{{agent}}",
         "workspace": "ワークスペース"
     },

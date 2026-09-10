@@ -69,7 +69,7 @@ Four modules cover the workflow from quantum experiments to knowledge retrieval,
 
 ### Highlights
 
-- **Multi-agent chat**: Multi-session context and history, streaming Markdown, direct `@agent` routing, and inline skill cards.
+- **Multi-agent chat**: Multi-session context and history, streaming Markdown, direct `@agent` routing, inline skill cards, and toolbar toggles for thinking and tool-call process visibility.
 - **Skill management**: Local-first skill directories with visual browse, install, and path management; bundled document skills for `pdf`, `xlsx`, `docx`, and `pptx`.
 - **Enterprise knowledge base**: Embedded search and config binding that connect office materials to conversations.
 - **Research tools**: Entry point to the quantum computing experiment platform.

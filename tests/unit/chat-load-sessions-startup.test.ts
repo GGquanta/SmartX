@@ -654,4 +654,26 @@ describe('chat session catalog startup', () => {
     expect(useChatStore.getState().currentSessionKey).toBe(survivorKey);
     expect(useChatStore.getState().sessions.some((session) => session.key === pendingKey)).toBe(false);
   });
+
+  it('does not warn when the session catalog is unavailable because Gateway is disconnected', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    gatewayRpcMock.mockRejectedValue(new Error('Gateway not connected'));
+
+    const { useChatStore } = await import('@/stores/chat');
+    useChatStore.setState({
+      currentSessionKey: 'agent:main:main',
+      currentAgentId: 'main',
+      sessions: [],
+      sessionLabels: {},
+      sessionLastActivity: {},
+    });
+
+    await useChatStore.getState().loadSessions();
+
+    expect(gatewayRpcMock).toHaveBeenCalledTimes(1);
+    expect(warn).not.toHaveBeenCalledWith(
+      'Failed to load sessions:',
+      expect.any(Error),
+    );
+  });
 });

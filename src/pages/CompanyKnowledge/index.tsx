@@ -7,15 +7,14 @@ import { toast } from 'sonner';
 
 import { hostApi } from '@/lib/host-api';
 import { buildChromeUserAgentFromNavigator } from '@shared/chrome-user-agent';
+import {
+  COMPANY_KNOWLEDGE_WEBVIEW_PARTITION,
+  COMPANY_KNOWLEDGE_WEBVIEW_ZOOM_FACTOR,
+  resolveCompanyKnowledgeUrl,
+} from '@shared/company-knowledge';
 
-const DEFAULT_COMPANY_KNOWLEDGE_URL = 'http://localhost:5001/';
-
-function resolveCompanyKnowledgeUrl(): string {
-  const fromEnv = import.meta.env.VITE_COMPANY_KNOWLEDGE_URL;
-  if (typeof fromEnv === 'string' && fromEnv.trim()) {
-    return fromEnv.trim();
-  }
-  return DEFAULT_COMPANY_KNOWLEDGE_URL;
+function embedCompanyKnowledgeUrl(): string {
+  return resolveCompanyKnowledgeUrl(import.meta.env.VITE_COMPANY_KNOWLEDGE_URL);
 }
 
 function buildCompanyKnowledgeWebviewUserAgent(): string {
@@ -31,19 +30,28 @@ type WebviewPrep = {
 type WebviewIpcMessageEvent = Event & { channel: string; args: unknown[] };
 
 type CompanyKnowledgeWebviewElement = HTMLElement & {
+  setZoomFactor: (factor: number) => void;
   addEventListener(
-    type: 'ipc-message',
-    listener: (ev: WebviewIpcMessageEvent) => void,
+    type: 'ipc-message' | 'dom-ready' | 'did-finish-load',
+    listener: (ev: WebviewIpcMessageEvent | Event) => void,
   ): void;
   removeEventListener(
-    type: 'ipc-message',
-    listener: (ev: WebviewIpcMessageEvent) => void,
+    type: 'ipc-message' | 'dom-ready' | 'did-finish-load',
+    listener: (ev: WebviewIpcMessageEvent | Event) => void,
   ): void;
 };
 
+function applyCompanyKnowledgeWebviewZoom(wv: CompanyKnowledgeWebviewElement): void {
+  try {
+    wv.setZoomFactor(COMPANY_KNOWLEDGE_WEBVIEW_ZOOM_FACTOR);
+  } catch {
+    // Guest is not attached yet; dom-ready / did-finish-load retry.
+  }
+}
+
 export function CompanyKnowledge() {
   const { t } = useTranslation('common');
-  const embedUrl = resolveCompanyKnowledgeUrl();
+  const embedUrl = embedCompanyKnowledgeUrl();
   const webviewRef = useRef<CompanyKnowledgeWebviewElement | null>(null);
   const [webviewPrep, setWebviewPrep] = useState<WebviewPrep | null>(null);
 
@@ -77,16 +85,21 @@ export function CompanyKnowledge() {
       return undefined;
     }
 
-    wv.setAttribute('webpreferences', 'contextIsolation=yes,nodeIntegration=no,sandbox=no');
+    wv.setAttribute(
+      'webpreferences',
+      `contextIsolation=yes,nodeIntegration=no,sandbox=no,zoomFactor=${COMPANY_KNOWLEDGE_WEBVIEW_ZOOM_FACTOR}`,
+    );
     wv.setAttribute('preload', webviewPrep.preloadPath);
     wv.setAttribute('useragent', webviewPrep.userAgent);
     wv.setAttribute('src', embedUrl);
+    applyCompanyKnowledgeWebviewZoom(wv);
 
-    const onIpcMessage = (event: WebviewIpcMessageEvent) => {
-      if (event.channel !== 'company-knowledge:bind-result') {
+    const onIpcMessage = (event: Event) => {
+      const ipcEvent = event as WebviewIpcMessageEvent;
+      if (ipcEvent.channel !== 'company-knowledge:bind-result') {
         return;
       }
-      const [raw] = event.args;
+      const [raw] = ipcEvent.args;
       const result = raw as { success?: boolean; error?: string } | undefined;
       if (result?.success) {
         toast.success(t('companyKnowledgePage.bindSaved'));
@@ -94,10 +107,17 @@ export function CompanyKnowledge() {
         toast.error(t('companyKnowledgePage.bindFailed', { error: result?.error || 'unknown' }));
       }
     };
+    const onGuestReady = () => {
+      applyCompanyKnowledgeWebviewZoom(wv);
+    };
 
     wv.addEventListener('ipc-message', onIpcMessage);
+    wv.addEventListener('dom-ready', onGuestReady);
+    wv.addEventListener('did-finish-load', onGuestReady);
     return () => {
       wv.removeEventListener('ipc-message', onIpcMessage);
+      wv.removeEventListener('dom-ready', onGuestReady);
+      wv.removeEventListener('did-finish-load', onGuestReady);
     };
   }, [webviewPrep, embedUrl, t]);
 
@@ -125,6 +145,7 @@ export function CompanyKnowledge() {
           {webviewPrep ? (
             <webview
               ref={webviewRef}
+              partition={COMPANY_KNOWLEDGE_WEBVIEW_PARTITION}
               data-testid="company-knowledge-webview"
               className="w-full flex-1 min-h-0"
             />

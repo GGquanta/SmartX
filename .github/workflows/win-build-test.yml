@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version for SignPath parameter (e.g., 1.0.0-test.1)"
+        description: "Version label for the signed build (e.g., 1.0.0-test.1)"
         required: false
         default: "dev"
 
@@ -53,8 +53,18 @@ jobs:
       - name: Download agent-browser binaries for Windows
         run: pnpm run agent-browser:download:win
 
-      - name: Build Windows
-        run: pnpm run package:win
+      - name: Build Windows (signed)
+        shell: bash
+        env:
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        run: |
+          if [ -z "${WIN_CSC_LINK}" ] || [ -z "${WIN_CSC_KEY_PASSWORD}" ]; then
+            echo "::error::Missing WIN_CSC_LINK or WIN_CSC_KEY_PASSWORD"
+            exit 1
+          fi
+          echo "WIN_CSC_LINK length: ${#WIN_CSC_LINK}"
+          pnpm run package:win
 
       - name: Assert Windows x64 and arm64 installers
         shell: pwsh
@@ -80,47 +90,21 @@ jobs:
           if (-not $hasX64) { throw "Update manifest is missing win-x64.exe" }
           if (-not $hasArm64) { throw "Update manifest is missing win-arm64.exe" }
 
-      - name: Validate unsigned Windows artifacts before SignPath
+      - name: Verify Windows Authenticode signature
         shell: pwsh
         run: |
-          $unsignedExeFiles = Get-ChildItem -Path "release" -Filter *.exe -File
-          if (-not $unsignedExeFiles) {
-            throw "No unsigned .exe files found in release/ before SignPath upload"
+          $exeFiles = Get-ChildItem -Path "release" -Filter *.exe -File
+          if (-not $exeFiles) { throw "No .exe files found in release/" }
+          foreach ($exe in $exeFiles) {
+            $sig = Get-AuthenticodeSignature -FilePath $exe.FullName
+            Write-Host "$($exe.Name): Status=$($sig.Status) Subject=$($sig.SignerCertificate.Subject)"
+            if (-not $sig.SignerCertificate) {
+              throw "$($exe.Name) is not Authenticode-signed"
+            }
+            if ($sig.Status -eq 'NotSigned' -or $sig.Status -eq 'HashMismatch') {
+              throw "$($exe.Name) signature status is $($sig.Status)"
+            }
           }
-          $unsignedCount = $unsignedExeFiles.Count
-          "UNSIGNED_EXE_COUNT=$unsignedCount" | Out-File -FilePath $env:GITHUB_ENV -Append
-          Write-Host "Found $unsignedCount unsigned .exe file(s):"
-          $unsignedExeFiles | ForEach-Object { Write-Host " - $($_.Name)" }
-
-      # Bypass GitHub connector (HTTP 503). Sign via SignPath REST SubmitWithArtifact.
-      - name: Sign Windows artifacts via SignPath REST API
-        id: signpath-sign-windows
-        env:
-          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
-          SIGNPATH_ORGANIZATION_ID: "05aeab6b-bde4-460b-90e0-808d9f83779b"
-          SIGNPATH_PROJECT_SLUG: "GGquanta"
-          SIGNPATH_SIGNING_POLICY_SLUG: "GGquanta-sign"
-        run: node scripts/signpath-sign-windows.mjs --input-dir release --output-dir release/signed --description "SmartX ${{ github.event.inputs.version || 'dev' }}"
-
-      - name: Replace unsigned executables with signed ones
-        shell: pwsh
-        run: |
-          $signedExeFiles = Get-ChildItem -Path "release/signed" -Filter *.exe -File -Recurse
-          if (-not $signedExeFiles) {
-            throw "No signed .exe files found in release/signed"
-          }
-          $signedCount = $signedExeFiles.Count
-          if ($env:UNSIGNED_EXE_COUNT -and ($signedCount -ne [int]$env:UNSIGNED_EXE_COUNT)) {
-            throw "Signed .exe count ($signedCount) does not match unsigned count ($env:UNSIGNED_EXE_COUNT)"
-          }
-          foreach ($file in $signedExeFiles) {
-            Copy-Item -Path $file.FullName -Destination "release/$($file.Name)" -Force
-          }
-          $finalExeFiles = Get-ChildItem -Path "release" -Filter *.exe -File
-          if ($env:UNSIGNED_EXE_COUNT -and ($finalExeFiles.Count -ne [int]$env:UNSIGNED_EXE_COUNT)) {
-            throw "Final release .exe count ($($finalExeFiles.Count)) does not match unsigned count ($env:UNSIGNED_EXE_COUNT)"
-          }
-          Write-Host "Signed executables copied to release/ ($($finalExeFiles.Count) file(s))"
 
       - name: Upload signed Windows artifacts
         uses: actions/upload-artifact@v4

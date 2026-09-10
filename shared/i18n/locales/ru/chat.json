@@ -14,6 +14,10 @@
     "scrollToLatest": "Вернуться вниз",
     "toolbar": {
         "refresh": "Обновить чат",
+        "showThinking": "Показать ход мыслей",
+        "hideThinking": "Скрыть ход мыслей",
+        "showToolCalls": "Показать вызовы инструментов",
+        "hideToolCalls": "Скрыть вызовы инструментов",
         "currentAgent": "{{agent}}",
         "workspace": "Рабочая область"
     },

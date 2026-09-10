@@ -7,10 +7,10 @@
 #   APPLE_API_KEY_ID                     — App Store Connect API Key ID (10 chars)
 #   APPLE_API_ISSUER                     — App Store Connect Issuer ID (UUID)
 #   APPLE_API_KEY_P8                     — Full contents of AuthKey_<KEY_ID>.p8
-# Windows code signing (stable channel):
-#   SIGNPATH_API_TOKEN                   — SignPath REST submitter token
-# Stable Windows builds sign via scripts/signpath-sign-windows.mjs
-# (POST /SigningRequests/SubmitWithArtifact), not the GitHub connector action.
+# Windows Authenticode (stable channel; electron-builder signs during package:win):
+#   WIN_CSC_LINK                         — PKCS#12 (.pfx) as base64 (no newlines)
+#   WIN_CSC_KEY_PASSWORD                 — Password for the .pfx
+# Generate a private cert: scripts/generate-win-codesign-cert.sh
 # Fallback (legacy Apple ID notarization, used only if API key secrets are absent):
 #   APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID
 #
@@ -31,7 +31,7 @@ on:
         description: 'Version to release (e.g., 1.0.0)'
         required: true
       internal_release:
-        description: '内网测试：跳过 mac 签名/公证与 Windows SignPath（tag 含 alpha/beta/rc/internal 时也会自动启用）'
+        description: '内网测试：跳过 mac 签名/公证与 Windows Authenticode（tag 含 alpha/beta/rc/internal 时也会自动启用）'
         type: boolean
         default: true
 
@@ -127,7 +127,7 @@ jobs:
         if: matrix.platform == 'linux'
         run: pnpm run agent-browser:download:linux
 
-      # Internal: unsigned mac + no Windows SignPath. Stable: Apple notarize + SignPath.
+      # Internal: unsigned mac + unsigned Windows. Stable: Apple notarize + Windows Authenticode.
       - name: Detect release channel
         id: release-channel
         shell: bash
@@ -147,11 +147,11 @@ jobs:
           if [[ "$INTERNAL" == "true" ]]; then
             echo "is_internal=true" >> $GITHUB_OUTPUT
             echo "is_stable=false" >> $GITHUB_OUTPUT
-            echo "Channel: internal ($TAG) — skip mac signing/notarize and Windows SignPath"
+            echo "Channel: internal ($TAG) — skip mac signing/notarize and Windows Authenticode"
           else
             echo "is_internal=false" >> $GITHUB_OUTPUT
             echo "is_stable=true" >> $GITHUB_OUTPUT
-            echo "Channel: stable ($TAG) — mac notarize + Windows SignPath"
+            echo "Channel: stable ($TAG) — mac notarize + Windows Authenticode"
           fi
 
       # macOS specific steps
@@ -304,9 +304,25 @@ jobs:
           Write-Host "=== Disk usage after cleanup ==="
           Get-PSDrive -Name C | Format-List Used,Free
 
-      - name: Build Windows
-        if: matrix.platform == 'win'
+      - name: Build Windows (internal, unsigned)
+        if: matrix.platform == 'win' && steps.release-channel.outputs.is_internal == 'true'
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: pnpm run package:win
+
+      - name: Build Windows (signed)
+        if: matrix.platform == 'win' && steps.release-channel.outputs.is_internal != 'true'
+        shell: bash
+        env:
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        run: |
+          if [ -z "${WIN_CSC_LINK}" ] || [ -z "${WIN_CSC_KEY_PASSWORD}" ]; then
+            echo "::error::Missing WIN_CSC_LINK or WIN_CSC_KEY_PASSWORD"
+            exit 1
+          fi
+          echo "WIN_CSC_LINK length: ${#WIN_CSC_LINK}"
+          pnpm run package:win
 
       - name: Assert Windows x64 and arm64 installers
         if: matrix.platform == 'win'
@@ -333,115 +349,21 @@ jobs:
           if (-not $hasX64) { throw "Update manifest is missing win-x64.exe" }
           if (-not $hasArm64) { throw "Update manifest is missing win-arm64.exe" }
 
-      - name: Validate unsigned Windows artifacts before SignPath
+      - name: Verify Windows Authenticode signature
         if: matrix.platform == 'win' && steps.release-channel.outputs.is_stable == 'true'
         shell: pwsh
         run: |
-          $unsignedExeFiles = Get-ChildItem -Path "release" -Filter *.exe -File
-          if (-not $unsignedExeFiles) {
-            throw "No unsigned .exe files found in release/ before SignPath upload"
-          }
-          $unsignedCount = $unsignedExeFiles.Count
-          "UNSIGNED_EXE_COUNT=$unsignedCount" | Out-File -FilePath $env:GITHUB_ENV -Append
-          Write-Host "Found $unsignedCount unsigned .exe file(s):"
-          $unsignedExeFiles | ForEach-Object { Write-Host " - $($_.Name)" }
-
-      # Bypass GitHub connector (HTTP 503). Sign via SignPath REST SubmitWithArtifact.
-      - name: Sign Windows artifacts via SignPath REST API
-        if: matrix.platform == 'win' && steps.release-channel.outputs.is_stable == 'true'
-        id: signpath-sign-windows
-        env:
-          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
-          SIGNPATH_ORGANIZATION_ID: "05aeab6b-bde4-460b-90e0-808d9f83779b"
-          SIGNPATH_PROJECT_SLUG: "GGquanta"
-          SIGNPATH_SIGNING_POLICY_SLUG: "GGquanta-sign"
-        run: node scripts/signpath-sign-windows.mjs --input-dir release --output-dir release/signed --description "SmartX ${{ github.event.inputs.version || github.ref_name }}"
-
-      - name: Replace unsigned executables with signed ones
-        if: matrix.platform == 'win' && steps.release-channel.outputs.is_stable == 'true'
-        shell: pwsh
-        run: |
-          $signedExeFiles = Get-ChildItem -Path "release/signed" -Filter *.exe -File -Recurse
-          if (-not $signedExeFiles) {
-            throw "No signed .exe files found in release/signed"
-          }
-          $signedCount = $signedExeFiles.Count
-          if ($env:UNSIGNED_EXE_COUNT -and ($signedCount -ne [int]$env:UNSIGNED_EXE_COUNT)) {
-            throw "Signed .exe count ($signedCount) does not match unsigned count ($env:UNSIGNED_EXE_COUNT)"
-          }
-          foreach ($file in $signedExeFiles) {
-            Copy-Item -Path $file.FullName -Destination "release/$($file.Name)" -Force
-          }
-          $finalExeFiles = Get-ChildItem -Path "release" -Filter *.exe -File
-          if ($env:UNSIGNED_EXE_COUNT -and ($finalExeFiles.Count -ne [int]$env:UNSIGNED_EXE_COUNT)) {
-            throw "Final release .exe count ($($finalExeFiles.Count)) does not match unsigned count ($env:UNSIGNED_EXE_COUNT)"
-          }
-          Write-Host "Signed executables copied to release/ ($($finalExeFiles.Count) file(s))"
-
-      # Code signing changes the .exe binary, invalidating the sha512 hash that
-      # electron-builder wrote into latest.yml during the initial build.
-      # Recalculate the hash for each signed .exe and patch the yml files so
-      # electron-updater can verify the download successfully.
-      #
-      # Actual latest.yml structure (from electron-builder NSIS):
-      #   files:
-      #     - url: SmartX-0.2.4-win-x64.exe    ← files[] entries have url/sha512/size
-      #       sha512: <base64>
-      #       size: 430775882
-      #   path: SmartX-0.2.4-win-arm64.exe      ← top-level has path/sha512 (no size!)
-      #   sha512: <base64>
-      #   releaseDate: '...'
-      - name: Update latest.yml sha512 after code signing
-        if: matrix.platform == 'win' && steps.release-channel.outputs.is_stable == 'true'
-        shell: pwsh
-        run: |
-          $ymlFiles = Get-ChildItem -Path "release" -Filter "*.yml" -File | Where-Object { $_.Name -ne "builder-debug.yml" }
-          $exeFiles = Get-ChildItem -Path "release" -Filter "*.exe" -File
-
-          foreach ($yml in $ymlFiles) {
-            $content = Get-Content $yml.FullName -Raw
-            $modified = $false
-
-            foreach ($exe in $exeFiles) {
-              # Compute new sha512 (base64) for the signed exe
-              $hash = Get-FileHash -Path $exe.FullName -Algorithm SHA512
-              $hashBytes = [byte[]]::new($hash.Hash.Length / 2)
-              for ($i = 0; $i -lt $hashBytes.Length; $i++) {
-                $hashBytes[$i] = [Convert]::ToByte($hash.Hash.Substring($i * 2, 2), 16)
-              }
-              $newSha512 = [Convert]::ToBase64String($hashBytes)
-              $newSize = (Get-Item $exe.FullName).Length
-              $escapedName = [Regex]::Escape($exe.Name)
-
-              # 1) files[] entries:  url: <name>\n    sha512: <hash>\n    size: <n>
-              $urlPattern = "(?m)(url:\s*${escapedName}\s*\r?\n\s*sha512:\s*)(\S+)(\s*\r?\n\s*size:\s*)(\d+)"
-              if ($content -match $urlPattern) {
-                $content = $content -replace $urlPattern, "`${1}${newSha512}`${3}${newSize}"
-                $modified = $true
-                Write-Host "Updated $($yml.Name) files[]: $($exe.Name) sha512=$newSha512 size=$newSize"
-              }
-
-              # 2) Top-level entry:  path: <name>\nsha512: <hash>\n  (no size field)
-              $pathPattern = "(?m)(path:\s*${escapedName}\s*\r?\n)sha512:\s*\S+"
-              if ($content -match $pathPattern) {
-                $content = $content -replace $pathPattern, "`${1}sha512: ${newSha512}"
-                $modified = $true
-                Write-Host "Updated $($yml.Name) top-level: $($exe.Name) sha512=$newSha512"
-              }
+          $exeFiles = Get-ChildItem -Path "release" -Filter *.exe -File
+          if (-not $exeFiles) { throw "No .exe files found in release/" }
+          foreach ($exe in $exeFiles) {
+            $sig = Get-AuthenticodeSignature -FilePath $exe.FullName
+            Write-Host "$($exe.Name): Status=$($sig.Status) Subject=$($sig.SignerCertificate.Subject)"
+            if (-not $sig.SignerCertificate) {
+              throw "$($exe.Name) is not Authenticode-signed"
             }
-
-            if ($modified) {
-              Set-Content -Path $yml.FullName -Value $content -NoNewline
-              Write-Host "Saved updated $($yml.Name)"
+            if ($sig.Status -eq 'NotSigned' -or $sig.Status -eq 'HashMismatch') {
+              throw "$($exe.Name) signature status is $($sig.Status)"
             }
-          }
-
-          Write-Host ""
-          Write-Host "=== Final yml contents ==="
-          foreach ($yml in $ymlFiles) {
-            Write-Host "--- $($yml.Name) ---"
-            Get-Content $yml.FullName
-            Write-Host ""
           }
 
       # Linux specific steps

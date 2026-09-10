@@ -11,4 +11,20 @@ test.describe('SmartX setup runtime provider row', () => {
       'No default provider configured — add one later in Settings',
     );
   });
+
+  test('right-aligns the components list on the setup complete step', async ({ page }) => {
+    await expect(page.getByTestId('setup-page')).toBeVisible();
+    await page.getByTestId('setup-next-button').click();
+    await expect(page.getByTestId('setup-runtime-step')).toBeVisible();
+    await expect(page.getByTestId('setup-next-button')).toBeEnabled({ timeout: 60_000 });
+    await page.getByTestId('setup-next-button').click();
+
+    await expect(page.getByTestId('setup-installing-skip-button')).toBeVisible();
+    await page.getByTestId('setup-installing-skip-button').click();
+
+    await expect(page.getByTestId('setup-complete-step')).toBeVisible();
+    const componentsValue = page.getByTestId('setup-complete-components-value');
+    await expect(componentsValue).toBeVisible();
+    await expect(componentsValue).toHaveCSS('text-align', 'right');
+  });
 });

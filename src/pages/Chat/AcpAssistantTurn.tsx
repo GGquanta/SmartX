@@ -14,6 +14,7 @@ import { AcpAttachmentPart } from './AcpAttachmentPart';
 import type { AcpTurnTiming } from '@/lib/acp/turn-timings';
 import type { TimelineItem, ToolCallItem } from '@/lib/acp/timeline-types';
 import { cn } from '@/lib/utils';
+import { useChatDisplayStore } from '@/stores/chat-display';
 import { AcpCompactionStatus } from './AcpCompactionStatus';
 
 /** Keep prose, tools, and file cards on the same column in a wide transcript. */
@@ -138,6 +139,16 @@ export function AcpAssistantTurn({
 }) {
   const clipboardText = useMemo(() => assistantTurnClipboardText(group), [group]);
   const renderItems = useMemo(() => partitionTurnItems(group.items), [group.items]);
+  const showThinking = useChatDisplayStore((s) => s.showThinking);
+  const showToolCalls = useChatDisplayStore((s) => s.showToolCalls);
+  const visibleItems = useMemo(
+    () => renderItems.filter((item) => {
+      if ((item.kind === 'tool-call' || item.kind === 'tool-call-group') && !showToolCalls) return false;
+      if (item.kind === 'thought' && !showThinking) return false;
+      return true;
+    }),
+    [renderItems, showThinking, showToolCalls],
+  );
 
   return (
     <div data-testid="acp-assistant-turn" className="group flex w-full justify-start gap-3">
@@ -148,7 +159,7 @@ export function AcpAssistantTurn({
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col items-start gap-3">
-        {renderItems.map((item) => {
+        {visibleItems.map((item) => {
           if (item.kind === 'tool-call-group') {
             return (
               <div key={item.id} className={assistantTurnBlockClassName}>

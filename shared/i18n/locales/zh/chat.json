@@ -14,6 +14,10 @@
     "scrollToLatest": "回到底部",
     "toolbar": {
         "refresh": "刷新聊天",
+        "showThinking": "显示思考过程",
+        "hideThinking": "隐藏思考过程",
+        "showToolCalls": "显示工具调用过程",
+        "hideToolCalls": "隐藏工具调用过程",
         "currentAgent": "{{agent}}",
         "workspace": "工作空间"
     },

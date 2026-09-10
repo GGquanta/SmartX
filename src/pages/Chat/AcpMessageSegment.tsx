@@ -11,7 +11,9 @@ import {
   streamdownRehypePlugins,
 } from '@/components/markdown/streamdown-config';
 import type { MessageSegmentItem, RenderPart } from '@/lib/acp/timeline-types';
+import { hostApi } from '@/lib/host-api';
 import { cn } from '@/lib/utils';
+import { isCompanyKnowledgeUrl, resolveCompanyKnowledgeUrl } from '@shared/company-knowledge';
 import { AcpImagePart, isSafeAcpImageSource } from './AcpImagePart';
 import { AcpAttachmentPart } from './AcpAttachmentPart';
 
@@ -19,14 +21,58 @@ type RenderTone = 'assistant' | 'user' | 'process';
 
 const chatRemend = { linkMode: 'text-only' } as const;
 
+function companyKnowledgeEmbedUrl(): string {
+  return resolveCompanyKnowledgeUrl(import.meta.env.VITE_COMPANY_KNOWLEDGE_URL);
+}
+
 function AcpMarkdownImage({ src, alt }: { src?: string; alt?: string }) {
   const { t } = useTranslation('chat');
   const imageSource = typeof src === 'string' ? src : '';
-  if (!imageSource || !isSafeAcpImageSource(imageSource)) return null;
+  const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!imageSource || !isSafeAcpImageSource(imageSource)) {
+      setResolvedSrc(null);
+      return undefined;
+    }
+
+    if (!isCompanyKnowledgeUrl(imageSource, companyKnowledgeEmbedUrl())) {
+      setResolvedSrc(imageSource);
+      return undefined;
+    }
+
+    let objectUrl: string | null = null;
+    let cancelled = false;
+    void hostApi.app.fetchCompanyKnowledgeResource(imageSource)
+      .then((resource) => {
+        const binary = Uint8Array.from(atob(resource.base64), (char) => char.charCodeAt(0));
+        const nextUrl = URL.createObjectURL(new Blob([binary], { type: resource.contentType }));
+        if (cancelled) {
+          URL.revokeObjectURL(nextUrl);
+          return;
+        }
+        objectUrl = nextUrl;
+        setResolvedSrc(objectUrl);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setResolvedSrc(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [imageSource]);
+
+  if (!resolvedSrc) return null;
 
   return (
     <img
-      src={imageSource}
+      src={resolvedSrc}
       alt={typeof alt === 'string' ? alt : t('acp.image')}
       className="max-w-full rounded-lg"
     />

@@ -2,8 +2,9 @@
  * Vitest Test Setup
  * Global test configuration and mocks
  */
-import { vi } from 'vitest';
+import { afterEach, vi } from 'vitest';
 import '@testing-library/jest-dom';
+import { CHAT_DISPLAY_DEFAULTS, useChatDisplayStore } from '@/stores/chat-display';
 
 // Provide a minimal `electron` mock so tests that transitively import
 // main-process code (logger, store, etc.) don't blow up when the Electron
@@ -29,7 +30,14 @@ vi.mock('electron', () => ({
   ipcMain: { on: vi.fn(), handle: vi.fn(), removeHandler: vi.fn() },
   dialog: { showOpenDialog: vi.fn(), showMessageBox: vi.fn() },
   shell: { openExternal: vi.fn() },
-  session: { defaultSession: { webRequest: { onBeforeSendHeaders: vi.fn() } } },
+  session: {
+    defaultSession: { webRequest: { onBeforeSendHeaders: vi.fn() } },
+    fromPartition: vi.fn(() => ({
+      fetch: vi.fn(),
+      cookies: { get: vi.fn().mockResolvedValue([]) },
+      webRequest: { onBeforeSendHeaders: vi.fn(), onHeadersReceived: vi.fn() },
+    })),
+  },
   utilityProcess: {},
 }));
 
@@ -60,7 +68,12 @@ if (typeof window !== 'undefined') {
 if (typeof window !== 'undefined') {
   let needsLocalStorageMock: boolean;
   try {
-    needsLocalStorageMock = !window.localStorage;
+    const existing = window.localStorage;
+    needsLocalStorageMock = !existing || typeof existing.setItem !== 'function';
+    if (!needsLocalStorageMock) {
+      existing.setItem('__smartx_ls_probe__', '1');
+      existing.removeItem('__smartx_ls_probe__');
+    }
   } catch {
     needsLocalStorageMock = true;
   }
@@ -112,4 +125,5 @@ if (typeof window !== 'undefined') {
 // Reset mocks after each test
 afterEach(() => {
   vi.clearAllMocks();
+  useChatDisplayStore.setState({ ...CHAT_DISPLAY_DEFAULTS });
 });

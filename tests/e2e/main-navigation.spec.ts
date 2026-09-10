@@ -77,6 +77,7 @@ test.describe('SmartX main navigation without setup flow', () => {
       await page.getByTestId('sidebar-nav-company-knowledge').click();
       await expect(page.getByTestId('company-knowledge-page')).toBeVisible();
       await expect(page.getByTestId('company-knowledge-page-title')).toBeVisible();
+      await expect(page.getByTestId('company-knowledge-webview')).toBeVisible();
     } finally {
       await closeElectronApp(app);
     }

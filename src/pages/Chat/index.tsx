@@ -17,6 +17,7 @@ import { useChatStore } from '@/stores/chat';
 import { useComposerDraftStore } from '@/stores/composer-drafts';
 import { useSessionAttentionStore } from '@/stores/session-attention';
 import { useSettingsStore } from '@/stores/settings';
+import { useGatewayStore } from '@/stores/gateway';
 import { ensureAcpChatSubscriptions, useAcpChatSessionStore } from '@/stores/acp-chat-session';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { cn } from '@/lib/utils';
@@ -34,6 +35,7 @@ import type { MessageSegmentItem, RenderPart } from '@/lib/acp/timeline-types';
 import { createEmptyAcpTimeline } from '@/lib/acp/reducer';
 import { projectOpenClawFileActivities, type AcpFileActivityProjection } from '@/lib/acp/openclaw-file-activities';
 import { hostApi } from '@/lib/host-api';
+import { isGatewayReady } from '@/lib/gateway-status';
 import { getSessionDisplayTitle } from '@shared/chat/session-title';
 import { ChatInput, type ChatWorkspaceOption, type FileAttachment } from './ChatInput';
 import { ChatToolbar } from './ChatToolbar';
@@ -205,6 +207,8 @@ export function Chat() {
   const removeWorkspace = useSettingsStore((s) => s.removeWorkspace);
   const fetchAgents = useAgentsStore((s) => s.fetchAgents);
   const agents = useAgentsStore((s) => s.agents);
+  const gatewayStatus = useGatewayStore((s) => s.status);
+  const gatewayReady = isGatewayReady(gatewayStatus);
   const [sessionDiscoveryAttempted, setSessionDiscoveryAttempted] = useState(false);
   const [lastPromptAttemptSessionKey, setLastPromptAttemptSessionKey] = useState<string | null>(null);
   const [questionDirectoryOpenSessionKey, setQuestionDirectoryOpenSessionKey] = useState<string | null>(null);
@@ -438,6 +442,7 @@ export function Chat() {
     && !workspaceContextCheck.available;
 
   useEffect(() => {
+    if (!gatewayReady) return;
     if (currentSessionKey !== DEFAULT_SESSION_KEY || sessions.length > 0 || sessionDiscoveryAttempted) return;
     let cancelled = false;
     void loadSessions()
@@ -448,7 +453,7 @@ export function Chat() {
     return () => {
       cancelled = true;
     };
-  }, [currentSessionKey, loadSessions, sessionDiscoveryAttempted, sessions.length]);
+  }, [currentSessionKey, gatewayReady, loadSessions, sessionDiscoveryAttempted, sessions.length]);
 
   useEffect(() => {
     if (!currentSessionKey || !cwd || !currentSession?.createdLocally) return;

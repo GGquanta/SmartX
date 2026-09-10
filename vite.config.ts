@@ -1,9 +1,10 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import electron from 'vite-plugin-electron';
 import renderer from 'vite-plugin-electron-renderer';
 import { resolve } from 'path';
 import { existsSync, readFileSync } from 'fs';
+import { buildRendererContentSecurityPolicy } from './shared/security/renderer-csp';
 
 function getExtensionPackages(): Set<string> {
   try {
@@ -43,6 +44,23 @@ function isMainProcessExternal(id: string): boolean {
   return true;
 }
 
+function rendererCspPlugin(): Plugin {
+  return {
+    name: 'smartx-renderer-csp',
+    transformIndexHtml: {
+      order: 'pre',
+      handler(html, ctx) {
+        const policy = buildRendererContentSecurityPolicy({ isDev: Boolean(ctx.server) });
+        if (html.includes('http-equiv="Content-Security-Policy"')) return html;
+        return html.replace(
+          /<head>/i,
+          `<head>\n    <meta http-equiv="Content-Security-Policy" content="${policy}" />`,
+        );
+      },
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
   // Required for Electron: all asset URLs must be relative because the renderer
@@ -51,6 +69,7 @@ export default defineConfig({
   // build remains correct even if plugin order ever changes.
   base: './',
   plugins: [
+    rendererCspPlugin(),
     react(),
     electron([
       {

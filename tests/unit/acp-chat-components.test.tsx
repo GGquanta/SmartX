@@ -8,6 +8,7 @@ import { AcpTurnFileActivity } from '@/pages/Chat/AcpTurnFileActivity';
 import type { AcpTimelineSnapshot, AttachmentRenderPart, CompactionItem, ToolCallItem } from '@/lib/acp/timeline-types';
 import type { AcpFileActivityProjection } from '@/lib/acp/openclaw-file-activities';
 import { useArtifactPanel } from '@/stores/artifact-panel';
+import { CHAT_DISPLAY_DEFAULTS, useChatDisplayStore } from '@/stores/chat-display';
 
 const openAttachmentMock = vi.hoisted(() => vi.fn());
 const listAttachmentOpenHandlersMock = vi.hoisted(() => vi.fn());
@@ -218,6 +219,7 @@ describe('ACP chat timeline components', () => {
       focusedFile: null,
       htmlPreviewAnchor: null,
     });
+    useChatDisplayStore.setState({ ...CHAT_DISPLAY_DEFAULTS });
   });
 
   it('does not apply background highlighting to chat code', () => {
@@ -1020,6 +1022,59 @@ describe('ACP chat timeline components', () => {
     expect(screen.getByText('Second assistant segment.')).toBeInTheDocument();
   });
 
+  it('hides thought and tool-call process blocks when display toggles are off', () => {
+    const state = snapshot({
+      itemOrder: ['msg-a:0', 'thought:msg-a', 'tool:read-file', 'plan:current', 'msg-a:1'],
+      itemsById: {
+        'msg-a:0': {
+          kind: 'message-segment',
+          id: 'msg-a:0',
+          role: 'assistant',
+          messageId: 'msg-a',
+          segmentIndex: 0,
+          parts: [{ kind: 'markdown', text: 'First assistant segment.' }],
+        },
+        'thought:msg-a': {
+          kind: 'thought',
+          id: 'thought:msg-a',
+          messageId: 'msg-a',
+          parts: [{ kind: 'markdown', text: 'Need to inspect the file.' }],
+        },
+        'tool:read-file': {
+          kind: 'tool-call',
+          id: 'tool:read-file',
+          toolCallId: 'read-file',
+          title: 'Read file',
+          status: 'completed',
+          outputParts: [{ kind: 'markdown', text: 'File contents loaded.' }],
+          locations: [],
+        },
+        'plan:current': {
+          kind: 'plan',
+          id: 'plan:current',
+          entries: [{ content: 'Update component tests', status: 'pending' } as never],
+        },
+        'msg-a:1': {
+          kind: 'message-segment',
+          id: 'msg-a:1',
+          role: 'assistant',
+          messageId: 'msg-a',
+          segmentIndex: 1,
+          parts: [{ kind: 'markdown', text: 'Second assistant segment.' }],
+        },
+      },
+    });
+
+    useChatDisplayStore.setState({ showThinking: false, showToolCalls: false });
+    render(<AcpTimeline snapshot={state} />);
+
+    expect(screen.getByText('First assistant segment.')).toBeInTheDocument();
+    expect(screen.queryByTestId('acp-thought-block')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('acp-tool-call-card')).not.toBeInTheDocument();
+    expect(screen.getByTestId('acp-plan-item')).toHaveTextContent('Update component tests');
+    expect(screen.getByText('Second assistant segment.')).toBeInTheDocument();
+  });
+
   it.each([
     ['in_progress', false, 'Compacting context'],
     ['completed', false, 'Compacted history'],
@@ -1138,6 +1193,31 @@ describe('ACP chat timeline components', () => {
     expect(group).toHaveAttribute('data-collapsed', 'true');
     expect(group).toHaveTextContent('3 tool calls');
     expect(screen.queryByTestId('acp-tool-call-card')).not.toBeInTheDocument();
+  });
+
+  it('hides collapsed tool-call groups when tool-call display is off', () => {
+    const state = snapshot({
+      itemOrder: ['tool:exec-1', 'tool:image-1', 'msg-a:0'],
+      itemsById: {
+        'tool:exec-1': toolCallItem({ id: 'tool:exec-1', toolCallId: 'exec-1', title: 'exec' }),
+        'tool:image-1': toolCallItem({ id: 'tool:image-1', toolCallId: 'image-1', title: 'image', outputParts: [] }),
+        'msg-a:0': {
+          kind: 'message-segment',
+          id: 'msg-a:0',
+          role: 'assistant',
+          messageId: 'msg-a',
+          segmentIndex: 0,
+          parts: [{ kind: 'markdown', text: 'Done.' }],
+        },
+      },
+    });
+
+    useChatDisplayStore.setState({ showToolCalls: false });
+    render(<AcpTimeline snapshot={state} />);
+
+    expect(screen.queryByTestId('acp-tool-calls-group')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('acp-tool-call-card')).not.toBeInTheDocument();
+    expect(screen.getByText('Done.')).toBeInTheDocument();
   });
 
   it('expands the tool group to show individual tool cards when clicked', () => {

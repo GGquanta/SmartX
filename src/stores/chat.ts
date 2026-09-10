@@ -486,7 +486,9 @@ function isGatewayStartupError(error: unknown): boolean {
   return message.includes('unavailable during gateway startup')
     || message.includes('unavailable during startup')
     || message.includes('not yet ready')
-    || message.includes('service not initialized');
+    || message.includes('service not initialized')
+    || message.includes('gateway not connected')
+    || message.includes('gateway stopped');
 }
 
 async function delay(ms: number): Promise<void> {
@@ -1017,7 +1019,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
             }
           }
         } catch (error) {
-          console.warn('Failed to load sessions:', error);
+          if (!isGatewayStartupError(error)) {
+            console.warn('Failed to load sessions:', error);
+          }
           if (generation === sessionCatalogGeneration) {
             let reducedSessions = get().sessions;
             const applicableEvents = context.events.filter((event) => !isDeletedAgentSessionEvent(event));
@@ -1099,7 +1103,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
               });
               applySessionBackendLabels(set, get().sessions);
             }
-            needsFollowUp = true;
+            needsFollowUp = !isGatewayStartupError(error);
           }
         } finally {
           if (loadSessionsContext === context) loadSessionsContext = null;
