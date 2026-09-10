@@ -3,27 +3,29 @@ export function Footer() {
 
   return (
     <footer className="border-t border-slate-200/80 bg-white/50 py-12">
-      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-4 text-center sm:flex-row sm:px-6 sm:text-left lg:px-8">
-        <div className="flex items-center gap-2">
-          <img src="./images/logo.png" alt="" className="h-8 w-8 rounded-lg opacity-90" width={32} height={32} />
-          <p className="text-sm text-ink-muted">
-            © {year} 小光 · 智能助理。基于 OpenClaw 构建。
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center justify-center gap-6 text-sm">
-          <a href="#manuals" className="text-ink-muted transition-colors hover:text-brand-blue">
-            使用手册
-          </a>
+      <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 text-center sm:flex-row sm:px-6 sm:text-left lg:px-8">
+        <p className="text-xs font-medium text-ink-faint">
+          © {year} 北京中科国光量子科技有限公司 · 小光 · MIT License
+        </p>
+        <p className="inline-flex items-center gap-2 text-xs font-medium text-ink-faint">
+          <span>设计与开发</span>
+          <span aria-hidden="true">·</span>
           <a
-            href="https://github.com/GGquanta/SmartX"
-            className="text-ink-muted transition-colors hover:text-brand-blue"
+            href="https://ai-squad.qubitlab.cc/"
+            className="inline-flex items-center gap-1.5 text-ink-muted transition-colors hover:text-brand-blue"
             target="_blank"
             rel="noopener noreferrer"
           >
-            GitHub
+            <img
+              src="./images/ai-research-logo.png"
+              alt=""
+              width={20}
+              height={20}
+              className="h-5 w-5 shrink-0 rounded-md object-contain"
+            />
+            <span>AI研究小组</span>
           </a>
-          <span className="text-ink-faint">MIT License</span>
-        </div>
+        </p>
       </div>
     </footer>
   );

@@ -59,8 +59,8 @@ const manuals = [
     title: '小光 · 智能助理用户说明书',
     description: '对话、技能、定时任务、知识库与系统设置的操作指南。',
     topics: ['对话', '技能管理', '定时任务', '系统设置'],
-    preview: './manuals/smartx/assets/01-首页-dell工位.png',
-    previewAlt: '小光主界面：左侧模块与空对话',
+    preview: './images/manual-preview-smartx.jpg',
+    previewAlt: '小光智能助理在笔记本上的使用场景',
     theme: smartxTheme,
   },
   {
@@ -68,8 +68,8 @@ const manuals = [
     title: '量库（企业版）用户说明书',
     description: '文档库、检索中心、知识图谱与智能体问答的完整操作指南。',
     topics: ['文档库', '检索中心', '知识图谱', '智能体'],
-    preview: './manuals/liangku/asset/docs.png',
-    previewAlt: '量库文档库：目录树与资料浏览',
+    preview: './images/manual-preview-liangku.jpg',
+    previewAlt: '量库企业知识库在 MacBook 上的使用场景',
     theme: liangkuTheme,
   },
 ] as const;
@@ -173,7 +173,9 @@ export function Manuals() {
                     <img
                       src={manual.preview}
                       alt={manual.previewAlt}
-                      className="aspect-[16/9] w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.03]"
+                      width={1920}
+                      height={1280}
+                      className="aspect-[16/9] w-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.03]"
                     />
                   </div>
 
