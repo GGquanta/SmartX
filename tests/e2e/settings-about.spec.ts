@@ -14,5 +14,7 @@ test.describe('Settings about section', () => {
     await expect(aboutSection).toContainText('Development codename: SmartX');
     await expect(aboutSection).toContainText('Based on OpenClaw & ClawX');
     await expect(aboutSection).toContainText('Beijing Zhongke Guoguang Quantum Technology Co., Ltd.');
+    await expect(aboutSection.getByRole('button', { name: 'Website' })).toBeVisible();
+    await expect(aboutSection.getByRole('button', { name: 'User Manual' })).toBeVisible();
   });
 });

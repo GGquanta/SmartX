@@ -93,6 +93,7 @@ Four modules cover the workflow from quantum experiments to knowledge retrieval,
 - **macOS**: 11 or later
 - **Windows**: 10 or later (x64 / ARM64)
 - **Linux**: Ubuntu 20.04+ or equivalent
+- **CPU**: 4 cores minimum (8 cores recommended), x64 / ARM64
 - **Memory**: 4 GB minimum (8 GB recommended)
 - **Disk**: about 1 GB free space
 
@@ -103,6 +104,8 @@ Four modules cover the workflow from quantum experiments to knowledge retrieval,
 Download the installer that matches your OS and CPU architecture from the product site:
 
 **[https://smartx.qubitlab.cc](https://smartx.qubitlab.cc)**
+
+The download page also hosts the SmartX desktop user manual and the Liangku (enterprise knowledge base) user manual.
 
 The same builds are also available from [GitHub Releases](https://github.com/GGquanta/SmartX/releases). Contact support if you need help choosing a package.
 

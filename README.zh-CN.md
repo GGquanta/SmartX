@@ -93,6 +93,7 @@
 - **macOS**：11 或更高版本
 - **Windows**：10 或更高版本（x64 / ARM64）
 - **Linux**：Ubuntu 20.04+ 或同等发行版
+- **CPU**：最低 4 核（推荐 8 核），x64 / ARM64
 - **内存**：最低 4 GB（推荐 8 GB）
 - **磁盘**：约 1 GB 可用空间
 
@@ -103,6 +104,8 @@
 前往官网下载页选择与操作系统和处理器架构匹配的安装包：
 
 **[https://smartx.qubitlab.cc](https://smartx.qubitlab.cc)**
+
+下载页同时提供《小光 · 智能助理用户说明书》与《量库（企业版）用户说明书》。
 
 也可从 [GitHub Releases](https://github.com/GGquanta/SmartX/releases) 获取相同版本。如有疑问，可联系技术支持。
 

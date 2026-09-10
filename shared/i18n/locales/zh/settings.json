@@ -340,10 +340,11 @@
     "appName": "小光",
     "tagline": "图形化智能办公助理",
     "codename": "开发代号：SmartX",
-    "basedOn": "基于 OpenClaw & SmartX",
+    "basedOn": "基于 OpenClaw & ClawX",
     "developer": "开发者：北京中科国光量子科技有限公司 · AI研究小组",
     "version": "版本 {{version}}",
-    "docs": "官网",
+    "docs": "官方网站",
+    "manual": "使用手册",
     "github": "GitHub",
     "faq": "常见问题"
   }

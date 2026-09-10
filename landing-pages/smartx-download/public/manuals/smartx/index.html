@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="小光 · 智能助理用户说明书" />
+  <title>小光 · 智能助理用户说明书</title>
+  <style>
+    :root {
+      --paper-0: #e6eaef;
+      --paper-1: #eef2f6;
+      --paper-2: #f6f8fb;
+      --paper-3: #fcfdff;
+      --ink: #121826;
+      --ink-soft: #3d4a5c;
+      --muted: #6d7b8c;
+      --line: #d4dce6;
+      --line-strong: #c0cbd8;
+      --accent: #2a7aa8;
+      --accent-deep: #1a5578;
+      --accent-glow: #4ec4e8;
+      --accent-soft: #d7ecf5;
+      --accent-wash: rgba(42, 122, 168, 0.08);
+      --shadow: 0 26px 70px -48px rgba(18, 24, 38, 0.48);
+      --sans: "PingFang SC", "PingFang TC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+      --mono: "SFMono-Regular", "Cascadia Code", ui-monospace, monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      background: var(--paper-0);
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink-soft);
+      background:
+        radial-gradient(circle at 82% -10rem, rgba(78, 196, 232, 0.14), transparent 32rem),
+        radial-gradient(circle at 8% 120%, rgba(42, 122, 168, 0.08), transparent 28rem),
+        var(--paper-0);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.78;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    ::selection {
+      color: var(--ink);
+      background: color-mix(in srgb, var(--accent) 22%, var(--paper-2));
+    }
+
+    a {
+      color: var(--accent-deep);
+      text-decoration-color: color-mix(in srgb, var(--accent) 34%, transparent);
+      text-underline-offset: 0.2em;
+    }
+
+    a:hover { text-decoration-color: var(--accent); }
+
+    .reading-progress {
+      position: fixed;
+      inset: 0 0 auto;
+      z-index: 100;
+      width: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent-deep), var(--accent-glow));
+      transition: width 90ms linear;
+    }
+
+    .hero {
+      position: relative;
+      padding: 40px 28px 32px;
+      border-bottom: 1px solid var(--line);
+      color: var(--ink);
+      background: color-mix(in srgb, var(--paper-2) 88%, transparent);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      overflow: hidden;
+    }
+
+    .hero::after {
+      position: absolute;
+      top: -11rem;
+      left: 50%;
+      width: 38rem;
+      height: 24rem;
+      border: 1px solid color-mix(in srgb, var(--accent-glow) 22%, transparent);
+      border-radius: 50%;
+      content: "";
+      pointer-events: none;
+      transform: translateX(-50%);
+    }
+
+    .hero-inner {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+
+    .hero-logo {
+      flex: 0 0 auto;
+      width: 104px;
+      height: 104px;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 10px 28px -22px rgba(18, 24, 38, 0.45);
+      overflow: hidden;
+    }
+
+    .hero-logo img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+    }
+
+    .hero h1 {
+      max-width: 16em;
+      margin: 0 0 8px;
+      font-size: clamp(28px, 4vw, 42px);
+      font-weight: 620;
+      line-height: 1.15;
+      letter-spacing: -0.045em;
+      text-wrap: balance;
+    }
+
+    .hero .sub {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      letter-spacing: 0.02em;
+    }
+
+    .shell {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 32px 20px 72px;
+      display: grid;
+      grid-template-columns: 242px minmax(0, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    #TOC {
+      position: sticky;
+      top: 18px;
+      max-height: calc(100vh - 36px);
+      padding: 16px 10px 18px;
+      border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
+      border-radius: 14px;
+      background: color-mix(in srgb, var(--paper-1) 88%, transparent);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      overflow: auto;
+    }
+
+    #TOC h2 {
+      margin: 0 8px 10px;
+      border: 0;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+    }
+
+    #TOC ul {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    #TOC > ul > li { margin: 0 0 2px; }
+
+    #TOC a {
+      display: block;
+      padding: 6px 8px;
+      border-radius: 7px;
+      color: var(--ink-soft);
+      font-size: 13px;
+      line-height: 1.45;
+      text-decoration: none;
+      transition: color 140ms ease, background 140ms ease;
+    }
+
+    #TOC a:hover,
+    #TOC a.is-active {
+      color: var(--accent-deep);
+      background: var(--accent-wash);
+      text-decoration: none;
+    }
+
+    main {
+      position: relative;
+      min-width: 0;
+      padding: clamp(34px, 5vw, 58px) clamp(24px, 6vw, 68px) 64px;
+      border: 1px solid color-mix(in srgb, var(--line) 90%, transparent);
+      border-radius: 18px;
+      background:
+        linear-gradient(90deg, transparent 34px, rgba(42, 122, 168, 0.028) 34px, transparent 35px),
+        var(--paper-2);
+      box-shadow: var(--shadow);
+    }
+
+    main h2,
+    main h3 {
+      color: var(--ink);
+      line-height: 1.35;
+      scroll-margin-top: 28px;
+      text-wrap: balance;
+    }
+
+    main h2 {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      margin: 3.5em 0 0.8em;
+      padding-top: 0.8em;
+      padding-bottom: 0.45em;
+      border-bottom: 1px solid var(--line);
+      font-size: clamp(23px, 3vw, 29px);
+      font-weight: 620;
+      letter-spacing: -0.035em;
+    }
+
+    main h2::before {
+      width: 6px;
+      height: 6px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-glow) 22%, transparent);
+      content: "";
+    }
+
+    main h2:first-of-type { margin-top: 0.4em; }
+
+    main p { margin: 0.9em 0; }
+
+    .meta {
+      margin: 0 0 1.6em;
+      padding: 18px 20px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      color: var(--ink-soft);
+      background: var(--paper-1);
+      font-size: 14px;
+    }
+
+    .meta p { margin: 0.18em 0; }
+
+    main strong {
+      color: var(--ink);
+      font-weight: 650;
+    }
+
+    main ul,
+    main ol { padding-left: 1.35em; }
+
+    main li {
+      margin: 0.38em 0;
+      padding-left: 0.16em;
+    }
+
+    main li::marker {
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 0.8em;
+    }
+
+    main table {
+      width: 100%;
+      margin: 1.4em 0 1.9em;
+      border: 1px solid var(--line);
+      border-collapse: separate;
+      border-radius: 11px;
+      border-spacing: 0;
+      background: var(--paper-3);
+      font-size: 14px;
+      line-height: 1.55;
+      overflow: hidden;
+    }
+
+    main th,
+    main td {
+      padding: 10px 12px;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    main th {
+      color: var(--ink);
+      background: var(--paper-1);
+      font-size: 12px;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+    }
+
+    main tr:last-child td { border-bottom: 0; }
+
+    main tr:nth-child(even) td {
+      background: color-mix(in srgb, var(--paper-1) 45%, transparent);
+    }
+
+    figure {
+      margin: 1.6em 0 2em;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--paper-3);
+      box-shadow: 0 18px 42px -36px rgba(18, 24, 38, 0.55);
+    }
+
+    figure img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #0b1016;
+    }
+
+    figcaption {
+      margin-top: 9px;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .faq {
+      margin: 1.2em 0;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: var(--paper-3);
+    }
+
+    .faq p { margin: 0.35em 0; }
+
+    .faq p:first-child { margin-top: 0; }
+    .faq p:last-child { margin-bottom: 0; }
+
+    footer.note {
+      max-width: 1120px;
+      margin: 0 auto 44px;
+      padding: 0 20px;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: right;
+    }
+
+    footer.note code {
+      font-family: var(--mono);
+      font-size: 0.92em;
+    }
+
+    @media (max-width: 920px) {
+      .hero { padding: 28px 20px 24px; }
+      .hero-inner { gap: 16px; }
+      .hero-logo { width: 80px; height: 80px; }
+      .shell {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        padding: 18px 14px 54px;
+      }
+      #TOC {
+        position: relative;
+        top: 0;
+        max-height: none;
+      }
+      #TOC > ul {
+        columns: 2;
+        column-gap: 14px;
+      }
+      #TOC > ul > li { break-inside: avoid; }
+      main {
+        padding: 30px clamp(18px, 5vw, 40px) 46px;
+        background: var(--paper-2);
+      }
+    }
+
+    @media (max-width: 560px) {
+      .hero-inner { flex-direction: column; align-items: flex-start; }
+      .hero h1 { font-size: 28px; }
+      #TOC > ul { columns: 1; }
+      main {
+        margin: 0 -14px;
+        border-right: 0;
+        border-left: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      main table {
+        display: block;
+        overflow-x: auto;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    @media print {
+      @page { margin: 18mm 16mm; size: A4; }
+      body { background: #fff; }
+      .reading-progress, #TOC, footer.note { display: none; }
+      .hero { padding: 0 0 12mm; border: 0; background: #fff; }
+      .hero::after { display: none; }
+      .shell { display: block; padding: 0; }
+      main { padding: 0; border: 0; background: #fff; box-shadow: none; }
+      main h2, figure, table, .faq { break-inside: avoid; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="reading-progress" aria-hidden="true"></div>
+  <header class="hero">
+    <div class="hero-inner">
+      <div class="hero-logo">
+        <img src="./assets/小光-logo.png" alt="小光 · 智能助理 Logo" />
+      </div>
+      <div>
+        <h1>小光 · 智能助理用户说明书</h1>
+        <p class="sub">小光 · 智能办公助理 · SmartX 桌面客户端</p>
+      </div>
+    </div>
+  </header>
+  <div class="shell">
+    <nav id="TOC" role="doc-toc" aria-labelledby="toc-title">
+      <h2 id="toc-title">目录</h2>
+      <ul>
+        <li><a href="#1-产品能做什么">1. 产品能做什么</a></li>
+        <li><a href="#2-打开之后先看哪里">2. 打开之后先看哪里</a></li>
+        <li><a href="#3-模型参数">3. 模型参数</a></li>
+        <li><a href="#4-对话">4. 对话</a></li>
+        <li><a href="#5-技能管理">5. 技能管理</a></li>
+        <li><a href="#6-定时任务">6. 定时任务</a></li>
+        <li><a href="#7-企业知识库">7. 企业知识库</a></li>
+        <li><a href="#8-科研工具">8. 科研工具</a></li>
+        <li><a href="#9-频道配置">9. 频道配置</a></li>
+        <li><a href="#10-系统设置">10. 系统设置</a></li>
+        <li><a href="#11-常见问题">11. 常见问题</a></li>
+      </ul>
+    </nav>
+    <main>
+      <div class="meta">
+        <p><strong>产品名称：</strong> 小光 · 智能助理（SmartX 桌面客户端）</p>
+        <p><strong>适用对象：</strong> 已安装客户端的企业内部用户</p>
+        <p><strong>说明：</strong> 本文按实际界面编写，帮助您完成对话、用技能、设定时任务、进企业知识库、连科研平台等日常操作。</p>
+      </div>
+
+      <h2 id="1-产品能做什么">1. 产品能做什么</h2>
+      <p>小光是装在电脑上的智能助理：左侧选模块，中间对话或配置。日常可以：</p>
+      <table>
+        <thead>
+          <tr>
+            <th>您想做的事</th>
+            <th>去哪个模块</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>提问、写材料、看思考与工具过程</td><td><strong>新对话</strong> / 会话列表</td></tr>
+          <tr><td>换模型、加提供商、看 Token 用量</td><td><strong>模型参数</strong></td></tr>
+          <tr><td>多个助理分工、指定对话对象</td><td><strong>智能体</strong></td></tr>
+          <tr><td>接到企业微信、飞书、钉钉等</td><td><strong>频道配置</strong></td></tr>
+          <tr><td>浏览、开关、安装技能</td><td><strong>技能管理</strong></td></tr>
+          <tr><td>每天/每周自动跑一段提示词</td><td><strong>定时任务</strong></td></tr>
+          <tr><td>打开量子计算实验平台</td><td><strong>科研工具</strong></td></tr>
+          <tr><td>查公司文档、绑定量库</td><td><strong>企业知识库</strong></td></tr>
+          <tr><td>主题、语言、开机启动、桌面气泡</td><td><strong>系统设置</strong></td></tr>
+        </tbody>
+      </table>
+      <p>底栏出现 <strong>网关已连接</strong> 后，对话、技能运行时状态、定时任务和频道才能稳定使用。未连接时，相关页面会提示网关未运行。</p>
+
+      <h2 id="2-打开之后先看哪里">2. 打开之后先看哪里</h2>
+      <p>首次启动会进入向导：欢迎 → 环境检查 → 配置 AI 提供商 →（可选）连接消息渠道 → 安装组件。完成后进入主界面。</p>
+      <p>日常打开后，窗口分为左侧栏和右侧工作区。</p>
+      <figure>
+        <img src="./assets/01-首页-dell工位.png" alt="主界面：左侧模块，中间空对话「我能为你做些什么？」" />
+        <figcaption>图　主界面。侧栏从上到下是功能入口，中间是当前对话；输入框左侧可附加文件、选用技能。底栏显示当前工作空间和网关状态。</figcaption>
+      </figure>
+      <p>常见入口：</p>
+      <ul>
+        <li><strong>+ 新对话</strong>：新开一轮，不沿用上一场上下文。</li>
+        <li><strong>会话列表</strong>：按工作空间列出最近对话，可点选继续、重命名或删除。</li>
+        <li><strong>系统设置</strong>：在侧栏最底部，不在上面那一组功能里。</li>
+      </ul>
+      <p>顶栏右侧显示 <strong>当前对话对象</strong>（例如 Main Agent）。思考过程、工具调用过程可用顶栏图标开关。</p>
+
+      <h2 id="3-模型参数">3. 模型参数</h2>
+      <p>管理 AI 提供商，并查看 Token 用量。至少要有一个 <strong>已配置</strong> 的默认提供商，对话才能调用模型。</p>
+      <figure>
+        <img src="./assets/07-模型-深色工位.png" alt="模型参数：默认提供商与近期 Token 消耗" />
+        <figcaption>图　模型。已配置的提供商会显示密钥状态、当前模型和「已配置」。下方可按模型或时间看近期用量。</figcaption>
+      </figure>
+      <p>添加提供商：</p>
+      <ol>
+        <li>点 <strong>+ 添加提供商</strong>。</li>
+        <li>在列表中选择一家（如 OpenRouter、DeepSeek、阿里云百炼、Ollama 等）。</li>
+      </ol>
+      <figure>
+        <img src="./assets/供应商选择.png" alt="添加 AI 提供商：选择服务商" />
+        <figcaption>图　添加 AI 提供商。</figcaption>
+      </figure>
+      <ol start="3">
+        <li>按提示填写 API 密钥、模型 ID（及可选的基础 URL）。密钥保存在本机。</li>
+        <li>保存后回到列表，把常用的那一家设为默认。</li>
+      </ol>
+      <p>用量区可切换 7 天 / 30 天 / 全部。费用数字来自提供商回传，仅供核对。</p>
+
+      <h2 id="4-对话">4. 对话</h2>
+      <ol>
+        <li>点 <strong>+ 新对话</strong>，或在会话列表里打开已有一场。</li>
+        <li>在底部输入框提问。可点回形针附加文件，点 <strong>技能</strong> 下拉指定本次要用的技能。</li>
+        <li>发送后，回答会出现在中间。若开启了工具过程，会看到检索、调用企业知识库等步骤（成功或失败都会留下记录）。</li>
+        <li>需要换助理时，以顶栏 <strong>当前对话对象</strong> 为准；也可先到 <strong>智能体</strong> 里新建或调整后再回来问。</li>
+      </ol>
+      <figure>
+        <img src="./assets/02-问答-macbook.png" alt="对话示例：询问大坝形变监测方案，并展示检索与回答" />
+        <figcaption>图　对话。用户问「大坝的形变监测方案有哪些」。助理会先查记忆或企业知识库，再给出分条说明。过程可展开查看。</figcaption>
+      </figure>
+      <p>说明：</p>
+      <ul>
+        <li>空对话时，中间会显示「我能为你做些什么？」，可直接输入，不必先点快捷项。</li>
+        <li>长回复可点 <strong>回到底部</strong> 跟上最新内容。</li>
+        <li>生成的文件会出现在回复里，可用系统应用打开，或在访达 / 资源管理器中显示。</li>
+      </ul>
+
+      <h2 id="5-技能管理">5. 技能管理</h2>
+      <p>技能是可开关的能力包（写作润色、会议纪要、周报等）。未启用的技能，对话里即使提到也用不上。</p>
+      <ol>
+        <li>侧栏进入 <strong>技能管理</strong>。</li>
+        <li>用 <strong>搜索技能</strong> 过滤；用 <strong>已开启 / 已禁用</strong> 查看状态。</li>
+        <li>每条右侧开关控制启用或停用。点开条目可看说明、版本，必要时填写该技能自己的密钥。</li>
+        <li>需要改技能文件时，点右上角 <strong>打开技能文件夹</strong>。</li>
+      </ol>
+      <figure>
+        <img src="./assets/03-技能-imac.png" alt="技能管理：搜索、开关与已安装列表" />
+        <figcaption>图　技能。标题为「浏览和管理 AI 能力」。列表给出名称、简介、来源和开关。对话输入框的技能下拉只会出现当前已启用的项。</figcaption>
+      </figure>
+      <p>网关未运行时，仍可浏览本地技能，但运行时状态可能不完整。装好或打开开关后，回到对话再发一次请求。</p>
+
+      <h2 id="6-定时任务">6. 定时任务</h2>
+      <p>用来在指定时刻自动跑一段提示词，结果可留在小光内，或投递到已配置的消息频道。</p>
+      <figure>
+        <img src="./assets/08-定时任务-木桌.png" alt="定时任务列表：统计卡片与空状态" />
+        <figcaption>图　定时任务。上方为任务总数、运行中、已暂停、失败。尚未创建时，点「+ 创建第一个任务」或右上角「+ 新建任务」。</figcaption>
+      </figure>
+      <p>新建时填写：</p>
+      <figure>
+        <img src="./assets/任务创建.png" alt="创建任务：名称、提示词、智能体、周期与时间" />
+        <figcaption>图　创建任务。</figcaption>
+      </figure>
+      <ol>
+        <li><strong>任务名称</strong>，例如「早间简报」。</li>
+        <li><strong>消息/提示词</strong>：写清楚 AI 该做什么；可用 <strong>技能</strong> 插入快捷技能。</li>
+        <li><strong>智能体</strong>：选择由哪个助理执行（默认 Main Agent）。</li>
+        <li><strong>调度计划</strong>：<strong>周期</strong>（每小时 / 每天 / 工作日 / 每周 / 自定义）或 <strong>单次</strong>；再设 <strong>时间</strong>。</li>
+        <li><strong>投递设置</strong>：仅在小光内保留，或发送到外部通道（需先在 <strong>频道配置</strong> 里接好账号）。</li>
+      </ol>
+      <p>保存后可 <strong>立即运行</strong>、暂停或删除。网关未运行时无法管理定时任务。</p>
+
+      <h2 id="7-企业知识库">7. 企业知识库</h2>
+      <p>用来在小光里打开量库（企业知识库管理系统）：看工作台、检索公司文档。绑定之后，对话也可以按公司资料作答。</p>
+      <ol>
+        <li>侧栏点 <strong>企业知识库</strong>。</li>
+        <li>右侧内嵌量库。未登录时先用企业邮箱登录（新账号通常要管理员审批）。</li>
+        <li>在量库工作台点 <strong>将知识库绑定到智能办公助理</strong>。该按钮只在小光内嵌页面出现，用普通浏览器打开量库没有。</li>
+        <li>绑定成功后，回到 <strong>对话</strong> 提问即可引用库内资料。改密码后需要重新绑定。</li>
+      </ol>
+      <figure>
+        <img src="./assets/04-知识库-双屏.png" alt="企业知识库：内嵌量库工作台与资料概览" />
+        <figcaption>图　企业知识库。内嵌「量库 · 企业知识库管理系统」工作台，可看资料条目、近七日检索等。上传、密级、图谱等细操作见量库说明书；在小光里只要会进、会绑、会在对话里问。</figcaption>
+      </figure>
+      <p>列表、检索和问答都受量库密级约束，看不到高于本人上限的内容。</p>
+
+      <h2 id="8-科研工具">8. 科研工具</h2>
+      <p>文献检索、实验与数据分析会陆续接到本页。当前可用入口是量子计算实验平台。</p>
+      <ol>
+        <li>侧栏进入 <strong>科研工具</strong>。</li>
+        <li>点卡片上的 <strong>登陆量子计算实验平台</strong>。</li>
+        <li>在打开的 Quafu 页面登录 SQCLab，再按卡片选择在线的量子处理器。</li>
+      </ol>
+      <figure>
+        <img src="./assets/05-科研入口-macbook.png" alt="科研工具入口：登陆量子计算实验平台" />
+        <figcaption>图　科研工具。深色卡片中间为登录按钮。</figcaption>
+      </figure>
+      <figure>
+        <img src="./assets/量子web.png" alt="量子计算实验平台：QPU 卡片与在线状态" />
+        <figcaption>图　量子计算实验平台。登录后可查看各机器比特数、耦合器和校准状态（在线 / 校准中）。任务提交与结果回收以平台页面为准。</figcaption>
+      </figure>
+
+      <h2 id="9-频道配置">9. 频道配置</h2>
+      <p>把小光接到常用即时通讯，便于在群里问、也便于定时任务往外投递。</p>
+      <figure>
+        <img src="./assets/06-频道-会议室笔记本.png" alt="消息频道：支持的平台列表" />
+        <figcaption>图　消息频道。统一管理频道、账号、账号与智能体的绑定，以及频道默认账号。</figcaption>
+      </figure>
+      <p>当前支持（部分标为「插件」）：</p>
+      <table>
+        <thead>
+          <tr>
+            <th>频道</th>
+            <th>连接方式（摘要）</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Telegram</td><td>BotFather 提供的 Bot Token</td></tr>
+          <tr><td>Discord</td><td>开发者门户的 Bot Token</td></tr>
+          <tr><td>WhatsApp</td><td>扫码（不必填手机号）</td></tr>
+          <tr><td>微信</td><td>腾讯官方插件，扫码连接个人微信</td></tr>
+          <tr><td>钉钉</td><td>OpenClaw 频道插件（Stream 模式）</td></tr>
+          <tr><td>飞书 / Lark</td><td>官方插件连接机器人</td></tr>
+          <tr><td>企业微信</td><td>插件连接企微机器人</td></tr>
+          <tr><td>QQ Bot</td><td>内置频道（视 OpenClaw 版本）</td></tr>
+        </tbody>
+      </table>
+      <p>点某个频道进入配置。账号可 <strong>绑定 Agent</strong>、设为频道默认账号。绑定关系以本页为准；<strong>智能体</strong> 页里的频道列表只读。</p>
+      <p>网关未运行时无法管理频道。改完配置若状态未刷新，点右上角 <strong>刷新</strong>，必要时按提示重启网关。</p>
+
+      <h2 id="10-系统设置">10. 系统设置</h2>
+      <p>侧栏底部进入 <strong>系统设置</strong>（页面标题为「设置」，副标题为「配置您的 SmartX 体验」）。</p>
+      <figure>
+        <img src="./assets/settings.png" alt="系统设置：主题、语言、开机启动与桌面气泡" />
+        <figcaption>图　设置 · 通用。</figcaption>
+      </figure>
+      <table>
+        <thead>
+          <tr>
+            <th>项</th>
+            <th>说明</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>主题</strong></td><td>浅色 / 深色 / 跟随系统</td></tr>
+          <tr><td><strong>语言</strong></td><td>中文、English、日本語、Русский</td></tr>
+          <tr><td><strong>开机自动启动</strong></td><td>登录系统后自动打开小光</td></tr>
+          <tr><td><strong>桌面悬浮气泡</strong></td><td>始终显示 / 最小化时显示 / 不显示</td></tr>
+        </tbody>
+      </table>
+      <p>再往下是 <strong>网关</strong> 等分组，用于查看或启动网关。聊天、定时任务、频道都依赖网关处于运行状态。右上角 <strong>功能反馈</strong> 用于提交意见，不影响当前配置。</p>
+
+      <h2 id="11-常见问题">11. 常见问题</h2>
+      <div class="faq">
+        <p><strong>Q：对话发不出去，或提示网关未运行？</strong></p>
+        <p>A：看窗口底栏是否为 <strong>网关已连接</strong>。到 <strong>系统设置</strong> 里启动网关，等状态变绿后再试。首次安装请走完向导里的环境检查。</p>
+      </div>
+      <div class="faq">
+        <p><strong>Q：问公司内部的事，回答对不上或没有出处？</strong></p>
+        <p>A：先在 <strong>企业知识库</strong> 登录量库，并点 <strong>将知识库绑定到智能办公助理</strong>。未绑定、未审批、或资料还在处理中，对话都调不到。密级不够的文件也不会出现。</p>
+      </div>
+      <div class="faq">
+        <p><strong>Q：技能列表里有，对话却没用上？</strong></p>
+        <p>A：确认开关为开启，并在输入框 <strong>技能</strong> 里选中（或提示词写明要用哪一个）。改开关后重新发一条。</p>
+      </div>
+      <div class="faq">
+        <p><strong>Q：定时任务到点没有结果？</strong></p>
+        <p>A：确认网关在运行、任务未暂停。若要发到企业微信/飞书，须在 <strong>频道配置</strong> 接好账号，并在任务的投递设置里选外部通道，而不是「仅在小光内」。</p>
+      </div>
+      <div class="faq">
+        <p><strong>Q：频道保存了但还是连不上？</strong></p>
+        <p>A：Token / 扫码是否过期；插件类频道是否已按说明安装。保存后刷新页面，必要时重启网关。</p>
+      </div>
+      <div class="faq">
+        <p><strong>Q：换了模型或提示密钥无效？</strong></p>
+        <p>A：到 <strong>模型参数</strong> 检查默认提供商是否仍为「已配置」，密钥是否更新。本机保存的密钥不会显示在对话里。</p>
+      </div>
+      <div class="faq">
+        <p><strong>Q：量库里的上传、图谱、密级怎么用？</strong></p>
+        <p>A：以《量库（企业版）用户说明书》为准。小光只负责打开内嵌页面并完成绑定。</p>
+      </div>
+    </main>
+  </div>
+  <footer class="note">打开本文件时请保持 <code>assets</code> 文件夹与 HTML 在同一目录。可用浏览器「打印」导出 PDF。</footer>
+  <script>
+    (function () {
+      const links = Array.from(document.querySelectorAll("#TOC a"));
+      const heads = links
+        .map((a) => document.getElementById(decodeURIComponent((a.getAttribute("href") || "").slice(1))))
+        .filter(Boolean);
+      const progress = document.querySelector(".reading-progress");
+      function sync() {
+        let current = heads[0];
+        for (const h of heads) {
+          if (h.getBoundingClientRect().top <= 88) current = h;
+        }
+        links.forEach((a) => {
+          const id = decodeURIComponent((a.getAttribute("href") || "").slice(1));
+          a.classList.toggle("is-active", current && current.id === id);
+        });
+        const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+        const ratio = scrollable > 0 ? window.scrollY / scrollable : 0;
+        progress.style.width = Math.min(100, Math.max(0, ratio * 100)) + "%";
+      }
+      document.addEventListener("scroll", sync, { passive: true });
+      sync();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="zh-CN" xml:lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="量库（企业版）用户说明书" />
+  <title>量库（企业版）用户说明书</title>
+  <style>
+    :root {
+      --paper-0: #e9eae6;
+      --paper-1: #f0f1ed;
+      --paper-2: #f7f7f3;
+      --paper-3: #fcfcf8;
+      --ink: #182124;
+      --ink-soft: #465256;
+      --muted: #788285;
+      --line: #d6dad6;
+      --line-strong: #c4cbc7;
+      --accent: #2b6175;
+      --accent-deep: #204b5b;
+      --accent-soft: #dce9eb;
+      --accent-wash: rgba(43, 97, 117, 0.07);
+      --shadow: 0 26px 70px -48px rgba(24, 33, 36, 0.42);
+      --sans: "PingFang SC", "PingFang TC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+      --mono: "SFMono-Regular", "Cascadia Code", ui-monospace, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      background: var(--paper-0);
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink-soft);
+      background:
+        radial-gradient(circle at 78% -12rem, rgba(43, 97, 117, 0.08), transparent 34rem),
+        var(--paper-0);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.78;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    ::selection {
+      color: var(--ink);
+      background: color-mix(in srgb, var(--accent) 20%, var(--paper-2));
+    }
+
+    a {
+      color: var(--accent-deep);
+      text-decoration-color: color-mix(in srgb, var(--accent) 34%, transparent);
+      text-underline-offset: 0.2em;
+    }
+
+    a:hover {
+      text-decoration-color: var(--accent);
+    }
+
+    .reading-progress {
+      position: fixed;
+      inset: 0 0 auto;
+      z-index: 100;
+      width: 0;
+      height: 2px;
+      background: var(--accent);
+      transition: width 90ms linear;
+    }
+
+    .hero {
+      position: relative;
+      padding: 44px 28px 34px;
+      border-bottom: 1px solid var(--line);
+      color: var(--ink);
+      background: color-mix(in srgb, var(--paper-2) 88%, transparent);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      overflow: hidden;
+    }
+
+    .hero::after {
+      position: absolute;
+      top: -11rem;
+      left: 50%;
+      width: 38rem;
+      height: 24rem;
+      border: 1px solid color-mix(in srgb, var(--accent) 10%, transparent);
+      border-radius: 50%;
+      content: "";
+      pointer-events: none;
+      transform: translateX(-50%);
+    }
+
+    .hero-inner {
+      position: relative;
+      z-index: 1;
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+
+    .hero h1 {
+      max-width: 16em;
+      margin: 0 0 10px;
+      font-size: clamp(30px, 4vw, 46px);
+      font-weight: 620;
+      line-height: 1.15;
+      letter-spacing: -0.045em;
+      text-wrap: balance;
+    }
+
+    .hero .sub {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      letter-spacing: 0.02em;
+    }
+
+    .shell {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 32px 20px 72px;
+      display: grid;
+      grid-template-columns: 242px minmax(0, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    #TOC {
+      position: sticky;
+      top: 18px;
+      max-height: calc(100vh - 36px);
+      padding: 16px 10px 18px;
+      border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
+      border-radius: 14px;
+      background: color-mix(in srgb, var(--paper-1) 88%, transparent);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      overflow: auto;
+    }
+
+    #TOC h2 {
+      margin: 0 8px 10px;
+      border: 0;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+    }
+
+    #TOC ul {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    #TOC > ul > li {
+      margin: 0 0 2px;
+    }
+
+    #TOC a {
+      display: block;
+      padding: 6px 8px;
+      border-radius: 7px;
+      color: var(--ink-soft);
+      font-size: 13px;
+      line-height: 1.45;
+      text-decoration: none;
+      transition:
+        color 140ms ease,
+        background 140ms ease;
+    }
+
+    #TOC a:hover,
+    #TOC a.is-active {
+      color: var(--accent-deep);
+      background: var(--accent-wash);
+      text-decoration: none;
+    }
+
+    #TOC ul ul {
+      margin: 2px 0 8px 12px;
+      padding-left: 7px;
+      border-left: 1px solid var(--line);
+    }
+
+    #TOC ul ul a {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    main {
+      position: relative;
+      min-width: 0;
+      padding: clamp(34px, 5vw, 58px) clamp(24px, 6vw, 68px) 64px;
+      border: 1px solid color-mix(in srgb, var(--line) 90%, transparent);
+      border-radius: 18px;
+      background:
+        linear-gradient(90deg, transparent 34px, rgba(43, 97, 117, 0.026) 34px, transparent 35px),
+        var(--paper-2);
+      box-shadow: var(--shadow);
+    }
+
+    main h1,
+    main h2,
+    main h3,
+    main h4 {
+      color: var(--ink);
+      line-height: 1.35;
+      scroll-margin-top: 28px;
+      text-wrap: balance;
+    }
+
+    main h2 {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      margin: 3.5em 0 0.8em;
+      padding-top: 0.8em;
+      padding-bottom: 0.45em;
+      border-bottom: 1px solid var(--line);
+      font-size: clamp(23px, 3vw, 29px);
+      font-weight: 620;
+      letter-spacing: -0.035em;
+    }
+
+    main h2::before {
+      width: 6px;
+      height: 6px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: var(--accent);
+      content: "";
+    }
+
+    main h2:first-of-type {
+      margin-top: 2.1em;
+    }
+
+    main h3 {
+      margin: 2.2em 0 0.65em;
+      font-size: 18px;
+      font-weight: 650;
+      letter-spacing: -0.015em;
+    }
+
+    main p {
+      margin: 0.9em 0;
+    }
+
+    main > p:first-child {
+      margin-top: 0;
+      padding: 18px 20px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      color: var(--ink-soft);
+      background: var(--paper-1);
+      font-size: 14px;
+    }
+
+    main strong {
+      color: var(--ink);
+      font-weight: 650;
+    }
+
+    main hr {
+      height: 1px;
+      margin: 2.8em 0;
+      border: 0;
+      background: var(--line);
+    }
+
+    main ul,
+    main ol {
+      padding-left: 1.35em;
+    }
+
+    main li {
+      margin: 0.38em 0;
+      padding-left: 0.16em;
+    }
+
+    main li::marker {
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 0.8em;
+    }
+
+    main code {
+      padding: 0.12em 0.38em;
+      border: 1px solid color-mix(in srgb, var(--line) 86%, transparent);
+      border-radius: 5px;
+      color: var(--accent-deep);
+      background: var(--paper-1);
+      font-family: var(--mono);
+      font-size: 0.86em;
+    }
+
+    main table {
+      width: 100%;
+      margin: 1.4em 0 1.9em;
+      border: 1px solid var(--line);
+      border-collapse: separate;
+      border-radius: 11px;
+      border-spacing: 0;
+      background: var(--paper-3);
+      font-size: 14px;
+      line-height: 1.55;
+      overflow: hidden;
+    }
+
+    main th,
+    main td {
+      padding: 10px 12px;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    main th {
+      color: var(--ink);
+      background: var(--paper-1);
+      font-size: 12px;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+    }
+
+    main tr:last-child td {
+      border-bottom: 0;
+    }
+
+    main tr:nth-child(even) td {
+      background: color-mix(in srgb, var(--paper-1) 45%, transparent);
+    }
+
+    figure {
+      margin: 1.6em 0 2em;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--paper-3);
+      box-shadow: 0 18px 42px -36px rgba(24, 33, 36, 0.55);
+    }
+
+    figure img,
+    main img {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper-3);
+    }
+
+    figcaption {
+      margin-top: 9px;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    footer.note {
+      max-width: 1120px;
+      margin: 0 auto 44px;
+      padding: 0 20px;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: right;
+    }
+
+    @media (max-width: 920px) {
+      .hero {
+        padding: 34px 20px 28px;
+      }
+
+      .shell {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        padding: 18px 14px 54px;
+      }
+
+      #TOC {
+        position: relative;
+        top: 0;
+        max-height: none;
+      }
+
+      #TOC > ul {
+        columns: 2;
+        column-gap: 14px;
+      }
+
+      #TOC > ul > li {
+        break-inside: avoid;
+      }
+
+      main {
+        padding: 30px clamp(18px, 5vw, 40px) 46px;
+        background: var(--paper-2);
+      }
+    }
+
+    @media (max-width: 560px) {
+      .hero h1 {
+        font-size: 30px;
+      }
+
+      #TOC > ul {
+        columns: 1;
+      }
+
+      main {
+        margin: 0 -14px;
+        border-right: 0;
+        border-left: 0;
+        border-radius: 0;
+        box-shadow: none;
+      }
+
+      main table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    @media print {
+      @page {
+        margin: 18mm 16mm;
+        size: A4;
+      }
+
+      body {
+        background: #fff;
+      }
+
+      .reading-progress,
+      #TOC,
+      footer.note {
+        display: none;
+      }
+
+      .hero {
+        padding: 0 0 18mm;
+        border: 0;
+        background: #fff;
+      }
+
+      .hero::after {
+        display: none;
+      }
+
+      .shell {
+        display: block;
+        padding: 0;
+      }
+
+      main {
+        padding: 0;
+        border: 0;
+        background: #fff;
+        box-shadow: none;
+      }
+
+      main h2,
+      main h3,
+      figure,
+      table {
+        break-inside: avoid;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="reading-progress" aria-hidden="true"></div>
+  <header class="hero">
+    <div class="hero-inner">
+      <h1>量库（企业版）用户说明书</h1>
+      <p class="sub">量库 · 企业知识库管理系统</p>
+    </div>
+  </header>
+  <div class="shell">
+    <nav id="TOC" role="doc-toc">
+      <h2 id="toc-title">目录</h2>
+      <ul>
+      <li><a href="#1-产品能做什么" id="toc-1-产品能做什么">1.
+      产品能做什么</a></li>
+      <li><a href="#2-登录与注册" id="toc-2-登录与注册">2.
+      登录与注册</a></li>
+      <li><a href="#3-顶栏与模块一览" id="toc-3-顶栏与模块一览">3.
+      顶栏与模块一览</a></li>
+      <li><a href="#4-保密等级" id="toc-4-保密等级">4. 保密等级</a></li>
+      <li><a href="#5-文档库" id="toc-5-文档库">5. 文档库</a>
+      <ul>
+      <li><a href="#51-左侧快捷上传与目录树"
+      id="toc-51-左侧快捷上传与目录树">5.1
+      左侧：快捷上传与目录树</a></li>
+      <li><a href="#52-右侧浏览与整理" id="toc-52-右侧浏览与整理">5.2
+      右侧：浏览与整理</a></li>
+      <li><a href="#53-上传文件与-pdf-导入"
+      id="toc-53-上传文件与-pdf-导入">5.3 上传文件与 PDF 导入</a></li>
+      <li><a href="#54-阅读文档" id="toc-54-阅读文档">5.4
+      阅读文档</a></li>
+      </ul></li>
+      <li><a href="#6-检索中心" id="toc-6-检索中心">6. 检索中心</a>
+      <ul>
+      <li><a href="#61-发起检索" id="toc-61-发起检索">6.1
+      发起检索</a></li>
+      <li><a href="#62-检索设置" id="toc-62-检索设置">6.2
+      检索设置</a></li>
+      <li><a href="#63-实体共现" id="toc-63-实体共现">6.3
+      实体共现</a></li>
+      </ul></li>
+      <li><a href="#7-知识图谱" id="toc-7-知识图谱">7. 知识图谱</a>
+      <ul>
+      <li><a href="#71-进入与筛选" id="toc-71-进入与筛选">7.1
+      进入与筛选</a></li>
+      <li><a href="#72-如何读图" id="toc-72-如何读图">7.2
+      如何读图</a></li>
+      <li><a href="#73-文档子图" id="toc-73-文档子图">7.3
+      文档子图</a></li>
+      </ul></li>
+      <li><a href="#8-智能体" id="toc-8-智能体">8. 智能体</a>
+      <ul>
+      <li><a href="#81-普通对话与附加能力"
+      id="toc-81-普通对话与附加能力">8.1 普通对话与附加能力</a></li>
+      <li><a href="#82-带出处的产品问答与相关图片"
+      id="toc-82-带出处的产品问答与相关图片">8.2
+      带出处的产品问答与相关图片</a></li>
+      <li><a href="#83-论文写作流程可见引用可追溯"
+      id="toc-83-论文写作流程可见引用可追溯">8.3
+      论文写作：流程可见、引用可追溯</a></li>
+      <li><a href="#84-文献管理下载预览编辑"
+      id="toc-84-文献管理下载预览编辑">8.4
+      文献管理：下载、预览、编辑</a></li>
+      <li><a href="#85-美化预览与打印-pdf"
+      id="toc-85-美化预览与打印-pdf">8.5 美化预览与打印 PDF</a></li>
+      </ul></li>
+      <li><a href="#9-常见问题" id="toc-9-常见问题">9. 常见问题</a></li>
+      </ul>
+    </nav>
+    <main>
+<p><strong>产品名称：</strong> 量库 · 企业知识库管理系统<br />
+<strong>适用对象：</strong>
+已获准入的企业内部用户（含普通用户、文档管理员、角色管理员、超级管理员）<br />
+<strong>说明：</strong>
+本文按实际界面截图编写，帮助您完成登录、管文档、检索、看图谱、用智能体写材料等日常操作。</p>
+<hr />
+<h2 id="1-产品能做什么">1. 产品能做什么</h2>
+<p>量库把企业文档按保密分区入库，自动做成可检索的知识，并提供问答与写作辅助。日常可以：</p>
+<table>
+<thead>
+<tr>
+<th>您想做的事</th>
+<th>去哪个模块</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>上传、整理、浏览资料</td>
+<td><strong>文档库</strong></td>
+</tr>
+<tr>
+<td>用关键词或一句话找原文片段</td>
+<td><strong>检索中心</strong></td>
+</tr>
+<tr>
+<td>看文档、人物、产品、项目之间的关系</td>
+<td><strong>知识图谱</strong></td>
+</tr>
+<tr>
+<td>问产品、查天气、写白皮书/综述，并核对出处</td>
+<td><strong>智能体</strong></td>
+</tr>
+<tr>
+<td>维护标准问答条目</td>
+<td><strong>企业问答</strong></td>
+</tr>
+<tr>
+<td>审批账号、调整密级与角色</td>
+<td><strong>用户管理</strong>（仅管理员可见）</td>
+</tr>
+</tbody>
+</table>
+<p>上传后的文档会进入处理流程（转成可读文本、建立检索索引、可选构图）。处理完成后，才能在检索、图谱和智能体中稳定命中。</p>
+<hr />
+<h2 id="2-登录与注册">2. 登录与注册</h2>
+<p>未登录时，打开站点会看到落地页：</p>
+<figure>
+<img src="asset/login.png" alt="落地页：登录或注册" />
+<figcaption aria-hidden="true">落地页：登录或注册</figcaption>
+</figure>
+<ol type="1">
+<li>点击 <strong>登录</strong>：输入企业邮箱与密码。</li>
+<li>点击 <strong>注册</strong>：填写邮箱、密码（至少 8
+位），昵称可选。</li>
+<li>邮箱须符合本组织配置的后缀（例如仅允许公司域名）；不符合会被拒绝。</li>
+<li>新注册账号默认进入 <strong>待审批</strong>。管理员在
+<strong>用户管理</strong> 中通过后，才能使用文档库、检索等功能。</li>
+<li>部分环境会显示人机验证（Turnstile），完成验证后再提交。</li>
+</ol>
+<p>登录成功后，顶栏右侧显示 <strong>昵称 · 密级</strong>（例如
+<code>wh · S2</code>）和
+<strong>退出</strong>。点击昵称可进入个人中心（改昵称、改密码、管理 API
+Token）。</p>
+<hr />
+<h2 id="3-顶栏与模块一览">3. 顶栏与模块一览</h2>
+<p>登录后，顶栏左侧为产品名 <strong>量库 ·
+企业知识库管理系统</strong>，中间为功能入口，右侧为账户区。</p>
+<p>常见入口（从左到右）：</p>
+<ul>
+<li><strong>智能体</strong>：对话、网页搜索、论文写作、文献管理</li>
+<li><strong>文档库</strong>：网盘式浏览与上传</li>
+<li><strong>企业问答</strong>：维护/查阅标准问答</li>
+<li><strong>检索中心</strong>：混合检索与图谱增强</li>
+<li><strong>知识图谱</strong>：文档与实体关系可视化</li>
+<li><strong>用户管理</strong>：审批与权限（角色管理员 /
+超级管理员）</li>
+</ul>
+<p>当前所在模块会高亮。点左上角产品名可回到应用主页（工作台概览）。</p>
+<hr />
+<h2 id="4-保密等级">4. 保密等级</h2>
+<p>系统用 <strong>S0 / S1 / S2</strong> 三个分区管理资料，<strong>S2
+最高</strong>。</p>
+<table>
+<thead>
+<tr>
+<th>您的密级上限</th>
+<th>能看到的资料</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>S0</td>
+<td>仅 S0</td>
+</tr>
+<tr>
+<td>S1</td>
+<td>S0、S1</td>
+</tr>
+<tr>
+<td>S2</td>
+<td>S0、S1、S2</td>
+</tr>
+</tbody>
+</table>
+<p>说明：</p>
+<ul>
+<li>列表、检索、图谱、智能体引用都受密级约束，看不到高于本人上限的内容。</li>
+<li><strong>超级管理员</strong>按最高密级处理。</li>
+<li>上传时须选择目标分区；普通用户默认 <strong>不能</strong>
+上传、删除、移动文档，这些操作需要 <strong>文档管理员</strong> 或
+<strong>超级管理员</strong>。</li>
+</ul>
+<hr />
+<h2 id="5-文档库">5. 文档库</h2>
+<p>文档库采用「左侧导航 + 右侧工作区」布局，类似网盘。</p>
+<figure>
+<img src="asset/docs.png"
+alt="文档库：左侧上传与目录树，右侧文件列表" />
+<figcaption
+aria-hidden="true">文档库：左侧上传与目录树，右侧文件列表</figcaption>
+</figure>
+<h3 id="51-左侧快捷上传与目录树">5.1 左侧：快捷上传与目录树</h3>
+<p><strong>快捷上传</strong></p>
+<ol type="1">
+<li>在 <strong>保密分区</strong> 下拉框选择目标等级（S0 / S1 /
+S2）。</li>
+<li>点击 <strong>选择文件</strong> 或 <strong>选择文件夹</strong>。</li>
+<li>支持格式：<strong>PDF、Word、PPT、Markdown、Excel、CSV</strong>。</li>
+<li><strong>拖拽上传只允许落在右侧工作区</strong>，不要把文件拖到左侧目录树上。左侧树用于选目录、移动文件。</li>
+</ol>
+<p><strong>目录树</strong></p>
+<ul>
+<li>按分区展开子文件夹（如「电力与能源应用」「公司介绍与规划」等）。</li>
+<li>点选节点后，右侧列表切换到该路径。</li>
+</ul>
+<h3 id="52-右侧浏览与整理">5.2 右侧：浏览与整理</h3>
+<ul>
+<li><strong>面包屑</strong>（如「根目录 &gt; S0」）显示当前位置。</li>
+<li><strong>筛选文件名</strong>：在当前目录下按名称过滤。</li>
+<li><strong>排序</strong>：可按名称等排序。</li>
+<li><strong>视图</strong>：在 <strong>列表 / 表格 / 网格</strong>
+之间切换。</li>
+<li><strong>返回上级</strong>：回到上一层目录。</li>
+<li><strong>新建文件夹</strong>：在当前路径下建子目录。</li>
+</ul>
+<p>选中文件或文件夹后，工具栏会激活：</p>
+<table>
+<thead>
+<tr>
+<th>按钮</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>删除</td>
+<td>删除原件（需确认；会同步清理检索与衍生内容）</td>
+</tr>
+<tr>
+<td>详情</td>
+<td>打开预览抽屉，查看正文、元数据、分片、图谱关系等</td>
+</tr>
+<tr>
+<td>复制路径</td>
+<td>复制当前对象路径</td>
+</tr>
+<tr>
+<td>剪切 / 粘贴</td>
+<td>把文件移动到当前目录</td>
+</tr>
+</tbody>
+</table>
+<h3 id="53-上传文件与-pdf-导入">5.3 上传文件与 PDF 导入</h3>
+<p>工作区右上角 <strong>上传文件</strong>
+与左侧快捷上传效果相同，目标路径以当前面包屑为准。</p>
+<p><strong>PDF 导入</strong> 有三种模式：</p>
+<table>
+<colgroup>
+<col style="width: 37%" />
+<col style="width: 62%" />
+</colgroup>
+<thead>
+<tr>
+<th>模式</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>自动（超大仅前 N 页）</strong></td>
+<td>默认。特别大的 PDF 只处理前若干页，避免长时间卡住</td>
+</tr>
+<tr>
+<td><strong>指定页范围</strong></td>
+<td>只导入某几页</td>
+</tr>
+<tr>
+<td><strong>全文（耗时较长）</strong></td>
+<td>需要整本入库时使用，等待时间更长</td>
+</tr>
+</tbody>
+</table>
+<p>上传后请留意处理状态。就绪后才能稳定检索、构图和被智能体引用。</p>
+<h3 id="54-阅读文档">5.4 阅读文档</h3>
+<p>在列表中点开文档，右侧会滑出预览抽屉，可阅读转换后的
+Markdown（含图片）、查看元数据，以及（若已构图）实体—谓词—文档关系。需要原件时使用下载入口，不要把「看转换结果」和「下载原件」搞混。</p>
+<hr />
+<h2 id="6-检索中心">6. 检索中心</h2>
+<p>用于在全库中按问题或关键词查找
+<strong>文档片段</strong>，并可同时纳入 <strong>企业问答</strong> 与
+<strong>知识图谱增强</strong>。</p>
+<figure>
+<img src="asset/检索.png" alt="检索中心：查询「量子」及检索设置" />
+<figcaption
+aria-hidden="true">检索中心：查询「量子」及检索设置</figcaption>
+</figure>
+<h3 id="61-发起检索">6.1 发起检索</h3>
+<ol type="1">
+<li>顶栏进入 <strong>检索中心</strong>。</li>
+<li>在搜索框输入关键词或完整问句（例如「量子」）。</li>
+<li>点击 <strong>搜索</strong>。</li>
+<li><strong>当前范围</strong> 会显示本次实际启用的来源，例如：
+<ul>
+<li>文档片段</li>
+<li>企业问答</li>
+<li>知识图谱增强</li>
+</ul></li>
+</ol>
+<h3 id="62-检索设置">6.2 检索设置</h3>
+<p>展开 <strong>检索设置</strong> 可调节：</p>
+<table>
+<thead>
+<tr>
+<th>选项</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>结果条数</strong></td>
+<td>返回条数，例如 10</td>
+</tr>
+<tr>
+<td><strong>密级范围</strong></td>
+<td>全部等级，或只搜 S0 / S1 / S2</td>
+</tr>
+<tr>
+<td><strong>检索方式</strong></td>
+<td><strong>混合检索</strong>（语义 + 关键字，推荐）或
+<strong>仅关键字</strong></td>
+</tr>
+<tr>
+<td><strong>图谱权重</strong></td>
+<td>混合检索下，图谱信号参与排序的比重（图中为 0.25）</td>
+</tr>
+<tr>
+<td><strong>知识图谱增强</strong></td>
+<td>开关。开启后用文档间关系辅助排序与发现</td>
+</tr>
+<tr>
+<td><strong>包含企业问答</strong></td>
+<td>开关。默认开启，关闭后只搜文档</td>
+</tr>
+</tbody>
+</table>
+<p>若出现「重排已跳过」提示，表示二阶段精排未执行，列表仍按混合融合分排序，一般不影响继续阅读结果。</p>
+<h3 id="63-实体共现">6.3 实体共现</h3>
+<p>结果上方可能出现
+<strong>实体共现（文中提及）</strong>：与当前头部命中文档
+<strong>共享同一批实体</strong>
+的其它文档（公司、产品、技术、项目、地区等）。</p>
+<ul>
+<li>每条形如：<strong>打开文档 ·
+共享：国光量子、量子雷达（company/product）</strong></li>
+<li>点击即可跳到对应文档。</li>
+<li>适合从一篇材料扩到相关产品线、规划文件或技术报告。</li>
+</ul>
+<p>结果卡片会给出片段、来源路径、密级和相关性分数。点卡片可回到文档库预览原文。</p>
+<hr />
+<h2 id="7-知识图谱">7. 知识图谱</h2>
+<p>把文档、实体（公司、产品、人名、项目等）以及它们之间的关系画成网络图。</p>
+<figure>
+<img src="asset/知识图谱.png" alt="知识图谱：全库概览" />
+<figcaption aria-hidden="true">知识图谱：全库概览</figcaption>
+</figure>
+<h3 id="71-进入与筛选">7.1 进入与筛选</h3>
+<ol type="1">
+<li>顶栏点击 <strong>知识图谱</strong>。</li>
+<li>左侧可：
+<ul>
+<li><strong>按文件名筛选</strong></li>
+<li>按密级切换 <strong>全部 / S0 / S1 / S2</strong></li>
+<li>点击 <strong>全局实体浏览</strong>，看全库实体关系</li>
+<li>在列表中点选一篇文档，进入该文档的子图</li>
+</ul></li>
+<li>顶部搜索框可搜
+<strong>文档或实体</strong>，从下拉建议中选中即可定位。</li>
+</ol>
+<p>主画布有 <strong>概览 / 全库概览</strong> 等视图。可用右下角
+<strong>放大、缩小、适配视图</strong> 浏览。</p>
+<h3 id="72-如何读图">7.2 如何读图</h3>
+<p>左下角图例：</p>
+<table>
+<thead>
+<tr>
+<th>图元</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>深蓝圆</td>
+<td>文档 S0</td>
+</tr>
+<tr>
+<td>浅棕圆</td>
+<td>文档 S1</td>
+</tr>
+<tr>
+<td>深棕/橙色圆</td>
+<td>文档 S2</td>
+</tr>
+<tr>
+<td>绿线</td>
+<td><strong>提及</strong>（文中出现该实体）</td>
+</tr>
+<tr>
+<td>灰/深蓝线</td>
+<td><strong>文档链接</strong>（文档之间的引用或链接）</td>
+</tr>
+<tr>
+<td>紫线</td>
+<td><strong>谓词—文档</strong>（实体与知识客体之间的办公关系）</td>
+</tr>
+</tbody>
+</table>
+<p>圆点是文档或实体，连线是关系。点节点可展开邻居、切换到对应文档。</p>
+<h3 id="73-文档子图">7.3 文档子图</h3>
+<p>在左侧点某一篇文档后，进入
+<strong>文档子图</strong>：该文档居中，四周是它提到的机构、技术、地点，以及通过共享实体连到的其它文件。</p>
+<figure>
+<img src="asset/图谱相关.png"
+alt="文档子图：一篇报告关联的实体与其它文档" />
+<figcaption
+aria-hidden="true">文档子图：一篇报告关联的实体与其它文档</figcaption>
+</figure>
+<p>操作提示：</p>
+<ul>
+<li>标题栏显示当前文档名，例如「基于便携式质谱测试天然气管路泄漏…」。</li>
+<li>点击 <strong>返回概览</strong> 回到全库视图。</li>
+<li>沿实体（如「中国」）可跳到电网、碳监测等其它材料，用来做交叉阅读。</li>
+<li>若提示图谱为空，多半是该文档尚未构图，可换一篇，或到文档库详情中手动触发生成（需相应权限）。</li>
+</ul>
+<hr />
+<h2 id="8-智能体">8. 智能体</h2>
+<p>智能体是三栏工作台：<strong>左侧</strong>对话历史、<strong>中间</strong>问答与步骤、<strong>右侧</strong>文献管理。适合查资料、对照出处、生成长文。</p>
+<h3 id="81-普通对话与附加能力">8.1 普通对话与附加能力</h3>
+<p>在输入框提问即可，例如「今天北京通州天气怎么样」。回答中的数字角标对应参考文献，可点
+<strong>摘要</strong> 或 <strong>打开</strong> 核对来源。</p>
+<p>点击输入框左侧 <strong>「+」</strong>，可选用：</p>
+<figure>
+<img src="asset/多功能对话.png"
+alt="智能体「+」菜单：上传、资料库、网页搜索、论文写作" />
+<figcaption
+aria-hidden="true">智能体「+」菜单：上传、资料库、网页搜索、论文写作</figcaption>
+</figure>
+<table>
+<thead>
+<tr>
+<th>功能</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>添加照片和文件</strong></td>
+<td>从本机上传，作为本轮附件</td>
+</tr>
+<tr>
+<td><strong>从资料库添加</strong></td>
+<td>浏览、搜索知识库文档，勾选后作为指定参考</td>
+</tr>
+<tr>
+<td><strong>网页搜索</strong></td>
+<td>查找实时新闻与公开信息；再点一次可关闭</td>
+</tr>
+<tr>
+<td><strong>论文写作</strong></td>
+<td>进入长文模式，生成综述/白皮书，并导出 HTML</td>
+</tr>
+</tbody>
+</table>
+<p>输入框占位为「继续提问…」，右侧箭头发送。</p>
+<h3 id="82-带出处的产品问答与相关图片">8.2
+带出处的产品问答与相关图片</h3>
+<p>问企业内部问题时，智能体会检索知识库，并在正文中用角标标出引用。</p>
+<figure>
+<img src="asset/输出图片.png"
+alt="智能体回答公司产品介绍，并展示相关图片与文献" />
+<figcaption
+aria-hidden="true">智能体回答公司产品介绍，并展示相关图片与文献</figcaption>
+</figure>
+<p>阅读要点：</p>
+<ul>
+<li>左侧是回答；角标（2、4、5…）对应右侧文献编号。</li>
+<li><strong>相关图片</strong>
+来自入库文档中的插图或产品照片，便于对照实物。</li>
+<li>右侧 <strong>文献管理</strong> 列出本轮采用的资料，标签常见为
+<strong>采信·内库</strong> 与密级 <strong>S0</strong> 等。</li>
+<li>每条文献可看摘要或打开原文档。</li>
+<li>顶部进度变为 <strong>已完成</strong> 后，本轮检索与生成结束。可用
+<strong>收起</strong> 隐藏右侧栏以扩大阅读区。</li>
+</ul>
+<p><strong>冲突处理：</strong>
+内库与网页同时有信息时，<strong>以企业内部库为准</strong>。</p>
+<h3 id="83-论文写作流程可见引用可追溯">8.3
+论文写作：流程可见、引用可追溯</h3>
+<p>打开 <strong>论文写作</strong>
+后，可用自然语言下任务，例如「基于公司产品撰写白皮书」。也可选择模板：</p>
+<ul>
+<li>IMRaD 论文</li>
+<li>技术报告</li>
+<li>文献综述</li>
+</ul>
+<p>系统会按固定步骤执行，而不是一次性抛出成稿：</p>
+<figure>
+<img src="asset/流程严谨.png"
+alt="论文写作：本轮流程、检索结果与校订稿" />
+<figcaption
+aria-hidden="true">论文写作：本轮流程、检索结果与校订稿</figcaption>
+</figure>
+<p>典型四步：</p>
+<ol type="1">
+<li>明确题目、范围与章节结构<br />
+</li>
+<li>从企业知识库检索支撑材料<br />
+</li>
+<li>按模板整理各章要点<br />
+</li>
+<li>撰写初稿、校订，并标注引用（如 <code>[D8][D9]</code>）</li>
+</ol>
+<p>左侧会列出检索到的条目及术语映射（如
+<code>QKD → D5</code>），便于核对「这句话来自哪份材料」。右侧同步展示
+<strong>文献综述 / 校订稿</strong>。</p>
+<h3 id="84-文献管理下载预览编辑">8.4 文献管理：下载、预览、编辑</h3>
+<p>右侧 <strong>文献管理</strong> 面板提供成稿操作：</p>
+<figure>
+<img src="asset/功能多样.png" alt="文献管理：校订稿与导出按钮" />
+<figcaption aria-hidden="true">文献管理：校订稿与导出按钮</figcaption>
+</figure>
+<table>
+<thead>
+<tr>
+<th>按钮</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>下载</strong></td>
+<td>下载 Markdown 文本</td>
+</tr>
+<tr>
+<td><strong>预览 HTML</strong></td>
+<td>打开排版后的网页稿</td>
+</tr>
+<tr>
+<td><strong>↓ HTML</strong></td>
+<td>下载自包含 HTML 文件</td>
+</tr>
+<tr>
+<td><strong>复制</strong></td>
+<td>复制正文到剪贴板</td>
+</tr>
+<tr>
+<td><strong>编辑</strong></td>
+<td>在面板内直接改稿</td>
+</tr>
+</tbody>
+</table>
+<p>状态徽章 <strong>校订稿</strong>
+表示已完成校订；此前可能显示「综述初稿」或「待撰写」。</p>
+<p>参考文献列表按编号排列，每条显示文件名、密级，以及 <strong>摘要 /
+打开</strong>：</p>
+<figure>
+<img src="asset/参考文献.png" alt="参考文献列表：摘要与打开" />
+<figcaption aria-hidden="true">参考文献列表：摘要与打开</figcaption>
+</figure>
+<p>建议成稿前逐条打开核对，避免同名材料被引用两次时选错版本。</p>
+<h3 id="85-美化预览与打印-pdf">8.5 美化预览与打印 PDF</h3>
+<p>点击 <strong>预览 HTML</strong> 后，会打开独立预览（文件名形如
+<code>论文-校订稿.html</code>）：</p>
+<figure>
+<img src="asset/kami美化.png" alt="HTML 预览：白皮书排版稿" />
+<figcaption aria-hidden="true">HTML 预览：白皮书排版稿</figcaption>
+</figure>
+<p>预览页提供：</p>
+<ul>
+<li><strong>下载</strong>：保存 HTML</li>
+<li><strong>打印 / PDF</strong>：用浏览器打印对话框导出 PDF</li>
+<li>关闭按钮：返回工作台</li>
+</ul>
+<p>预览为论文式排版（摘要、引言、相关工作、方法等），适合汇报与存档。当前版本导出的是自包含
+HTML，插图以内库已有图片为准。</p>
+<hr />
+<h2 id="9-常见问题">9. 常见问题</h2>
+<p><strong>Q：注册后进不去文档库？</strong><br />
+A：新账号需管理员审批。请联系角色管理员或超级管理员，在
+<strong>用户管理</strong> 中通过申请。</p>
+<p><strong>Q：为什么有的按钮是灰色的？</strong><br />
+A：未选中文件时，「删除 / 详情 /
+剪切」等不可用。另外，普通用户没有文档写权限，无法上传、删除、移动。</p>
+<p><strong>Q：上传了文件，检索却搜不到？</strong><br />
+A：请等处理完成（文档状态就绪）。超大 PDF
+若使用「自动」模式，可能只索引了前 N 页，可改为「全文」后重新导入。</p>
+<p><strong>Q：智能体回答没有图片？</strong><br />
+A：只有知识库文档中已有、且能对应到当前回答的插图才会出现在
+<strong>相关图片</strong>。纯文本材料不会凭空配图。</p>
+<p><strong>Q：图谱是空的或提示未就绪？</strong><br />
+A：构图在文档处理之后异步进行。可稍后刷新，或换一篇已就绪文档。服务不可用时，检索和打开文档仍可正常使用。</p>
+<p><strong>Q：能看到别人的 S2 文件吗？</strong><br />
+A：不能。可见范围由您的 <strong>密级上限</strong> 决定。顶栏「昵称 ·
+S0/S1/S2」即当前上限。</p>
+<p><strong>Q：网页搜索和内部资料不一致怎么办？</strong><br />
+A：以企业内部知识库为准；网页结果仅作补充。</p>
+    </main>
+  </div>
+  <footer class="note">打开本文件时请保持 <code>asset</code> 文件夹与 HTML 在同一目录。可用浏览器「打印」导出 PDF。</footer>
+  <script>
+    (function () {
+      const links = Array.from(document.querySelectorAll("#TOC a"));
+      const ids = links
+        .map((a) => decodeURIComponent((a.getAttribute("href") || "").slice(1)))
+        .filter(Boolean);
+      const heads = ids.map((id) => document.getElementById(id)).filter(Boolean);
+      const progress = document.querySelector(".reading-progress");
+      function sync() {
+        let current = heads[0];
+        for (const h of heads) {
+          if (h.getBoundingClientRect().top <= 88) current = h;
+        }
+        links.forEach((a) => {
+          const on = current && a.getAttribute("href") === "#" + encodeURIComponent(current.id).replace(/%/g, (ch) => ch);
+          a.classList.toggle("is-active", current && decodeURIComponent(a.getAttribute("href").slice(1)) === current.id);
+        });
+        const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+        const ratio = scrollable > 0 ? window.scrollY / scrollable : 0;
+        progress.style.width = Math.min(100, Math.max(0, ratio * 100)) + "%";
+      }
+      document.addEventListener("scroll", sync, { passive: true });
+      sync();
+    })();
+  </script>
+</body>
+</html>

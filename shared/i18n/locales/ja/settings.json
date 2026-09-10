@@ -340,10 +340,11 @@
     "appName": "小光",
     "tagline": "グラフィカル スマートオフィスアシスタント",
     "codename": "開発コードネーム：SmartX",
-    "basedOn": "OpenClaw & SmartX ベース",
+    "basedOn": "OpenClaw & ClawX ベース",
     "developer": "開発者：北京中科国光量子科技有限公司 · AI 研究チーム",
     "version": "バージョン {{version}}",
     "docs": "公式サイト",
+    "manual": "使用マニュアル",
     "github": "GitHub",
     "faq": "よくある質問"
   }

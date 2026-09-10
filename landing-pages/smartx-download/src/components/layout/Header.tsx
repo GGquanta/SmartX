@@ -1,10 +1,11 @@
-import { Download, LayoutGrid, Monitor } from 'lucide-react';
+import { BookOpen, Download, LayoutGrid, Monitor } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '../ui/Button';
 
 const navItems: { href: string; label: string; icon: LucideIcon }[] = [
   { href: '#features', label: '核心功能', icon: LayoutGrid },
+  { href: '#manuals', label: '使用手册', icon: BookOpen },
   { href: '#download', label: '软件下载', icon: Download },
   { href: '#requirements', label: '系统要求', icon: Monitor },
 ];
@@ -33,7 +34,7 @@ export function Header() {
           </span>
         </a>
 
-        <nav className="hidden items-center gap-8 md:flex" aria-label="主导航">
+        <nav className="hidden items-center gap-6 lg:gap-8 md:flex" aria-label="主导航">
           {navItems.map((item) => (
             <a
               key={item.href}

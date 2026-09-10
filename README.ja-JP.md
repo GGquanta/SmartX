@@ -93,6 +93,7 @@ macOS · Windows · Linux に対応し、すぐに利用できます。モバイ
 - **macOS**：11 以上
 - **Windows**：10 以上（x64 / ARM64）
 - **Linux**：Ubuntu 20.04 以上、または同等のディストリビューション
+- **CPU**：最低 4 コア（8 コア推奨）、x64 / ARM64
 - **メモリ**：最低 4 GB（8 GB 推奨）
 - **ディスク**：約 1 GB の空き容量
 
@@ -103,6 +104,8 @@ macOS · Windows · Linux に対応し、すぐに利用できます。モバイ
 OS と CPU アーキテクチャに合ったインストーラーを製品サイトから入手してください。
 
 **[https://smartx.qubitlab.cc](https://smartx.qubitlab.cc)**
+
+ダウンロードページでは、SmartX デスクトップのユーザーマニュアルと、量庫（企業ナレッジベース）のユーザーマニュアルも公開しています。
 
 同じビルドは [GitHub Releases](https://github.com/GGquanta/SmartX/releases) からも入手できます。パッケージ選びに迷った場合はサポートまでご連絡ください。
 

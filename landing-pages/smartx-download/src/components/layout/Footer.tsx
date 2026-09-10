@@ -11,6 +11,9 @@ export function Footer() {
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-6 text-sm">
+          <a href="#manuals" className="text-ink-muted transition-colors hover:text-brand-blue">
+            使用手册
+          </a>
           <a
             href="https://github.com/GGquanta/SmartX"
             className="text-ink-muted transition-colors hover:text-brand-blue"

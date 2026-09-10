@@ -341,10 +341,11 @@
     "appName": "小光",
     "tagline": "Graphical Intelligent Office Assistant",
     "codename": "Development codename: SmartX",
-    "basedOn": "Based on OpenClaw & SmartX",
+    "basedOn": "Based on OpenClaw & ClawX",
     "developer": "Developer: Beijing Zhongke Guoguang Quantum Technology Co., Ltd. · AI Research Team",
     "version": "Version {{version}}",
     "docs": "Website",
+    "manual": "User Manual",
     "github": "GitHub",
     "faq": "FAQ"
   }
