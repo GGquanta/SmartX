@@ -76,6 +76,8 @@ jobs:
         run: |
           test -f dist/index.html
           test -f dist/downloads.json
+          test -f dist/manuals/smartx/index.html
+          test -f dist/manuals/liangku/index.html
           echo "=== dist/ ==="
           find dist -type f | sort
 
@@ -114,6 +116,7 @@ jobs:
           ossutil rm -f "${DEST}downloads.json" || true
           ossutil rm -r -f "${DEST}assets/" || true
           ossutil rm -r -f "${DEST}images/" || true
+          ossutil rm -r -f "${DEST}manuals/" || true
 
           if [ -d "${DIST}/assets" ]; then
             ossutil cp -r -f \
@@ -129,6 +132,22 @@ jobs:
               "${DEST}images/"
           fi
 
+          # Vite copies public/ subdirectories into dist/. Upload them all so
+          # handbook pages (manuals/smartx, manuals/liangku) are reachable.
+          shopt -s nullglob
+          for dir in "${DIST}"/*/; do
+            [ -d "$dir" ] || continue
+            base=$(basename "$dir")
+            case "$base" in
+              assets|images) continue ;;
+            esac
+            echo "Uploading directory ${base}/"
+            ossutil cp -r -f \
+              --meta="Cache-Control:public,max-age=86400" \
+              "$dir" \
+              "${DEST}${base}/"
+          done
+
           for file in index.html downloads.json; do
             if [ -f "${DIST}/${file}" ]; then
               ossutil cp -f \
@@ -138,11 +157,10 @@ jobs:
             fi
           done
 
-          shopt -s nullglob
           for file in "${DIST}"/*; do
             base=$(basename "$file")
             case "$base" in
-              assets|images|index.html|downloads.json) continue ;;
+              assets|images|manuals|index.html|downloads.json) continue ;;
             esac
             if [ -f "$file" ]; then
               ossutil cp -f \
@@ -157,13 +175,18 @@ jobs:
           DEST="oss://${{ env.OSS_BUCKET }}/"
 
           echo "=== ${DEST} (landing files) ==="
-          ossutil ls "${DEST}" --short | grep -E '(^|/)(index\.html|downloads\.json|assets/|images/)' || true
+          ossutil ls "${DEST}" --short | grep -E '(^|/)(index\.html|downloads\.json|assets/|images/|manuals/)' || true
 
           ossutil cp "${DEST}index.html" /tmp/landing-index.html -f
           test -s /tmp/landing-index.html
 
           ossutil cp "${DEST}downloads.json" /tmp/landing-downloads.json -f
           jq -e '.version' /tmp/landing-downloads.json
+
+          ossutil cp "${DEST}manuals/smartx/index.html" /tmp/manual-smartx.html -f
+          test -s /tmp/manual-smartx.html
+          ossutil cp "${DEST}manuals/liangku/index.html" /tmp/manual-liangku.html -f
+          test -s /tmp/manual-liangku.html
 
           echo ""
           echo "Published: ${{ env.OSS_CDN_BASE }}/"
