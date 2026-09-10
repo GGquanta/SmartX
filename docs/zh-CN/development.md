@@ -68,6 +68,8 @@ pnpm package:win          # 为 Windows 打包（同时产出 x64 与 ARM64 NSIS
 pnpm package:linux        # 为 Linux 打包
 ```
 
+macOS 正式渠道使用 `CSC_LINK` / `CSC_KEY_PASSWORD`（或 `MAC_CERTS` / `MAC_CERTS_PASSWORD`）导入 Developer ID Application 证书。`electron-builder` 必须 ≥ **26.16.1**（本仓库锁在 `26.16.1`）。26.8.1–26.16.0 会把 `.p12` 密码误传给 `security set-key-partition-list`（[#10066](https://github.com/electron-userland/electron-builder/issues/10066) / v26 回移植 [#10172](https://github.com/electron-userland/electron-builder/pull/10172)）。若 `security import` 已成功但随后报 `SecKeychainUnlock: The user name or passphrase you entered is not correct`，这不是证书密码错误，不要降到 26.16.0 或给 `app-builder-lib` 打私有补丁。
+
 Windows CI 使用私有 PKCS#12（`WIN_CSC_LINK` / `WIN_CSC_KEY_PASSWORD`）在打包时做 Authenticode 签名。可用 `scripts/generate-win-codesign-cert.sh` 生成证书。该证书为自签名，Windows SmartScreen 仍可能提示用户。
 
 在无头 Linux 环境下，Electron 测试需要显示服务；可使用 `xvfb-run -a pnpm run test:e2e`。

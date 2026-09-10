@@ -70,6 +70,8 @@ pnpm package:win          # Package for Windows (x64 and ARM64 NSIS)
 pnpm package:linux        # Package for Linux
 ```
 
+Stable macOS CI imports a Developer ID Application certificate via `CSC_LINK` / `CSC_KEY_PASSWORD` (or `MAC_CERTS` / `MAC_CERTS_PASSWORD`). Keep `electron-builder` at **26.16.1 or later** (this repo pins `26.16.1`). 26.8.1–26.16.0 pass the `.p12` password to `security set-key-partition-list` ([#10066](https://github.com/electron-userland/electron-builder/issues/10066) / v26 backport [#10172](https://github.com/electron-userland/electron-builder/pull/10172)). If `security import` already succeeded and the next error is `SecKeychainUnlock: The user name or passphrase you entered is not correct`, do not rotate the certificate password, drop to 26.16.0, or patch `app-builder-lib` locally.
+
 Windows CI Authenticode-signs installers with a private PKCS#12 (`WIN_CSC_LINK` / `WIN_CSC_KEY_PASSWORD`). Generate one with `scripts/generate-win-codesign-cert.sh`. The certificate is self-signed, so Windows SmartScreen may still warn end users.
 
 On headless Linux, Electron tests need a display service. Use `xvfb-run -a pnpm run test:e2e`.

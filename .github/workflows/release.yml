@@ -4,6 +4,10 @@
 # Secrets (macOS code signing + notarization — required for stable mac builds):
 #   CSC_LINK / MAC_CERTS                 — Developer ID Application .p12 (base64 or file:// / https URL)
 #   CSC_KEY_PASSWORD / MAC_CERTS_PASSWORD — Password for the .p12
+#   Keep electron-builder >= 26.16.1. 26.8.1–26.16.0 pass the .p12 password
+#   to `security set-key-partition-list` (electron-builder#10066). If
+#   `security import` succeeds then SecKeychainUnlock fails, do not rotate
+#   CSC_KEY_PASSWORD — bump electron-builder instead.
 #   APPLE_API_KEY_ID                     — App Store Connect API Key ID (10 chars)
 #   APPLE_API_ISSUER                     — App Store Connect Issuer ID (UUID)
 #   APPLE_API_KEY_P8                     — Full contents of AuthKey_<KEY_ID>.p8

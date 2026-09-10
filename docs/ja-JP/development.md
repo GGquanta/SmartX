@@ -70,6 +70,8 @@ pnpm package:win          # Windows向けにパッケージ化（x64 と ARM64 �
 pnpm package:linux        # Linux向けにパッケージ化
 ```
 
+macOS の正式チャネルは `CSC_LINK` / `CSC_KEY_PASSWORD`（または `MAC_CERTS` / `MAC_CERTS_PASSWORD`）で Developer ID Application 証明書を取り込みます。`electron-builder` は **26.16.1 以上**（本リポジトリは `26.16.1` に固定）が必要です。26.8.1–26.16.0 は `.p12` のパスワードを誤って `security set-key-partition-list` に渡します（[#10066](https://github.com/electron-userland/electron-builder/issues/10066) / v26 backport [#10172](https://github.com/electron-userland/electron-builder/pull/10172)）。`security import` が成功した直後に `SecKeychainUnlock: The user name or passphrase you entered is not correct` が出ても、証明書パスワードのローテーション、26.16.0 へのダウングレード、`app-builder-lib` のローカルパッチはしないでください。
+
 Windows CI は秘密の PKCS#12（`WIN_CSC_LINK` / `WIN_CSC_KEY_PASSWORD`）で Authenticode 署名します。`scripts/generate-win-codesign-cert.sh` で証明書を生成できます。自己署名のため、Windows SmartScreen は引き続き警告を出すことがあります。
 
 ヘッドレスLinuxではElectronテストに表示サービスが必要です。`xvfb-run -a pnpm run test:e2e`を使用してください。
