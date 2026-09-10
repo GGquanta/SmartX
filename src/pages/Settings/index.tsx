@@ -738,11 +738,6 @@ export function Settings() {
                 data-testid="settings-dev-mode-switch"
               />
             </div>
-            {!devModeUnlocked && (
-              <p className="text-meta text-muted-foreground" data-testid="settings-developer-locked-guidance">
-                {t('advanced.devModeDesc')}
-              </p>
-            )}
             {devModeUnlocked && (
               <>
                 <div data-testid="settings-developer-advanced">
