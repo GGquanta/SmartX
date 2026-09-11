@@ -65,12 +65,14 @@ pnpm run comms:compare    # Compare replay metrics against baseline thresholds
 pnpm run build:vite       # Build the frontend only
 pnpm build                # Full production build with packaging assets
 pnpm package              # Package for the current platform with bundled skills
-pnpm package:mac          # Package for macOS
+pnpm package:mac          # Package for macOS (x64 + arm64 locally)
+pnpm package:mac:arm64    # Package macOS arm64 only
+pnpm package:mac:x64      # Package macOS x64 only
 pnpm package:win          # Package for Windows (x64 and ARM64 NSIS)
 pnpm package:linux        # Package for Linux
 ```
 
-Stable macOS CI imports a Developer ID Application certificate via `CSC_LINK` / `CSC_KEY_PASSWORD` (or `MAC_CERTS` / `MAC_CERTS_PASSWORD`). Keep `electron-builder` at **26.16.1 or later** (this repo pins `26.16.1`). 26.8.1–26.16.0 pass the `.p12` password to `security set-key-partition-list` ([#10066](https://github.com/electron-userland/electron-builder/issues/10066) / v26 backport [#10172](https://github.com/electron-userland/electron-builder/pull/10172)). If `security import` already succeeded and the next error is `SecKeychainUnlock: The user name or passphrase you entered is not correct`, do not rotate the certificate password, drop to 26.16.0, or patch `app-builder-lib` locally.
+Stable macOS CI imports a Developer ID Application certificate via `CSC_LINK` / `CSC_KEY_PASSWORD` (or `MAC_CERTS` / `MAC_CERTS_PASSWORD`). Keep `electron-builder` at **26.16.1 or later** (this repo pins `26.16.1`). 26.8.1–26.16.0 pass the `.p12` password to `security set-key-partition-list` ([#10066](https://github.com/electron-userland/electron-builder/issues/10066) / v26 backport [#10172](https://github.com/electron-userland/electron-builder/pull/10172)). If `security import` already succeeded and the next error is `SecKeychainUnlock: The user name or passphrase you entered is not correct`, do not rotate the certificate password, drop to 26.16.0, or patch `app-builder-lib` locally. The Release workflow builds macOS x64 and arm64 in parallel jobs and merges `*-mac.yml` before publishing.
 
 Windows CI Authenticode-signs installers with a private PKCS#12 (`WIN_CSC_LINK` / `WIN_CSC_KEY_PASSWORD`). Generate one with `scripts/generate-win-codesign-cert.sh`. The certificate is self-signed, so Windows SmartScreen may still warn end users.
 

@@ -65,12 +65,14 @@ pnpm run comms:compare    # Сравнить метрики с порогами 
 pnpm run build:vite       # Собрать только фронтенд
 pnpm build                # Полная production-сборка с ресурсами упаковки
 pnpm package              # Упаковать для текущей платформы со встроенными навыками
-pnpm package:mac          # Упаковать для macOS
+pnpm package:mac          # Упаковать для macOS (локально x64 + arm64)
+pnpm package:mac:arm64    # Только macOS arm64
+pnpm package:mac:x64      # Только macOS x64
 pnpm package:win          # Упаковать для Windows (NSIS x64 и ARM64)
 pnpm package:linux        # Упаковать для Linux
 ```
 
-Стабильный macOS CI импортирует сертификат Developer ID Application через `CSC_LINK` / `CSC_KEY_PASSWORD` (или `MAC_CERTS` / `MAC_CERTS_PASSWORD`). Нужен `electron-builder` **≥ 26.16.1** (в репозитории зафиксирован `26.16.1`). 26.8.1–26.16.0 передают пароль `.p12` в `security set-key-partition-list` ([#10066](https://github.com/electron-userland/electron-builder/issues/10066) / бэкпорт v26 [#10172](https://github.com/electron-userland/electron-builder/pull/10172)). Если `security import` уже успешен, а дальше появляется `SecKeychainUnlock: The user name or passphrase you entered is not correct`, не меняйте пароль сертификата, не откатывайтесь на 26.16.0 и не патчьте `app-builder-lib` локально.
+Стабильный macOS CI импортирует сертификат Developer ID Application через `CSC_LINK` / `CSC_KEY_PASSWORD` (или `MAC_CERTS` / `MAC_CERTS_PASSWORD`). Нужен `electron-builder` **≥ 26.16.1** (в репозитории зафиксирован `26.16.1`). 26.8.1–26.16.0 передают пароль `.p12` в `security set-key-partition-list` ([#10066](https://github.com/electron-userland/electron-builder/issues/10066) / бэкпорт v26 [#10172](https://github.com/electron-userland/electron-builder/pull/10172)). Если `security import` уже успешен, а дальше появляется `SecKeychainUnlock: The user name or passphrase you entered is not correct`, не меняйте пароль сертификата, не откатывайтесь на 26.16.0 и не патчьте `app-builder-lib` локально. Release workflow собирает macOS x64 и arm64 параллельными job и перед публикацией объединяет `*-mac.yml`.
 
 Windows CI подписывает установщики Authenticode закрытым PKCS#12 (`WIN_CSC_LINK` / `WIN_CSC_KEY_PASSWORD`). Сертификат можно создать скриптом `scripts/generate-win-codesign-cert.sh`. Это самоподписанный сертификат, поэтому Windows SmartScreen по-прежнему может показывать предупреждение.
 

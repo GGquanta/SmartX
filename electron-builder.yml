@@ -1,8 +1,18 @@
 appId: app.smartx.desktop
 productName: SmartX
 copyright: Copyright © 2026 SmartX
-compression: maximum
+# `maximum` (7-Zip ultra) dominates CI time on the OpenClaw-sized bundle.
+# `normal` is the size/speed trade-off for zip auto-update artifacts.
+compression: normal
 artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+
+# Keep Chromium locales that match app i18n (en/zh/ja/ru). Dropping the rest
+# shrinks the bundle and avoids electron-osx-sign walking thousands of .lproj files.
+electronLanguages:
+  - en
+  - zh
+  - ja
+  - ru
 
 directories:
   output: release
@@ -98,7 +108,8 @@ mac:
 dmg:
   # Explicit volume size prevents dmg-builder@1.2.0 auto-calculation from
   # underestimating (causes "No space left on device" for large app bundles).
-  # The final .dmg is bzip2-compressed, so this only affects the temp volume.
+  # ULFO (lzfse) is much faster than UDBZ (bzip2) on Apple Silicon runners.
+  format: ULFO
   size: 2g
   background: resources/dmg-background.png
   icon: resources/icons/icon.icns
