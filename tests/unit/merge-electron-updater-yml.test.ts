@@ -125,6 +125,38 @@ describe('merge-electron-updater-yml', () => {
     expect(() => readFileSync(join(outDir, 'builder-debug.yml'))).toThrow();
   });
 
+  it('prefers the arch-matching copy when the same dmg appears in both mac jobs', () => {
+    const root = mkdtempSync(join(tmpdir(), 'smartx-yml-arch-dup-'));
+    tempRoots.push(root);
+    const armDir = join(root, 'release-mac-arm64');
+    const x64Dir = join(root, 'release-mac-x64');
+    mkdirSync(armDir, { recursive: true });
+    mkdirSync(x64Dir, { recursive: true });
+
+    writeFileSync(join(armDir, 'latest-mac.yml'), stringifyUpdaterYml(updaterDoc({
+      arch: 'arm64',
+      date: '2026-09-10T07:30:00.000Z',
+    })));
+    writeFileSync(join(x64Dir, 'latest-mac.yml'), stringifyUpdaterYml({
+      ...updaterDoc({ arch: 'x64', date: '2026-09-10T07:20:00.000Z' }),
+      files: [
+        ...updaterDoc({ arch: 'x64', date: '2026-09-10T07:20:00.000Z' }).files,
+        { url: 'SmartX-0.5.5-mac-arm64.dmg', sha512: 'wrong-arm-sha', size: 1 },
+      ],
+    }));
+    writeFileSync(join(armDir, 'SmartX-0.5.5-mac-arm64.dmg'), 'arm-dmg-from-arm-job');
+    writeFileSync(join(x64Dir, 'SmartX-0.5.5-mac-arm64.dmg'), 'arm-dmg-from-x64-job');
+    writeFileSync(join(x64Dir, 'SmartX-0.5.5-mac-x64.dmg'), 'x64-dmg');
+
+    flattenReleaseArtifacts(root, join(root, 'out'));
+
+    expect(readFileSync(join(root, 'out', 'SmartX-0.5.5-mac-arm64.dmg'), 'utf8')).toBe('arm-dmg-from-arm-job');
+    expect(readFileSync(join(root, 'out', 'SmartX-0.5.5-mac-x64.dmg'), 'utf8')).toBe('x64-dmg');
+    const merged = parseUpdaterYml(readFileSync(join(root, 'out', 'latest-mac.yml'), 'utf8'));
+    const armDmg = merged.files.find((file: { url: string }) => file.url.endsWith('mac-arm64.dmg'));
+    expect(armDmg?.sha512).toBe(ARM_SHA);
+  });
+
   it('throws when the same basename has different non-yml content', () => {
     const root = mkdtempSync(join(tmpdir(), 'smartx-yml-conflict-'));
     tempRoots.push(root);

@@ -7,6 +7,10 @@
  * basenames — this script merges those files and copies every other artifact
  * into a single output directory.
  *
+ * Arch-specific installers may appear in more than one job folder (Apple Silicon
+ * hosts can emit an extra arm64 copy while building x64). Prefer the copy from
+ * the matching `release-mac-<arch>` artifact directory instead of failing.
+ *
  * Zero npm dependencies so publish/upload-oss can run it after checkout only.
  */
 import {
@@ -31,7 +35,47 @@ export function stringifyUpdaterYml(doc) {
   return `${stringifyYaml(doc, 0)}\n`;
 }
 
-export function mergeUpdaterDocuments(docs) {
+export function archTokenFromBasename(fileName) {
+  const match = String(fileName).match(/-(?:mac|win)-(arm64|x64)(?:\.|$)/i)
+    || String(fileName).match(/-linux-(arm64|amd64|x64|x86_64)(?:\.|$)/i);
+  if (!match) return null;
+  const raw = match[1].toLowerCase();
+  if (raw === 'amd64' || raw === 'x86_64') return 'x64';
+  return raw;
+}
+
+export function pathMatchesArch(filePath, arch) {
+  if (!arch) return false;
+  const normalized = filePath.replace(/\\/g, '/').toLowerCase();
+  const markers = [`release-mac-${arch}`, `mac-${arch}`, `release-win-${arch}`, `release-linux-${arch}`];
+  return markers.some((marker) => {
+    const token = `/${marker}`;
+    return normalized.includes(`${token}/`) || normalized.endsWith(token);
+  });
+}
+
+export function pickPreferredPath(base, paths) {
+  if (paths.length === 1) return paths[0];
+
+  const buffers = paths.map((filePath) => readFileSync(filePath));
+  const allEqual = buffers.every((buf) => Buffer.compare(buf, buffers[0]) === 0);
+  if (allEqual) return paths[0];
+
+  const arch = archTokenFromBasename(base);
+  const matching = arch ? paths.filter((filePath) => pathMatchesArch(filePath, arch)) : [];
+  if (matching.length === 1) {
+    const skipped = paths.filter((filePath) => filePath !== matching[0]);
+    console.log(`Using ${matching[0]} for ${base}; ignored ${skipped.length} other copy/copies:`);
+    for (const filePath of skipped) console.log(`  - ${filePath}`);
+    return matching[0];
+  }
+
+  throw new Error(
+    `Duplicate basename with different content: ${base}\n${paths.map((filePath) => `  - ${filePath}`).join('\n')}`,
+  );
+}
+
+export function mergeUpdaterDocuments(docs, sources = []) {
   if (!Array.isArray(docs) || docs.length === 0) {
     throw new Error('No updater documents to merge');
   }
@@ -41,15 +85,25 @@ export function mergeUpdaterDocuments(docs) {
     throw new Error(`Cannot merge updater yml with different versions: ${versions.join(', ')}`);
   }
 
-  const files = [];
-  const seen = new Set();
-  for (const doc of docs) {
+  const filesByUrl = new Map();
+  docs.forEach((doc, index) => {
+    const source = sources[index] || '';
     for (const file of Array.isArray(doc?.files) ? doc.files : []) {
-      if (!file || typeof file.url !== 'string' || seen.has(file.url)) continue;
-      seen.add(file.url);
-      files.push({ ...file });
+      if (!file || typeof file.url !== 'string') continue;
+      const existing = filesByUrl.get(file.url);
+      if (!existing) {
+        filesByUrl.set(file.url, { file: { ...file }, source });
+        continue;
+      }
+      const arch = archTokenFromBasename(file.url);
+      const existingMatch = Boolean(arch && pathMatchesArch(existing.source, arch));
+      const nextMatch = Boolean(arch && pathMatchesArch(source, arch));
+      if (nextMatch && !existingMatch) {
+        filesByUrl.set(file.url, { file: { ...file }, source });
+      }
     }
-  }
+  });
+  const files = [...filesByUrl.values()].map((entry) => entry.file);
   files.sort((a, b) => a.url.localeCompare(b.url));
 
   const merged = { ...docs[0], files };
@@ -84,7 +138,7 @@ export function flattenReleaseArtifacts(inDir, outDir) {
     const dest = path.join(outDir, base);
     if (isMacUpdaterYml(base)) {
       const docs = paths.map((filePath) => parseUpdaterYml(readFileSync(filePath, 'utf8')));
-      const merged = mergeUpdaterDocuments(docs);
+      const merged = mergeUpdaterDocuments(docs, paths);
       writeFileSync(dest, stringifyUpdaterYml(merged), 'utf8');
       const urls = (merged.files || []).map((file) => file.url);
       console.log(`Merged ${base} from ${paths.length} source(s): ${urls.join(', ') || '(no files)'}`);
@@ -92,17 +146,7 @@ export function flattenReleaseArtifacts(inDir, outDir) {
       continue;
     }
 
-    if (paths.length > 1) {
-      const first = readFileSync(paths[0]);
-      for (const extra of paths.slice(1)) {
-        const other = readFileSync(extra);
-        if (Buffer.compare(first, other) !== 0) {
-          throw new Error(`Duplicate basename with different content: ${base}`);
-        }
-      }
-    }
-
-    copyFileSync(paths[0], dest);
+    copyFileSync(pickPreferredPath(base, paths), dest);
     written.push(dest);
   }
 

@@ -201,7 +201,7 @@ jobs:
           echo "File descriptor limit: $(ulimit -n)"
           echo "mac arch: ${{ matrix.arch }}"
           pnpm run package
-          CSC_IDENTITY_AUTO_DISCOVERY=false node scripts/run-electron-builder.mjs --mac --${{ matrix.arch }} --publish never --config.mac.notarize=false --config.mac.identity=null
+          CSC_IDENTITY_AUTO_DISCOVERY=false node scripts/run-electron-builder.mjs --mac dmg:${{ matrix.arch }} zip:${{ matrix.arch }} --publish never --config.mac.notarize=false --config.mac.identity=null
 
       - name: Prepare Apple notarization API key
         if: matrix.platform == 'mac' && steps.release-channel.outputs.is_internal != 'true'
